@@ -1,8 +1,8 @@
 lc3grade
 ========
 
-`lc3grade.py` is an autograder for CS 2110 LC-3 homeworks. After you run
-`SubmissionFix.py`, run it in the directory of student submission
+`lc3grade.py` is a Python **3** autograder for CS 2110 LC-3 homeworks. After
+you run `SubmissionFix.py`, run it in the directory of student submission
 subdirectories to run students' LC-3 assembly against a set of lc3tests defined
 in `lc3grade.config`. It saves lc3test output in each student directory as
 `gradeLog.txt`.
