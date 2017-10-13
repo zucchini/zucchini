@@ -38,6 +38,18 @@ class Grader:
 
         if not self.students:
             raise FileNotFoundError('no student submissions found')
+        elif not os.path.isdir(submissions_dir):
+            raise FileNotFoundError("could not find submissions dir `{}'"
+                                    .format(submissions_dir))
+        else:
+            # Check for non-existent students here so we blow up at startup
+            # instead of right in the middle of grading, which would be
+            # annoying
+            for student in self.students:
+                path = os.path.join(self.submissions_dir, student)
+                if not os.path.isdir(path):
+                    raise FileNotFoundError("could not find student submission "
+                                            "dir `{}'".format(path))
 
     def parse_config(self, config_fp, tests_dir):
         """Parse config in the file-like object config_fp"""
@@ -309,6 +321,7 @@ def main(argv):
 
     grader = Grader(config_fp=args.config, submissions_dir=args.submissions_dir,
                     tests_dir=args.tests_dir, students=students)
+
 
     for student in grader.get_students():
         # prompt() returns false when it gets `q', so exit in that case
