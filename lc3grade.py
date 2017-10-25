@@ -24,7 +24,8 @@ class Grader:
     grade
     """
 
-    def __init__(self, config_fp, submissions_dir, tests_dir, students=None):
+    def __init__(self, config_fp, submissions_dir, tests_dir, students=None,
+                 exclude_students=None):
         """Create a Grader by parsing config_fp and scanning submissions_dir"""
 
         # Round up for the sake of these keeeeds
@@ -35,6 +36,9 @@ class Grader:
         self.tests_dir = tests_dir
         self.students = students if students is not None else \
                         self.find_students(submissions_dir)
+        if exclude_students is not None:
+            self.students = [ student for student in self.students
+                              if student not in exclude_students ]
 
         if not self.students:
             raise FileNotFoundError('no student submissions found')
@@ -340,6 +344,9 @@ def main(argv):
     parser.add_argument('-s', '--students', '--student', metavar='STUDENTS', default=None,
                         help='colon-delimited list of students to grade '
                              '(example: Adams, Austin:Murray, Kyle)')
+    parser.add_argument('-e', '--exclude-students', '--exclude-student', metavar='STUDENTS', default=None,
+                        help='colon-delimited list of students to exclude from grading '
+                             '(example: Adams, Austin:Murray, Kyle)')
     args = parser.parse_args(argv[1:])
 
     # Strip these characters from student names
@@ -349,7 +356,8 @@ def main(argv):
                [student.strip(STRIP) for student in args.students.split(':') if student.strip(STRIP)]
 
     grader = Grader(config_fp=args.config, submissions_dir=args.submissions_dir,
-                    tests_dir=args.tests_dir, students=students)
+                    tests_dir=args.tests_dir, students=students,
+                    exclude_students=args.exclude_students)
 
 
     for student in grader.get_students():
