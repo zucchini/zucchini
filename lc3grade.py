@@ -25,7 +25,7 @@ class Grader:
     """
 
     def __init__(self, config_fp, submissions_dir, tests_dir, students=None,
-                 exclude_students=None):
+                 exclude_students=None, skip_to=None):
         """Create a Grader by parsing config_fp and scanning submissions_dir"""
 
         # Round up for the sake of these keeeeds
@@ -39,6 +39,8 @@ class Grader:
         if exclude_students is not None:
             self.students = [ student for student in self.students
                               if student not in exclude_students ]
+        if skip_to is not None:
+            self.students = self.students[self.students.index(skip_to):]
 
         if not self.students:
             raise FileNotFoundError('no student submissions found')
@@ -347,17 +349,24 @@ def main(argv):
     parser.add_argument('-e', '--exclude-students', '--exclude-student', metavar='STUDENTS', default=None,
                         help='colon-delimited list of students to exclude from grading '
                              '(example: Adams, Austin:Murray, Kyle)')
+    parser.add_argument('-S', '--skip-to', '--skip', metavar='STUDENT', default=None,
+                        help='skip straight to this student for grading, '
+                             'ignoring previous students in the list. '
+                             'useful if you accidentally hit control-C while grading')
     args = parser.parse_args(argv[1:])
 
     # Strip these characters from student names
     STRIP = ' \t\n/'
+    strip = lambda student: None if student is None else student.strip(STRIP)
     # Choose : as the delimiter since it's not reserved in bash (unlike ;)
-    students = None if args.students is None else \
-               [student.strip(STRIP) for student in args.students.split(':') if student.strip(STRIP)]
+    splitstrip = lambda students: None if students is None else \
+                                  [strip(student) for student in students.split(':') \
+                                  if strip(student)]
 
     grader = Grader(config_fp=args.config, submissions_dir=args.submissions_dir,
-                    tests_dir=args.tests_dir, students=students,
-                    exclude_students=args.exclude_students)
+                    tests_dir=args.tests_dir, students=splitstrip(args.students),
+                    exclude_students=splitstrip(args.exclude_students),
+                    skip_to=strip(args.skip_to))
 
 
     for student in grader.get_students():
