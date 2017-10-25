@@ -226,6 +226,11 @@ class Test:
                 'warning_deduction': d.Decimal(0),
                 'description': self.description, 'output': b'(SKIPPED)\n'}
 
+def pager(stdin):
+    """Open less to view the output of a test"""
+
+    subprocess.run(['less'], input=stdin)
+
 # XXX This function is really ugly (sorry), fix it
 def prompt(grader, student):
     """
@@ -290,16 +295,24 @@ def prompt(grader, student):
 
                 splat = response.split(maxsplit=1)
                 if len(splat) == 1:
+                    buf = b''
                     # Print full output
                     for test in graded['tests']:
-                        print("Output for `{}':\n------------\n".format(test['description']))
-                        sys.stdout.buffer.write(test['output'])
+                        buf += "Output for `{}':\nWarning deduction: -{}\n------------\n" \
+                               .format(test['description'],
+                                       test['warning_deduction']).encode()
+                        buf += test['output']
+                        # Separate output of different tests with some blank lines
+                        buf += b'\n\n'
+                    pager(buf)
                 else:
                     # Print output for specific test
                     test_arg = splat[1]
                     for test in graded['tests']:
                         if test['description'] == test_arg:
-                            sys.stdout.buffer.write(test['output'])
+                            pager('Warning deduction: -{}\n\n'
+                                  .format(test['warning_deduction']).encode() +
+                                  test['output'])
                             break
                     else:
                         print("couldn't find that test. choices:\n{}"
