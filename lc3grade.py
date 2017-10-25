@@ -59,7 +59,8 @@ class Grader:
         self.tests = [Test(description=self.config.get(section, 'description'),
                            xml_file=os.path.join(tests_dir, section),
                            asm_file=self.config.get(section, 'asmfile'),
-                           weight=self.config.getint(section, 'weight'))
+                           weight=self.config.getint(section, 'weight'),
+                           warning_deduction=self.config.getint(section, 'warning_deduction'))
                       for section in self.config.sections() if section != 'META']
         total_weights = sum(int(t.weight) for t in self.tests)
         if total_weights == 0:
@@ -108,9 +109,10 @@ class Grader:
                            .format(self.description, student, now,
                                    self.round(score)).encode())
             for test in tests:
-                gradelog.write('\n{}\nScore: {}/{}\n--------\n\n'
+                gradelog.write('\n{}\nScore: {}/{} (-{} warning deduction)\n------------------\n\n'
                                .format(test['description'], self.round(test['score']),
-                                       self.round(test['max_score'])).encode())
+                                       self.round(test['max_score']),
+                                       self.round(test['warning_deduction'])).encode())
                 gradelog.write(test['output'])
 
         return {'score': score, 'tests': tests}
@@ -137,13 +139,15 @@ class Test:
     """
 
     REGEX_RESULT_LINE = re.compile(r'^Run\s+(?P<run_number>\d+)\s+'
-                                   r'Grade:\s+(?P<score>\d+)/(?P<max_score>\d+)\s+')
+                                   r'Grade:\s+(?P<score>\d+)/(?P<max_score>\d+)\s+.*?'
+                                   r'Warnings:\s+(?P<warnings>\d+)$')
 
-    def __init__(self, description, xml_file, asm_file, weight):
+    def __init__(self, description, xml_file, asm_file, weight, warning_deduction):
         self.description = description
         self.xml_file = xml_file
         self.asm_file = asm_file
         self.weight = weight
+        self.warning_deduction = warning_deduction
 
         if not os.path.isfile(xml_file):
             raise FileNotFoundError("could not find xml file `{}'".format(xml_file))
@@ -182,6 +186,7 @@ class Test:
         # piazza" line, and then grab the line for each run
         result_lines = process.stdout.splitlines()[-1 - runs:-1]
 
+        found_warnings = False
         percentages_min = d.Decimal('Infinity')
 
         for i, result_line in enumerate(result_lines):
@@ -193,13 +198,23 @@ class Test:
             score = int(match.group('score'))
             max_score = int(match.group('max_score'))
             percent = d.Decimal(score) / d.Decimal(max_score)
+            found_warnings = found_warnings or int(match.group('warnings')) > 0
 
             if percent < percentages_min:
                 percentages_min = percent
 
         weight = d.Decimal(self.weight)
         score = percentages_min * weight
+
+        if found_warnings:
+            # Don't deduct more points than they even have
+            warning_deduction = min(score, d.Decimal(self.warning_deduction))
+        else:
+            warning_deduction = d.Decimal(0)
+        score -= warning_deduction
+
         return {'score': score, 'max_score': weight,
+                'warning_deduction': warning_deduction,
                 'description': self.description, 'output': process.stdout}
 
     def skip(self):
@@ -208,6 +223,7 @@ class Test:
         for skipping this test.
         """
         return {'score': d.Decimal(0), 'max_score': d.Decimal(self.weight),
+                'warning_deduction': d.Decimal(0),
                 'description': self.description, 'output': b'(SKIPPED)\n'}
 
 # XXX This function is really ugly (sorry), fix it
