@@ -9,6 +9,8 @@ import subprocess
 import sys
 import os
 import os.path
+import tempfile
+import shutil
 from configparser import ConfigParser
 from datetime import datetime
 
@@ -24,21 +26,20 @@ class Grader:
     grade
     """
 
-    def __init__(self, config_fp, submissions_dir, tests_dir, students=None,
+    def __init__(self, config_fp, submissions_dir, students=None,
                  exclude_students=None, skip_to=None):
         """Create a Grader by parsing config_fp and scanning submissions_dir"""
 
         # Round up for the sake of these keeeeds
         d.getcontext().rounding = d.ROUND_UP
 
-        self.parse_config(config_fp, tests_dir)
+        self.parse_config(config_fp)
         self.submissions_dir = submissions_dir
-        self.tests_dir = tests_dir
         self.students = students if students is not None else \
                         self.find_students(submissions_dir)
         if exclude_students is not None:
-            self.students = [ student for student in self.students
-                              if student not in exclude_students ]
+            self.students = [student for student in self.students
+                             if student not in exclude_students]
         if skip_to is not None:
             self.students = self.students[self.students.index(skip_to):]
 
@@ -57,17 +58,23 @@ class Grader:
                     raise FileNotFoundError("could not find student submission "
                                             "dir `{}'".format(path))
 
-    def parse_config(self, config_fp, tests_dir):
+    def parse_config(self, config_fp):
         """Parse config in the file-like object config_fp"""
 
         self.config = ConfigParser()
         self.config.read_file(config_fp)
-        self.tests = [Test(description=self.config.get(section, 'description'),
-                           xml_file=os.path.join(tests_dir, section),
-                           asm_file=self.config.get(section, 'asmfile'),
-                           weight=self.config.getint(section, 'weight'),
-                           warning_deduction=self.config.getint(section, 'warning_deduction'))
-                      for section in self.config.sections() if section != 'META']
+
+        # Detect backend
+        if ('LC-3' in self.config) == ('C' in self.config):
+            raise ValueError('You need to configure either the LC-3 or C '
+                             'backend, but not both')
+        else:
+            self.backend = CBackend(**self.config['C']) if 'C' in self.config else \
+                           LC3Backend(**self.config['LC-3'])
+
+        self.tests = [self.backend.new_test(name=section, **self.config[section]) \
+                      for section in self.config.sections() \
+                      if section not in ('META', 'C', 'LC-3')]
         total_weights = sum(int(t.weight) for t in self.tests)
         if total_weights == 0:
             raise ValueError('Test weights add up to 0 instead of 100. Did '
@@ -75,7 +82,6 @@ class Grader:
         elif total_weights != 100:
             raise ValueError('Test weights do not add up to 100')
         self.description = self.config.get('META', 'description')
-        self.runs = self.config.getint('META', 'runs', fallback=8)
         self.round_ = self.config.getint('META', 'round', fallback=2)
         self.human = self.config.get('META', 'human')
 
@@ -104,8 +110,14 @@ class Grader:
             skip_tests = []
 
         path = os.path.join(self.submissions_dir, student)
-        tests = [(test.skip() if test in skip_tests else test.run(path, self.runs))
-                 for test in self.tests]
+
+        try:
+            self.backend.student_setup(path)
+            tests = [(test.skip() if test in skip_tests else test.run(path))
+                     for test in self.tests]
+        finally:
+            self.backend.student_cleanup(path)
+
         score = sum(test['score'] for test in tests)
 
         # Write gradeLog.txt
@@ -115,10 +127,12 @@ class Grader:
                            .format(self.description, student, now,
                                    self.round(score)).encode())
             for test in tests:
-                gradelog.write('\n{}\nScore: {}/{} (-{} warning deduction)\n------------------\n\n'
+                deductions = ','.join('{} deduction: -{}'.format(deduction, points)
+                                      for deduction, points in test['deductions'].items())
+                gradelog.write('\n{}\nScore: {}/{} ({})\n------------------\n\n'
                                .format(test['description'], self.round(test['score']),
                                        self.round(test['max_score']),
-                                       self.round(test['warning_deduction'])).encode())
+                                       deductions).encode())
                 gradelog.write(test['output'])
 
         return {'score': score, 'tests': tests}
@@ -127,6 +141,92 @@ class Grader:
         """Round a grade to X decimal places"""
         return round(grade, self.round_)
 
+class Backend:
+    """
+    Deal with an external grader, currently either lc3test or a C libcheck
+    tester. Perform inital setup for a student to use this grader and then
+    create Test instances ready-to-go
+    """
+
+    def student_setup(self, student_dir):
+        """Do pre-grading setup for a given student"""
+        pass
+
+    def student_cleanup(self, student_dir):
+        """Do post-grading cleanup for a given student"""
+        pass
+
+    def new_test(self, description, weight):
+        """Create a Test object for this Backend with the given config keys"""
+        pass
+
+class LC3Backend(Backend):
+    """Run tests with Brandon's lc3test"""
+
+    def __init__(self, runs=8):
+        self.runs = int(runs)
+
+    def new_test(self, **kwargs):
+        return LC3Test(runs=self.runs, **kwargs)
+
+class CBackend(Backend):
+    """Run tests through a libcheck C tester"""
+
+    def __init__(self, timeout, cfiles, tests_dir, build_cmd, run_cmd, valgrind_cmd):
+        self.timeout = float(timeout)
+        self.cfiles = cfiles.split()
+        self.tests_dir = tests_dir
+        self.build_cmd = build_cmd
+        self.run_cmd = run_cmd
+        self.valgrind_cmd = valgrind_cmd
+        self.tmpdir = None
+
+    def student_setup(self, student_dir):
+        """
+        Create a temporary directory inside the student directory and
+        compile a student's code by running build_cmd from
+        lc3grade.config
+        """
+
+        self.tmpdir = tempfile.mkdtemp(prefix='lc3grade-', dir=student_dir)
+
+        for graderfile in os.listdir(self.tests_dir):
+            shutil.copy2(os.path.join(self.tests_dir, graderfile),
+                         os.path.join(self.tmpdir, graderfile))
+
+        for cfile in self.cfiles:
+            try:
+                cfile_path = CTest.find_file(cfile, student_dir)
+            except FileNotFoundError as err:
+                raise SetupError(err)
+
+            shutil.copy(cfile_path, os.path.join(self.tmpdir, cfile))
+
+        process = subprocess.run(self.build_cmd, cwd=self.tmpdir, shell=True)
+        if process.returncode != 0:
+            raise SetupError('build command {} exited with nonzero exit code: {}'
+                             .format(self.build_cmd, process.returncode))
+
+    def student_cleanup(self, student_dir):
+        """
+        Delete temporary build/test directory created by student_setup()
+        """
+
+        shutil.rmtree(self.tmpdir)
+
+    def new_test(self, **kwargs):
+        """
+        Create a C tester instance which knows about the temporary directory
+        created by student_setup()
+        """
+
+        return CTest(timeout=self.timeout, get_tmpdir=lambda: self.tmpdir,
+                     run_cmd=self.run_cmd, valgrind_cmd=self.valgrind_cmd,
+                     **kwargs)
+
+class SetupError(Exception):
+    """An error occurring before actually running any tests"""
+    pass
 
 class TestError(Exception):
     """A fatal error in running a test XML"""
@@ -141,6 +241,105 @@ class TestError(Exception):
 
 class Test:
     """
+    Run a lc3test XML file or a libcheck test case and scrape its output to
+    calculate the score for this test
+    """
+
+    def __init__(self, name, description, weight):
+        self.name = name
+        self.description = description
+        self.weight = weight
+
+    @staticmethod
+    def find_file(filename, directory):
+        """
+        Walk through the directory tree to find asm_file. Some students decide
+        to put their submission in subdirectories for no reason.
+        """
+
+        for dirpath, _, files in os.walk(directory):
+            if filename in files:
+                return os.path.join(dirpath, filename)
+
+        raise FileNotFoundError("Could not find deliverable `{}' in "
+                                "directory `{}'!"
+                                .format(filename, directory))
+
+    def run(self, directory):
+        """Run this test, returning the weighted grade"""
+        pass
+
+    def skip(self):
+        """
+        Return a result dict imitating the one returned by run(), except
+        for skipping this test.
+        """
+        return {'score': d.Decimal(0), 'max_score': d.Decimal(self.weight),
+                'description': self.description, 'output': b'(SKIPPED)\n',
+                'deductions': {}}
+
+class CTest(Test):
+    """Run a libcheck test case both raw and through valgrind"""
+
+    REGEX_SUMMARY = re.compile(r'\d+%:\s+Checks:\s+(?P<total>\d+),\s+'
+                               r'Failures:\s+(?P<failures>\d+),\s+'
+                               r'Errors:\s+(?P<errors>\d+)')
+
+    def __init__(self, name, description, weight, get_tmpdir, run_cmd,
+                 valgrind_cmd, timeout, leak_deduction=0):
+        super().__init__(name, description, weight)
+        self.testcase = name
+        self.get_tmpdir = get_tmpdir
+        self.run_cmd = run_cmd
+        self.valgrind_cmd = valgrind_cmd
+        self.timeout = timeout
+        self.leak_deduction = int(leak_deduction)
+
+    def __str__(self):
+        return "test case `{}'".format(self.testcase)
+
+    def run(self, directory):
+        leak_deduction = d.Decimal(0)
+        output = b''
+        process = subprocess.run(self.run_cmd.format(self.testcase),
+                                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                 cwd=self.get_tmpdir(), shell=True,
+                                 timeout=self.timeout)
+        output += process.stdout
+
+        if process.returncode != 0:
+            raise TestError(self, 'tester returned {} != 0: {}'
+                                  .format(process.returncode,
+                                          process.stdout.decode().strip()))
+
+        summary = process.stdout.splitlines()[1]
+        match = self.REGEX_SUMMARY.match(summary.decode())
+
+        if not match:
+            raise TestError(self, 'tester output is not in the expected libcheck format')
+
+        total = d.Decimal(match.group('total'))
+        failed = d.Decimal(match.group('errors')) + d.Decimal(match.group('failures'))
+        score = d.Decimal(self.weight) * ((total - failed) / total)
+
+        valgrind_process = subprocess.run(self.valgrind_cmd.format(self.testcase),
+                                          stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                          cwd=self.get_tmpdir(), shell=True,
+                                          timeout=self.timeout)
+        output += b'\nValgrind\n--------\n'
+        output += valgrind_process.stdout
+
+        if valgrind_process.returncode != 0:
+            leak_deduction = min(score, d.Decimal(self.leak_deduction))
+            score -= leak_deduction
+
+        weight = d.Decimal(self.weight)
+        return {'score': score, 'max_score': weight,
+                'deductions': {'leak': leak_deduction},
+                'description': self.description, 'output': output}
+
+class LC3Test(Test):
+    """
     Associate a test xml file with the .asm file to test and a weight.
     """
 
@@ -148,38 +347,30 @@ class Test:
                                    r'Grade:\s+(?P<score>\d+)/(?P<max_score>\d+)\s+.*?'
                                    r'Warnings:\s+(?P<warnings>\d+)$')
 
-    def __init__(self, description, xml_file, asm_file, weight, warning_deduction):
-        self.description = description
-        self.xml_file = xml_file
-        self.asm_file = asm_file
-        self.weight = weight
-        self.warning_deduction = warning_deduction
+    def __init__(self, name, description, weight, asmfile, warning_deduction, runs):
+        super().__init__(name, description, weight)
+        self.xml_file = name
+        self.asm_file = asmfile
+        self.warning_deduction = int(warning_deduction)
+        self.runs = runs
 
-        if not os.path.isfile(xml_file):
-            raise FileNotFoundError("could not find xml file `{}'".format(xml_file))
+        if not os.path.isfile(self.xml_file):
+            raise FileNotFoundError("could not find xml file `{}'".format(self.xml_file))
 
     def __str__(self):
         return "test `{}' on `{}'".format(self.xml_file, self.asm_file)
 
-    def find_asm(self, directory):
-        """
-        Walk through the directory tree to find asm_file. Some students decide
-        to put their submission in subdirectories for no reason.
-        """
 
-        for dirpath, _, files in os.walk(directory):
-            if self.asm_file in files:
-                return os.path.join(dirpath, self.asm_file)
-
-        raise TestError(self, "Could not find asm `{}' in directory `{}'!"
-                              .format(self.asm_file, directory))
-
-    def run(self, directory, runs):
+    def run(self, directory):
         """Run this test, returning the weighted grade"""
 
-        asm_path = self.find_asm(directory)
+        try:
+            asm_path = self.find_file(self.asm_file, directory)
+        except FileNotFoundError as err:
+            raise TestError(self, str(err))
+
         process = subprocess.run(['lc3test', self.xml_file, asm_path,
-                                  '-runs={}'.format(runs)],
+                                  '-runs={}'.format(self.runs)],
                                  stdout=subprocess.PIPE,
                                  stderr=subprocess.STDOUT)
 
@@ -190,7 +381,7 @@ class Test:
 
         # Skip the last line because it's the "post your whole output on
         # piazza" line, and then grab the line for each run
-        result_lines = process.stdout.splitlines()[-1 - runs:-1]
+        result_lines = process.stdout.splitlines()[-1 - self.runs:-1]
 
         found_warnings = False
         percentages_min = d.Decimal('Infinity')
@@ -220,17 +411,8 @@ class Test:
         score -= warning_deduction
 
         return {'score': score, 'max_score': weight,
-                'warning_deduction': warning_deduction,
+                'deductions': {'warnings': warning_deduction},
                 'description': self.description, 'output': process.stdout}
-
-    def skip(self):
-        """
-        Return a result dict imitating the one returned by run(), except
-        for skipping this test.
-        """
-        return {'score': d.Decimal(0), 'max_score': d.Decimal(self.weight),
-                'warning_deduction': d.Decimal(0),
-                'description': self.description, 'output': b'(SKIPPED)\n'}
 
 def pager(stdin):
     """Open less to view the output of a test"""
@@ -251,6 +433,23 @@ def prompt(grader, student):
         try:
             if state == 'retry':
                 graded = grader.grade(student, skip_tests=skip_tests)
+        except SetupError as err:
+            print("Setup error for `{}': {}".format(student, err))
+            try:
+                response = input('→ Try again? N will give a 0 for this student [y/N/q] ').lower()
+            except (KeyboardInterrupt, EOFError):
+                # For courtesy, leave the shell prompt on a new line
+                print()
+                # Exit now
+                return False
+
+            if response == 'q':
+                # Exit now
+                return False
+            elif response != 'y':
+                print("Final grade for `{}`: 0 -{}".format(student, grader.get_human()))
+                return True
+            state = 'retry'
         except TestError as err:
             print("Testing error for `{}': {}".format(student, err))
             try:
@@ -282,7 +481,7 @@ def prompt(grader, student):
 
             try:
                 response = input('→ Try again? '
-                                 '(Or print lc3test output (o)?) [y/N/o [testname]/q] ')
+                                 '(Or print tester output (o)?) [y/N/o [testname]/q] ')
             except (KeyboardInterrupt, EOFError):
                 # For courtesy, leave the shell prompt on a new line
                 print()
@@ -304,9 +503,12 @@ def prompt(grader, student):
                     buf = b''
                     # Print full output
                     for test in graded['tests']:
-                        buf += "Output for `{}':\nWarning deduction: -{}\n------------\n" \
-                               .format(test['description'],
-                                       test['warning_deduction']).encode()
+                        buf += "Output for `{}':\n".format(test['description']).encode()
+                        for deduction, points in test['deductions'].items():
+                            buf += "{} deduction: -{}\n" \
+                                   .format(deduction, points) \
+                                   .encode()
+                        buf += "------------\n".encode()
                         buf += test['output']
                         # Separate output of different tests with some blank lines
                         buf += b'\n\n'
@@ -316,8 +518,10 @@ def prompt(grader, student):
                     test_arg = splat[1]
                     for test in graded['tests']:
                         if test['description'] == test_arg:
-                            pager('Warning deduction: -{}\n\n'
-                                  .format(test['warning_deduction']).encode() +
+                            pager(''.join('{} deduction: -{}\n'
+                                          .format(deduction, points)
+                                          for deduction, points
+                                          in test['deductions'].items()).encode() +
                                   test['output'])
                             break
                     else:
@@ -335,18 +539,18 @@ def main(argv):
 
     parser = argparse.ArgumentParser(prog='python3 grader.py',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-                                     description='Grade LC-3 homework submissions (homework 6,7). '
-                                                 'Run SubmissionFix.py first please.')
+                                     description='Grade homework submissions according to '
+                                                 'lc3grade.config. Run SubmissionFix.py '
+                                                 'first please.')
     parser.add_argument('-c', '--config', metavar='CONFIG_PATH', default='lc3grade.config',
                         type=argparse.FileType('r'), help='path to config file')
     parser.add_argument('-d', '--submissions-dir', metavar='DIR_PATH', default='.',
                         help='path to submissions directory')
-    parser.add_argument('-t', '--tests-dir', metavar='TESTSDIR_PATH', default='.',
-                        help='path to directory containing test xml files')
     parser.add_argument('-s', '--students', '--student', metavar='STUDENTS', default=None,
                         help='colon-delimited list of students to grade '
                              '(example: Adams, Austin:Murray, Kyle)')
-    parser.add_argument('-e', '--exclude-students', '--exclude-student', metavar='STUDENTS', default=None,
+    parser.add_argument('-e', '--exclude-students', '--exclude-student', metavar='STUDENTS',
+                        default=None,
                         help='colon-delimited list of students to exclude from grading '
                              '(example: Adams, Austin:Murray, Kyle)')
     parser.add_argument('-S', '--skip-to', '--skip', metavar='STUDENT', default=None,
@@ -356,15 +560,14 @@ def main(argv):
     args = parser.parse_args(argv[1:])
 
     # Strip these characters from student names
-    STRIP = ' \t\n/'
-    strip = lambda student: None if student is None else student.strip(STRIP)
+    strip = lambda student: None if student is None else student.strip(' \t\n/')
     # Choose : as the delimiter since it's not reserved in bash (unlike ;)
     splitstrip = lambda students: None if students is None else \
                                   [strip(student) for student in students.split(':') \
                                   if strip(student)]
 
     grader = Grader(config_fp=args.config, submissions_dir=args.submissions_dir,
-                    tests_dir=args.tests_dir, students=splitstrip(args.students),
+                    students=splitstrip(args.students),
                     exclude_students=splitstrip(args.exclude_students),
                     skip_to=strip(args.skip_to))
 
