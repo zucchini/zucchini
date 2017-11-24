@@ -172,13 +172,15 @@ class LC3Backend(Backend):
 class CBackend(Backend):
     """Run tests through a libcheck C tester"""
 
-    def __init__(self, timeout, cfiles, tests_dir, build_cmd, run_cmd, valgrind_cmd):
+    def __init__(self, timeout, cfiles, tests_dir, build_cmd, run_cmd,
+                 valgrind_cmd, log_file):
         self.timeout = float(timeout)
         self.cfiles = cfiles.split()
         self.tests_dir = tests_dir
         self.build_cmd = build_cmd
         self.run_cmd = run_cmd
         self.valgrind_cmd = valgrind_cmd
+        self.log_file = log_file
         self.tmpdir = None
 
     def student_setup(self, student_dir):
@@ -202,7 +204,13 @@ class CBackend(Backend):
 
             shutil.copy(cfile_path, os.path.join(self.tmpdir, cfile))
 
-        process = subprocess.run(self.build_cmd, cwd=self.tmpdir, shell=True)
+        try:
+            process = subprocess.run(self.build_cmd.split(), cwd=self.tmpdir,
+                                     timeout=self.timeout)
+        except subprocess.TimeoutExpired:
+            raise TestError(self, 'timeout of {} seconds expired for build command'
+                                  .format(self.timeout))
+
         if process.returncode != 0:
             raise SetupError('build command {} exited with nonzero exit code: {}'
                              .format(self.build_cmd, process.returncode))
@@ -222,7 +230,7 @@ class CBackend(Backend):
 
         return CTest(timeout=self.timeout, get_tmpdir=lambda: self.tmpdir,
                      run_cmd=self.run_cmd, valgrind_cmd=self.valgrind_cmd,
-                     **kwargs)
+                     log_file=self.log_file, **kwargs)
 
 class SetupError(Exception):
     """An error occurring before actually running any tests"""
@@ -286,12 +294,13 @@ class CTest(Test):
                                r'Errors:\s+(?P<errors>\d+)')
 
     def __init__(self, name, description, weight, get_tmpdir, run_cmd,
-                 valgrind_cmd, timeout, leak_deduction=0):
+                 valgrind_cmd, log_file, timeout, leak_deduction=0):
         super().__init__(name, description, weight)
         self.testcase = name
         self.get_tmpdir = get_tmpdir
         self.run_cmd = run_cmd
         self.valgrind_cmd = valgrind_cmd
+        self.log_file = log_file
         self.timeout = timeout
         self.leak_deduction = int(leak_deduction)
 
@@ -301,19 +310,30 @@ class CTest(Test):
     def run(self, directory):
         leak_deduction = d.Decimal(0)
         output = b''
-        process = subprocess.run(self.run_cmd.format(self.testcase),
-                                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                 cwd=self.get_tmpdir(), shell=True,
-                                 timeout=self.timeout)
-        output += process.stdout
+
+            # Timeout doesn't work when I say stdout=subprocess.PIPE,
+            # stderr=subprocess.STDOUT.
+        process = subprocess.run(self.run_cmd.format(self.testcase).split(),
+                                 env={'CK_DEFAULT_TIMEOUT': str(self.timeout)},
+                                 cwd=self.get_tmpdir())
 
         if process.returncode != 0:
             raise TestError(self, 'tester returned {} != 0: {}'
                                   .format(process.returncode,
                                           process.stdout.decode().strip()))
 
-        summary = process.stdout.splitlines()[1]
-        match = self.REGEX_SUMMARY.match(summary.decode())
+        # Read the test summary from the log file so that student printf()s
+        # don't mess up our parsing.
+        try:
+            logfile_path = os.path.join(self.get_tmpdir(), self.log_file)
+            with open(logfile_path, 'rb') as logfile:
+                logfile_contents = logfile.read()
+                output += logfile_contents
+
+                summary = logfile_contents.splitlines()[-1]
+                match = self.REGEX_SUMMARY.match(summary.decode())
+        except FileNotFoundError:
+            raise TestError(self, 'could not locate test log file {}'.format(self.log_file))
 
         if not match:
             raise TestError(self, 'tester output is not in the expected libcheck format')
@@ -322,16 +342,29 @@ class CTest(Test):
         failed = d.Decimal(match.group('errors')) + d.Decimal(match.group('failures'))
         score = d.Decimal(self.weight) * ((total - failed) / total)
 
-        valgrind_process = subprocess.run(self.valgrind_cmd.format(self.testcase),
-                                          stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                          cwd=self.get_tmpdir(), shell=True,
-                                          timeout=self.timeout)
         output += b'\nValgrind\n--------\n'
-        output += valgrind_process.stdout
 
-        if valgrind_process.returncode != 0:
+        # When running valgrind, we need to set CK_FORK=no, else we're gonna
+        # get a ton of bogus reported memory leaks. However, CK_FORK=no will
+        # break libcheck timeouts, so make sure to handle timeouts here with
+        # subprocess
+        try:
+            valgrind_process = subprocess.run(self.valgrind_cmd.format(self.testcase).split(),
+                                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                              env={'CK_FORK': 'no'}, cwd=self.get_tmpdir(),
+                                              timeout=self.timeout)
+        except subprocess.TimeoutExpired:
+            output += b'valgrind timed out, deducting full leak penalty...\n'
+            valgrind_deduct=True
+        else:
+            output += valgrind_process.stdout
+            valgrind_deduct = valgrind_process.returncode != 0
+
+        if valgrind_deduct:
             leak_deduction = min(score, d.Decimal(self.leak_deduction))
             score -= leak_deduction
+        else:
+            leak_deduction = 0
 
         weight = d.Decimal(self.weight)
         return {'score': score, 'max_score': weight,

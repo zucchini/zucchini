@@ -104,6 +104,7 @@ int main(int argc, char **argv) {
     }
 
     SRunner *sr = srunner_create(s);
+    srunner_set_log(sr, "tests.log");
     srunner_run(sr, "math", testcase, CK_VERBOSE);
     srunner_free(sr);
     return 0;

@@ -34,14 +34,15 @@ write them. Each libcheck test case corresponds to a section in
 could contain the following sections (in addition to `[META]`):
 
     [C]
-    timeout=2
+    timeout=4
     ; These will be copied from student submission directories
     cfiles=my_math.c
     tests_dir=tests
+    log_file=tests.log
     build_cmd=make
     ; for these two, {} is replaced with the test suite to run
     run_cmd=./tests {}
-    valgrind_cmd=CK_FORK=no valgrind --leak-check=full --error-exitcode=1 ./tests {}
+    valgrind_cmd=valgrind --leak-check=full --error-exitcode=1 --show-leak-kinds=all --errors-for-leak-kinds=all ./tests {}
 
     [add]
     description=add()
