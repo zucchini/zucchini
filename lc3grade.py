@@ -137,6 +137,9 @@ class Grader:
 
         return {'score': score, 'tests': tests}
 
+    def write_raw_gradelog(self, student, data):
+        open(os.path.join(self.submissions_dir, student, 'gradeLog.txt'), 'wb').write(data)
+
     def round(self, grade):
         """Round a grade to X decimal places"""
         return round(grade, self.round_)
@@ -192,28 +195,31 @@ class CBackend(Backend):
 
         self.tmpdir = tempfile.mkdtemp(prefix='lc3grade-', dir=student_dir)
 
-        for graderfile in os.listdir(self.tests_dir):
-            shutil.copy2(os.path.join(self.tests_dir, graderfile),
-                         os.path.join(self.tmpdir, graderfile))
-
         for cfile in self.cfiles:
             try:
                 cfile_path = CTest.find_file(cfile, student_dir)
             except FileNotFoundError as err:
-                raise SetupError(err)
+                raise SetupError(str(err))
 
             shutil.copy(cfile_path, os.path.join(self.tmpdir, cfile))
 
+        for graderfile in os.listdir(self.tests_dir):
+            dest_file = os.path.join(self.tmpdir, graderfile)
+            # Don't clobber student's files
+            if not os.path.exists(dest_file):
+                shutil.copy2(os.path.join(self.tests_dir, graderfile), dest_file)
+
         try:
             process = subprocess.run(self.build_cmd.split(), cwd=self.tmpdir,
-                                     timeout=self.timeout)
+                                     timeout=self.timeout, stdout=subprocess.PIPE,
+                                     stderr=subprocess.STDOUT)
         except subprocess.TimeoutExpired:
             raise TestError(self, 'timeout of {} seconds expired for build command'
                                   .format(self.timeout))
-
         if process.returncode != 0:
             raise SetupError('build command {} exited with nonzero exit code: {}'
-                             .format(self.build_cmd, process.returncode))
+                             .format(self.build_cmd, process.returncode),
+                             process.stdout)
 
     def student_cleanup(self, student_dir):
         """
@@ -234,7 +240,14 @@ class CBackend(Backend):
 
 class SetupError(Exception):
     """An error occurring before actually running any tests"""
-    pass
+
+    def __init__(self, message, output=None):
+        super().__init__(message)
+        self.message = message
+        if output is not None:
+            self.output = output
+        else:
+            self.output = message.encode()
 
 class TestError(Exception):
     """A fatal error in running a test XML"""
@@ -315,7 +328,8 @@ class CTest(Test):
             # stderr=subprocess.STDOUT.
         process = subprocess.run(self.run_cmd.format(self.testcase).split(),
                                  env={'CK_DEFAULT_TIMEOUT': str(self.timeout)},
-                                 cwd=self.get_tmpdir())
+                                 cwd=self.get_tmpdir(), stdout=subprocess.DEVNULL,
+                                 stderr=subprocess.DEVNULL)
 
         if process.returncode != 0:
             raise TestError(self, 'tester returned {} != 0: {}'
@@ -452,6 +466,41 @@ def pager(stdin):
 
     subprocess.run(['less'], input=stdin)
 
+def print_breakdown(grader, student, graded):
+    score_breakdown = ', '.join('{}: {}/{}'
+                                .format(test['description'],
+                                        grader.round(test['score']),
+                                        grader.round(test['max_score']))
+                                for test in graded['tests'])
+    print("Final grade for `{}': {}:\n{}. Total: {} -{}"
+          .format(student, grader.round(graded['score']),
+                  score_breakdown, grader.round(graded['score']),
+                  grader.get_human()))
+
+def failed_compile(grader, student, err):
+    print("Final grade for `{}': 0:\n0 (did not compile) -{}".format(student, grader.get_human()))
+    grader.write_raw_gradelog(student, err.output)
+
+def headless_grade(grader, student):
+    skip_tests = []
+
+    while True:
+        try:
+            graded = grader.grade(student, skip_tests=skip_tests)
+        except SetupError as err:
+            failed_compile(grader, student, err)
+            # Blank line makes it a lot easier to visually separate students
+            print()
+            return
+        except TestError as err:
+            skip_tests.append(err.test)
+        else:
+            break
+
+    print_breakdown(grader, student, graded)
+    # Blank line makes it a lot easier to visually separate students
+    print()
+
 # XXX This function is really ugly (sorry), fix it
 def prompt(grader, student):
     """
@@ -468,6 +517,8 @@ def prompt(grader, student):
                 graded = grader.grade(student, skip_tests=skip_tests)
         except SetupError as err:
             print("Setup error for `{}': {}".format(student, err))
+            print(err.output.decode())
+            failed_compile(grader, student, err)
             try:
                 response = input('→ Try again? N will give a 0 for this student [y/N/q] ').lower()
             except (KeyboardInterrupt, EOFError):
@@ -480,7 +531,6 @@ def prompt(grader, student):
                 # Exit now
                 return False
             elif response != 'y':
-                print("Final grade for `{}`: 0 -{}".format(student, grader.get_human()))
                 return True
             state = 'retry'
         except TestError as err:
@@ -502,15 +552,7 @@ def prompt(grader, student):
                 skip_tests.append(err.test)
             state = 'retry'
         else:
-            score_breakdown = ', '.join('{}: {}/{}'
-                                        .format(test['description'],
-                                                grader.round(test['score']),
-                                                grader.round(test['max_score']))
-                                        for test in graded['tests'])
-            print("Final grade for `{}': {}:\n{}. Total: {} -{}"
-                  .format(student, grader.round(graded['score']),
-                          score_breakdown, grader.round(graded['score']),
-                          grader.get_human()))
+            print_breakdown(grader, student, graded)
 
             try:
                 response = input('→ Try again? '
@@ -590,6 +632,7 @@ def main(argv):
                         help='skip straight to this student for grading, '
                              'ignoring previous students in the list. '
                              'useful if you accidentally hit control-C while grading')
+    parser.add_argument('-n', '--no-prompt', action='store_true')
     args = parser.parse_args(argv[1:])
 
     # Strip these characters from student names
@@ -606,9 +649,12 @@ def main(argv):
 
 
     for student in grader.get_students():
-        # prompt() returns false when it gets `q', so exit in that case
-        if not prompt(grader, student):
-            return
+        if args.no_prompt:
+            headless_grade(grader, student)
+        else:
+            # prompt() returns false when it gets `q', so exit in that case
+            if not prompt(grader, student):
+                return
 
 if __name__ == '__main__':
     main(sys.argv)
