@@ -135,6 +135,7 @@ class Grader:
                 threaded.append(test)
 
         thread_tests = [threaded[i::THREADS] for i in range(THREADS)]
+
         for i in range(THREADS):
             thread = threading.Thread(target=self.run_thread, args=(path, thread_tests[i], results, i))
             thread.start()
@@ -148,7 +149,7 @@ class Grader:
                 self.backend.student_cleanup(path)
                 raise result
             else:
-                tests += results[i]
+                tests += result
 
         score = sum(test['score'] for test in tests)
 
@@ -373,6 +374,9 @@ class CTest(Test):
         self.leak_deduction = weight
 
     def __str__(self):
+        return "test case `{}'".format(self.testcase)
+
+    def __repr__(self):
         return "test case `{}'".format(self.testcase)
 
     def run(self, directory):
