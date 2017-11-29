@@ -148,7 +148,7 @@ class Grader:
                 self.backend.student_cleanup(path)
                 raise result
             else:
-                tests.append(result)
+                tests += results[i]
 
         score = sum(test['score'] for test in tests)
 
@@ -171,6 +171,7 @@ class Grader:
 
     @staticmethod
     def run_thread(path, thread_tests, results, i):
+        results[i] = []
         for test in thread_tests:
             try:
                 result = test.run(path)
@@ -178,7 +179,7 @@ class Grader:
                 results[i] = err
                 return
             else:
-                results[i] = result
+                results[i].append(result)
 
     def write_raw_gradelog(self, student, data):
         open(os.path.join(self.submissions_dir, student, 'gradeLog.txt'), 'wb').write(data)
