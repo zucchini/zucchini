@@ -72,18 +72,21 @@ class Grader:
             self.backend = CBackend(**self.config['C']) if 'C' in self.config else \
                            LC3Backend(**self.config['LC-3'])
 
-        self.tests = [self.backend.new_test(name=section, **self.config[section]) \
-                      for section in self.config.sections() \
-                      if section not in ('META', 'C', 'LC-3')]
-        total_weights = sum(int(t.weight) for t in self.tests)
-        if total_weights == 0:
-            raise ValueError('Test weights add up to 0 instead of 100. Did '
-                             'you forget to add tests to the config file?')
-        elif total_weights != 100:
-            raise ValueError('Test weights do not add up to 100')
         self.description = self.config.get('META', 'description')
         self.round_ = self.config.getint('META', 'round', fallback=2)
         self.human = self.config.get('META', 'human')
+        self.tests = []
+        for section in self.config.sections():
+            if section in ('META', 'C', 'LC-3'):
+                continue
+            self.tests += self.backend.new_tests(name=section, **self.config[section])
+
+        total_weights = sum(t.weight for t in self.tests)
+        if total_weights == 0:
+            raise ValueError('Test weights add up to 0 instead of 100. Did '
+                             'you forget to add tests to the config file?')
+        elif abs(d.Decimal(100) - total_weights) > d.Decimal('0.01'):
+            raise ValueError('Test weights do not add up to 100')
 
     @staticmethod
     def find_students(submissions_dir):
@@ -160,7 +163,10 @@ class Backend:
         pass
 
     def new_test(self, description, weight):
-        """Create a Test object for this Backend with the given config keys"""
+        """
+        Create a list of Test objects for this Backend with the given config
+        keys
+        """
         pass
 
 class LC3Backend(Backend):
@@ -169,14 +175,14 @@ class LC3Backend(Backend):
     def __init__(self, runs=8):
         self.runs = int(runs)
 
-    def new_test(self, **kwargs):
-        return LC3Test(runs=self.runs, **kwargs)
+    def new_tests(self, **kwargs):
+        return [LC3Test(runs=self.runs, **kwargs)]
 
 class CBackend(Backend):
     """Run tests through a libcheck C tester"""
 
     def __init__(self, timeout, cfiles, tests_dir, build_cmd, run_cmd,
-                 valgrind_cmd, log_file):
+                 valgrind_cmd, log_file, testcase_fmt):
         self.timeout = float(timeout)
         self.cfiles = cfiles.split()
         self.tests_dir = tests_dir
@@ -185,6 +191,7 @@ class CBackend(Backend):
         self.valgrind_cmd = valgrind_cmd
         self.log_file = log_file
         self.tmpdir = None
+        self.testcase_fmt = testcase_fmt
 
     def student_setup(self, student_dir):
         """
@@ -228,15 +235,23 @@ class CBackend(Backend):
 
         shutil.rmtree(self.tmpdir)
 
-    def new_test(self, **kwargs):
+    def new_tests(self, tests, name, description, weight):
         """
         Create a C tester instance which knows about the temporary directory
         created by student_setup()
         """
 
-        return CTest(timeout=self.timeout, get_tmpdir=lambda: self.tmpdir,
-                     run_cmd=self.run_cmd, valgrind_cmd=self.valgrind_cmd,
-                     log_file=self.log_file, **kwargs)
+        result = []
+        tests = tests.split(',')
+        for test in tests:
+            test_name = self.testcase_fmt.format(test=test, category=name)
+            test_weight = d.Decimal(weight) / d.Decimal(len(tests))
+            result.append(CTest(timeout=self.timeout, get_tmpdir=lambda: self.tmpdir,
+                                run_cmd=self.run_cmd, valgrind_cmd=self.valgrind_cmd,
+                                log_file=self.log_file, description=description,
+                                weight=test_weight, name=test_name))
+
+        return result
 
 class SetupError(Exception):
     """An error occurring before actually running any tests"""
@@ -315,7 +330,8 @@ class CTest(Test):
         self.valgrind_cmd = valgrind_cmd
         self.log_file = log_file
         self.timeout = timeout
-        self.leak_deduction = int(leak_deduction)
+        # Hack: for now, use the weight as the leak deduction
+        self.leak_deduction = weight
 
     def __str__(self):
         return "test case `{}'".format(self.testcase)
