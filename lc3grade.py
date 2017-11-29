@@ -11,6 +11,7 @@ import os
 import os.path
 import tempfile
 import shutil
+import threading
 from configparser import ConfigParser
 from datetime import datetime
 
@@ -114,12 +115,40 @@ class Grader:
 
         path = os.path.join(self.submissions_dir, student)
 
+        # 8 threads
+        THREADS = 8
+        threads = []
+        results = [None] * THREADS
+
         try:
             self.backend.student_setup(path)
-            tests = [(test.skip() if test in skip_tests else test.run(path))
-                     for test in self.tests]
-        finally:
+        except:
             self.backend.student_cleanup(path)
+            raise
+
+        tests = []
+        threaded = []
+        for test in self.tests:
+            if test in skip_tests:
+                tests.append(test.skip())
+            else:
+                threaded.append(test)
+
+        thread_tests = [threaded[i::THREADS] for i in range(THREADS)]
+        for i in range(THREADS):
+            thread = threading.Thread(target=self.run_thread, args=(path, thread_tests[i], results, i))
+            thread.start()
+            threads.append(thread)
+
+        for thread in threads:
+            thread.join()
+
+        for result in results:
+            if isinstance(result, Exception):
+                self.backend.student_cleanup(path)
+                raise result
+            else:
+                tests.append(result)
 
         score = sum(test['score'] for test in tests)
 
@@ -139,6 +168,17 @@ class Grader:
                 gradelog.write(test['output'])
 
         return {'score': score, 'tests': tests}
+
+    @staticmethod
+    def run_thread(path, thread_tests, results, i):
+        for test in thread_tests:
+            try:
+                result = test.run(path)
+            except Exception as err:
+                results[i] = err
+                return
+            else:
+                results[i] = result
 
     def write_raw_gradelog(self, student, data):
         open(os.path.join(self.submissions_dir, student, 'gradeLog.txt'), 'wb').write(data)
