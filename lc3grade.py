@@ -222,14 +222,13 @@ class CBackend(Backend):
     """Run tests through a libcheck C tester"""
 
     def __init__(self, timeout, cfiles, tests_dir, build_cmd, run_cmd,
-                 valgrind_cmd, log_file, testcase_fmt):
+                 valgrind_cmd, testcase_fmt):
         self.timeout = float(timeout)
         self.cfiles = cfiles.split()
         self.tests_dir = tests_dir
         self.build_cmd = build_cmd
         self.run_cmd = run_cmd
         self.valgrind_cmd = valgrind_cmd
-        self.log_file = log_file
         self.tmpdir = None
         self.testcase_fmt = testcase_fmt
 
@@ -288,7 +287,7 @@ class CBackend(Backend):
             test_weight = d.Decimal(weight) / d.Decimal(len(tests))
             result.append(CTest(timeout=self.timeout, get_tmpdir=lambda: self.tmpdir,
                                 run_cmd=self.run_cmd, valgrind_cmd=self.valgrind_cmd,
-                                log_file=self.log_file, description=description,
+                                description=description,
                                 weight=test_weight, name=test_name))
 
         return result
@@ -362,13 +361,12 @@ class CTest(Test):
                                r'Errors:\s+(?P<errors>\d+)')
 
     def __init__(self, name, description, weight, get_tmpdir, run_cmd,
-                 valgrind_cmd, log_file, timeout, leak_deduction=0):
+                 valgrind_cmd, timeout, leak_deduction=0):
         super().__init__(name, description, weight)
         self.testcase = name
         self.get_tmpdir = get_tmpdir
         self.run_cmd = run_cmd
         self.valgrind_cmd = valgrind_cmd
-        self.log_file = log_file
         self.timeout = timeout
         # Hack: for now, use the weight as the leak deduction
         self.leak_deduction = weight
@@ -380,9 +378,13 @@ class CTest(Test):
         leak_deduction = d.Decimal(0)
         output = b''
 
-            # Timeout doesn't work when I say stdout=subprocess.PIPE,
-            # stderr=subprocess.STDOUT.
-        process = subprocess.run(self.run_cmd.format(self.testcase).split(),
+        logfile_fp, logfile_path = tempfile.mkstemp(prefix='log-', dir=self.get_tmpdir())
+        os.close(logfile_fp)
+        logfile_basename = os.path.basename(logfile_path)
+
+        # Timeout doesn't work when I say stdout=subprocess.PIPE,
+        # stderr=subprocess.STDOUT.
+        process = subprocess.run(self.run_cmd.format(test=self.testcase, logfile=logfile_basename).split(),
                                  env={'CK_DEFAULT_TIMEOUT': str(self.timeout)},
                                  cwd=self.get_tmpdir(), stdout=subprocess.DEVNULL,
                                  stderr=subprocess.DEVNULL)
@@ -395,7 +397,6 @@ class CTest(Test):
         # Read the test summary from the log file so that student printf()s
         # don't mess up our parsing.
         try:
-            logfile_path = os.path.join(self.get_tmpdir(), self.log_file)
             with open(logfile_path, 'rb') as logfile:
                 logfile_contents = logfile.read()
                 output += logfile_contents
@@ -403,7 +404,7 @@ class CTest(Test):
                 summary = logfile_contents.splitlines()[-1]
                 match = self.REGEX_SUMMARY.match(summary.decode())
         except FileNotFoundError:
-            raise TestError(self, 'could not locate test log file {}'.format(self.log_file))
+            raise TestError(self, 'could not locate test log file {}'.format(logfile_path))
 
         if not match:
             raise TestError(self, 'tester output is not in the expected libcheck format')
@@ -419,7 +420,7 @@ class CTest(Test):
         # break libcheck timeouts, so make sure to handle timeouts here with
         # subprocess
         try:
-            valgrind_process = subprocess.run(self.valgrind_cmd.format(self.testcase).split(),
+            valgrind_process = subprocess.run(self.valgrind_cmd.format(test=self.testcase, logfile=logfile_basename).split(),
                                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                               env={'CK_FORK': 'no'}, cwd=self.get_tmpdir(),
                                               timeout=self.timeout)
