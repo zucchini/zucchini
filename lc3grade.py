@@ -151,7 +151,9 @@ class Grader:
             else:
                 tests += result
 
-        score = sum(test['score'] for test in tests)
+        self.backend.student_cleanup(path)
+
+        score = min(d.Decimal(100), sum(test['score'] for test in tests))
 
         # Write gradeLog.txt
         with open(os.path.join(path, 'gradeLog.txt'), 'wb') as gradelog:
@@ -276,7 +278,7 @@ class CBackend(Backend):
 
         shutil.rmtree(self.tmpdir)
 
-    def new_tests(self, tests, name, description, weight):
+    def new_tests(self, tests, name, weight):
         """
         Create a C tester instance which knows about the temporary directory
         created by student_setup()
@@ -289,7 +291,6 @@ class CBackend(Backend):
             test_weight = d.Decimal(weight) / d.Decimal(len(tests))
             result.append(CTest(timeout=self.timeout, get_tmpdir=lambda: self.tmpdir,
                                 run_cmd=self.run_cmd, valgrind_cmd=self.valgrind_cmd,
-                                description=description,
                                 weight=test_weight, name=test_name))
 
         return result
@@ -362,16 +363,17 @@ class CTest(Test):
                                r'Failures:\s+(?P<failures>\d+),\s+'
                                r'Errors:\s+(?P<errors>\d+)')
 
-    def __init__(self, name, description, weight, get_tmpdir, run_cmd,
+    def __init__(self, name, weight, get_tmpdir, run_cmd,
                  valgrind_cmd, timeout, leak_deduction=0):
-        super().__init__(name, description, weight)
-        self.testcase = name
+        self.description = self.testcase = name
+        super().__init__(name, self.description, weight)
         self.get_tmpdir = get_tmpdir
         self.run_cmd = run_cmd
         self.valgrind_cmd = valgrind_cmd
         self.timeout = timeout
         # Hack: for now, use the weight as the leak deduction
         self.leak_deduction = weight
+
 
     def __str__(self):
         return "test case `{}'".format(self.testcase)
@@ -397,7 +399,7 @@ class CTest(Test):
         if process.returncode != 0:
             raise TestError(self, 'tester returned {} != 0: {}'
                                   .format(process.returncode,
-                                          process.stdout.decode().strip()))
+                                          (process.stdout or b'').decode().strip()))
 
         # Read the test summary from the log file so that student printf()s
         # don't mess up our parsing.
@@ -420,21 +422,25 @@ class CTest(Test):
 
         output += b'\nValgrind\n--------\n'
 
-        # When running valgrind, we need to set CK_FORK=no, else we're gonna
-        # get a ton of bogus reported memory leaks. However, CK_FORK=no will
-        # break libcheck timeouts, so make sure to handle timeouts here with
-        # subprocess
-        try:
-            valgrind_process = subprocess.run(self.valgrind_cmd.format(test=self.testcase, logfile=logfile_basename).split(),
-                                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                              env={'CK_FORK': 'no'}, cwd=self.get_tmpdir(),
-                                              timeout=self.timeout)
-        except subprocess.TimeoutExpired:
-            output += b'valgrind timed out, deducting full leak penalty...\n'
-            valgrind_deduct=True
+        if failed == total:
+            valgrind_deduct = False
+            output += b'failed this test, so skipping valgrind...\n'
         else:
-            output += valgrind_process.stdout
-            valgrind_deduct = valgrind_process.returncode != 0
+            # When running valgrind, we need to set CK_FORK=no, else we're gonna
+            # get a ton of bogus reported memory leaks. However, CK_FORK=no will
+            # break libcheck timeouts, so make sure to handle timeouts here with
+            # subprocess
+            try:
+                valgrind_process = subprocess.run(self.valgrind_cmd.format(test=self.testcase, logfile=logfile_basename).split(),
+                                                  stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                                  env={'CK_FORK': 'no'}, cwd=self.get_tmpdir(),
+                                                  timeout=self.timeout)
+            except subprocess.TimeoutExpired:
+                output += b'valgrind timed out, deducting full leak penalty...\n'
+                valgrind_deduct=True
+            else:
+                output += valgrind_process.stdout
+                valgrind_deduct = valgrind_process.returncode != 0
 
         if valgrind_deduct:
             leak_deduction = min(score, d.Decimal(self.leak_deduction))
@@ -533,10 +539,10 @@ def print_breakdown(grader, student, graded):
                                 .format(test['description'],
                                         grader.round(test['score']),
                                         grader.round(test['max_score']))
-                                for test in graded['tests'])
+                                for test in graded['tests'] if test['score'] < test['max_score'])
     print("Final grade for `{}': {}:\n{}. Total: {} -{}"
           .format(student, grader.round(graded['score']),
-                  score_breakdown, grader.round(graded['score']),
+                  score_breakdown or 'Perfect', grader.round(graded['score']),
                   grader.get_human()))
 
 def failed_compile(grader, student, err):
