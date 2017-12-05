@@ -9,9 +9,10 @@ import subprocess
 import sys
 import os
 import os.path
-import tempfile
 import shutil
+import tempfile
 import threading
+import queue
 from configparser import ConfigParser
 from datetime import datetime
 
@@ -118,7 +119,8 @@ class Grader:
         # 8 threads
         THREADS = 8
         threads = []
-        results = [None] * THREADS
+        test_queue = queue.Queue()
+        result_queue = queue.Queue()
 
         try:
             self.backend.student_setup(path)
@@ -127,29 +129,27 @@ class Grader:
             raise
 
         tests = []
-        threaded = []
         for test in self.tests:
             if test in skip_tests:
                 tests.append(test.skip())
             else:
-                threaded.append(test)
-
-        thread_tests = [threaded[i::THREADS] for i in range(THREADS)]
+                test_queue.put(test)
 
         for i in range(THREADS):
-            thread = threading.Thread(target=self.run_thread, args=(path, thread_tests[i], results, i))
+            thread = threading.Thread(target=self.run_thread, args=(path, test_queue, result_queue))
             thread.start()
             threads.append(thread)
 
         for thread in threads:
             thread.join()
 
-        for result in results:
+        while not result_queue.empty():
+            result = result_queue.get(block=False)
             if isinstance(result, Exception):
                 self.backend.student_cleanup(path)
                 raise result
             else:
-                tests += result
+                tests.append(result)
 
         self.backend.student_cleanup(path)
 
@@ -173,16 +173,20 @@ class Grader:
         return {'score': score, 'tests': tests}
 
     @staticmethod
-    def run_thread(path, thread_tests, results, i):
-        results[i] = []
-        for test in thread_tests:
+    def run_thread(path, test_queue, result_queue):
+        while True:
+            try:
+                test = test_queue.get(block=False)
+            except queue.Empty:
+                return
+
             try:
                 result = test.run(path)
             except Exception as err:
-                results[i] = err
+                result_queue.put(err)
                 return
             else:
-                results[i].append(result)
+                result_queue.put(result)
 
     def write_raw_gradelog(self, student, data):
         open(os.path.join(self.submissions_dir, student, 'gradeLog.txt'), 'wb').write(data)
