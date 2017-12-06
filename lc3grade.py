@@ -704,7 +704,8 @@ def main(argv):
                         help='skip straight to this student for grading, '
                              'ignoring previous students in the list. '
                              'useful if you accidentally hit control-C while grading')
-    parser.add_argument('-n', '--no-prompt', action='store_true')
+    parser.add_argument('-n', '--no-prompt', action='store_true',
+                        help='run all students without showing the prompt')
     args = parser.parse_args(argv[1:])
 
     # Strip these characters from student names
