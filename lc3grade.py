@@ -358,7 +358,7 @@ class Test:
         """
         return {'score': d.Decimal(0), 'max_score': d.Decimal(self.weight),
                 'description': self.description, 'output': b'(SKIPPED)\n',
-                'deductions': {}}
+                'failed': True, 'deductions': {}}
 
 class CTest(Test):
     """Run a libcheck test case both raw and through valgrind"""
@@ -455,6 +455,7 @@ class CTest(Test):
         weight = d.Decimal(self.weight)
         return {'score': score, 'max_score': weight,
                 'deductions': {'leak': leak_deduction},
+                'failed': failed > 0,
                 'description': self.description, 'output': output}
 
 class LC3Test(Test):
@@ -543,7 +544,7 @@ def print_breakdown(grader, student, graded):
                                 .format(test['description'],
                                         grader.round(test['score']),
                                         grader.round(test['max_score']))
-                                for test in graded['tests'] if test['score'] < test['max_score'])
+                                for test in graded['tests'] if test['failed'])
     print("Final grade for `{}': {}:\n{}. Total: {} -{}"
           .format(student, grader.round(graded['score']),
                   score_breakdown or 'Perfect', grader.round(graded['score']),
