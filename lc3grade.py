@@ -455,7 +455,7 @@ class CTest(Test):
         weight = d.Decimal(self.weight)
         return {'score': score, 'max_score': weight,
                 'deductions': {'leak': leak_deduction},
-                'failed': failed > 0,
+                'failed': failed > 0 or valgrind_deduct,
                 'description': self.description, 'output': output}
 
 class LC3Test(Test):
