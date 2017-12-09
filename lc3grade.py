@@ -116,8 +116,9 @@ class Grader:
 
         path = os.path.join(self.submissions_dir, student)
 
-        # 8 threads
-        THREADS = 8
+        # Default to the safe option, 2 threads, if we can't count the
+        # number of CPUs
+        num_threads = 2 * (os.cpu_count() or 1)
         threads = []
         test_queue = queue.Queue()
         result_queue = queue.Queue()
@@ -135,7 +136,7 @@ class Grader:
             else:
                 test_queue.put(test)
 
-        for i in range(THREADS):
+        for i in range(num_threads):
             thread = threading.Thread(target=self.run_thread, args=(path, test_queue, result_queue))
             thread.start()
             threads.append(thread)
