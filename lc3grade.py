@@ -9,8 +9,10 @@ import subprocess
 import sys
 import os
 import os.path
-import tempfile
 import shutil
+import tempfile
+import threading
+import queue
 from configparser import ConfigParser
 from datetime import datetime
 
@@ -72,18 +74,21 @@ class Grader:
             self.backend = CBackend(**self.config['C']) if 'C' in self.config else \
                            LC3Backend(**self.config['LC-3'])
 
-        self.tests = [self.backend.new_test(name=section, **self.config[section]) \
-                      for section in self.config.sections() \
-                      if section not in ('META', 'C', 'LC-3')]
-        total_weights = sum(int(t.weight) for t in self.tests)
-        if total_weights == 0:
-            raise ValueError('Test weights add up to 0 instead of 100. Did '
-                             'you forget to add tests to the config file?')
-        elif total_weights != 100:
-            raise ValueError('Test weights do not add up to 100')
         self.description = self.config.get('META', 'description')
         self.round_ = self.config.getint('META', 'round', fallback=2)
         self.human = self.config.get('META', 'human')
+        self.tests = []
+        for section in self.config.sections():
+            if section in ('META', 'C', 'LC-3'):
+                continue
+            self.tests += self.backend.new_tests(name=section, **self.config[section])
+
+        total_weights = sum(t.weight for t in self.tests)
+        if total_weights == 0:
+            raise ValueError('Test weights add up to 0 instead of 100. Did '
+                             'you forget to add tests to the config file?')
+        elif abs(d.Decimal(100) - total_weights) > d.Decimal('0.01'):
+            raise ValueError('Test weights do not add up to 100')
 
     @staticmethod
     def find_students(submissions_dir):
@@ -111,14 +116,45 @@ class Grader:
 
         path = os.path.join(self.submissions_dir, student)
 
+        # Default to the safe option, 1 thread, if we can't count the
+        # number of CPUs
+        num_threads = os.cpu_count() or 1
+        threads = []
+        test_queue = queue.Queue()
+        result_queue = queue.Queue()
+
         try:
             self.backend.student_setup(path)
-            tests = [(test.skip() if test in skip_tests else test.run(path))
-                     for test in self.tests]
-        finally:
+        except:
             self.backend.student_cleanup(path)
+            raise
 
-        score = sum(test['score'] for test in tests)
+        tests = []
+        for test in self.tests:
+            if test in skip_tests:
+                tests.append(test.skip())
+            else:
+                test_queue.put(test)
+
+        for i in range(num_threads):
+            thread = threading.Thread(target=self.run_thread, args=(path, test_queue, result_queue))
+            thread.start()
+            threads.append(thread)
+
+        for thread in threads:
+            thread.join()
+
+        while not result_queue.empty():
+            result = result_queue.get(block=False)
+            if isinstance(result, Exception):
+                self.backend.student_cleanup(path)
+                raise result
+            else:
+                tests.append(result)
+
+        self.backend.student_cleanup(path)
+
+        score = min(d.Decimal(100), sum(test['score'] for test in tests))
 
         # Write gradeLog.txt
         with open(os.path.join(path, 'gradeLog.txt'), 'wb') as gradelog:
@@ -136,6 +172,22 @@ class Grader:
                 gradelog.write(test['output'])
 
         return {'score': score, 'tests': tests}
+
+    @staticmethod
+    def run_thread(path, test_queue, result_queue):
+        while True:
+            try:
+                test = test_queue.get(block=False)
+            except queue.Empty:
+                return
+
+            try:
+                result = test.run(path)
+            except Exception as err:
+                result_queue.put(err)
+                return
+            else:
+                result_queue.put(result)
 
     def write_raw_gradelog(self, student, data):
         open(os.path.join(self.submissions_dir, student, 'gradeLog.txt'), 'wb').write(data)
@@ -160,7 +212,10 @@ class Backend:
         pass
 
     def new_test(self, description, weight):
-        """Create a Test object for this Backend with the given config keys"""
+        """
+        Create a list of Test objects for this Backend with the given config
+        keys
+        """
         pass
 
 class LC3Backend(Backend):
@@ -169,22 +224,22 @@ class LC3Backend(Backend):
     def __init__(self, runs=8):
         self.runs = int(runs)
 
-    def new_test(self, **kwargs):
-        return LC3Test(runs=self.runs, **kwargs)
+    def new_tests(self, **kwargs):
+        return [LC3Test(runs=self.runs, **kwargs)]
 
 class CBackend(Backend):
     """Run tests through a libcheck C tester"""
 
     def __init__(self, timeout, cfiles, tests_dir, build_cmd, run_cmd,
-                 valgrind_cmd, log_file):
+                 valgrind_cmd, testcase_fmt):
         self.timeout = float(timeout)
         self.cfiles = cfiles.split()
         self.tests_dir = tests_dir
         self.build_cmd = build_cmd
         self.run_cmd = run_cmd
         self.valgrind_cmd = valgrind_cmd
-        self.log_file = log_file
         self.tmpdir = None
+        self.testcase_fmt = testcase_fmt
 
     def student_setup(self, student_dir):
         """
@@ -228,15 +283,22 @@ class CBackend(Backend):
 
         shutil.rmtree(self.tmpdir)
 
-    def new_test(self, **kwargs):
+    def new_tests(self, tests, name, weight):
         """
         Create a C tester instance which knows about the temporary directory
         created by student_setup()
         """
 
-        return CTest(timeout=self.timeout, get_tmpdir=lambda: self.tmpdir,
-                     run_cmd=self.run_cmd, valgrind_cmd=self.valgrind_cmd,
-                     log_file=self.log_file, **kwargs)
+        result = []
+        tests = tests.split(',')
+        for test in tests:
+            test_name = self.testcase_fmt.format(test=test, category=name)
+            test_weight = d.Decimal(weight) / d.Decimal(len(tests))
+            result.append(CTest(timeout=self.timeout, get_tmpdir=lambda: self.tmpdir,
+                                run_cmd=self.run_cmd, valgrind_cmd=self.valgrind_cmd,
+                                weight=test_weight, name=test_name))
+
+        return result
 
 class SetupError(Exception):
     """An error occurring before actually running any tests"""
@@ -297,7 +359,7 @@ class Test:
         """
         return {'score': d.Decimal(0), 'max_score': d.Decimal(self.weight),
                 'description': self.description, 'output': b'(SKIPPED)\n',
-                'deductions': {}}
+                'failed': True, 'deductions': {}}
 
 class CTest(Test):
     """Run a libcheck test case both raw and through valgrind"""
@@ -306,27 +368,35 @@ class CTest(Test):
                                r'Failures:\s+(?P<failures>\d+),\s+'
                                r'Errors:\s+(?P<errors>\d+)')
 
-    def __init__(self, name, description, weight, get_tmpdir, run_cmd,
-                 valgrind_cmd, log_file, timeout, leak_deduction=0):
-        super().__init__(name, description, weight)
-        self.testcase = name
+    def __init__(self, name, weight, get_tmpdir, run_cmd,
+                 valgrind_cmd, timeout, leak_deduction=0):
+        self.description = self.testcase = name
+        super().__init__(name, self.description, weight)
         self.get_tmpdir = get_tmpdir
         self.run_cmd = run_cmd
         self.valgrind_cmd = valgrind_cmd
-        self.log_file = log_file
         self.timeout = timeout
-        self.leak_deduction = int(leak_deduction)
+        # Hack: for now, use the weight as the leak deduction
+        self.leak_deduction = weight
+
 
     def __str__(self):
+        return "test case `{}'".format(self.testcase)
+
+    def __repr__(self):
         return "test case `{}'".format(self.testcase)
 
     def run(self, directory):
         leak_deduction = d.Decimal(0)
         output = b''
 
-            # Timeout doesn't work when I say stdout=subprocess.PIPE,
-            # stderr=subprocess.STDOUT.
-        process = subprocess.run(self.run_cmd.format(self.testcase).split(),
+        logfile_fp, logfile_path = tempfile.mkstemp(prefix='log-', dir=self.get_tmpdir())
+        os.close(logfile_fp)
+        logfile_basename = os.path.basename(logfile_path)
+
+        # Timeout doesn't work when I say stdout=subprocess.PIPE,
+        # stderr=subprocess.STDOUT.
+        process = subprocess.run(self.run_cmd.format(test=self.testcase, logfile=logfile_basename).split(),
                                  env={'CK_DEFAULT_TIMEOUT': str(self.timeout)},
                                  cwd=self.get_tmpdir(), stdout=subprocess.DEVNULL,
                                  stderr=subprocess.DEVNULL)
@@ -334,12 +404,11 @@ class CTest(Test):
         if process.returncode != 0:
             raise TestError(self, 'tester returned {} != 0: {}'
                                   .format(process.returncode,
-                                          process.stdout.decode().strip()))
+                                          (process.stdout or b'').decode().strip()))
 
         # Read the test summary from the log file so that student printf()s
         # don't mess up our parsing.
         try:
-            logfile_path = os.path.join(self.get_tmpdir(), self.log_file)
             with open(logfile_path, 'rb') as logfile:
                 logfile_contents = logfile.read()
                 output += logfile_contents
@@ -347,7 +416,7 @@ class CTest(Test):
                 summary = logfile_contents.splitlines()[-1]
                 match = self.REGEX_SUMMARY.match(summary.decode())
         except FileNotFoundError:
-            raise TestError(self, 'could not locate test log file {}'.format(self.log_file))
+            raise TestError(self, 'could not locate test log file {}'.format(logfile_path))
 
         if not match:
             raise TestError(self, 'tester output is not in the expected libcheck format')
@@ -358,21 +427,25 @@ class CTest(Test):
 
         output += b'\nValgrind\n--------\n'
 
-        # When running valgrind, we need to set CK_FORK=no, else we're gonna
-        # get a ton of bogus reported memory leaks. However, CK_FORK=no will
-        # break libcheck timeouts, so make sure to handle timeouts here with
-        # subprocess
-        try:
-            valgrind_process = subprocess.run(self.valgrind_cmd.format(self.testcase).split(),
-                                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                              env={'CK_FORK': 'no'}, cwd=self.get_tmpdir(),
-                                              timeout=self.timeout)
-        except subprocess.TimeoutExpired:
-            output += b'valgrind timed out, deducting full leak penalty...\n'
-            valgrind_deduct=True
+        if failed == total:
+            valgrind_deduct = False
+            output += b'failed this test, so skipping valgrind...\n'
         else:
-            output += valgrind_process.stdout
-            valgrind_deduct = valgrind_process.returncode != 0
+            # When running valgrind, we need to set CK_FORK=no, else we're gonna
+            # get a ton of bogus reported memory leaks. However, CK_FORK=no will
+            # break libcheck timeouts, so make sure to handle timeouts here with
+            # subprocess
+            try:
+                valgrind_process = subprocess.run(self.valgrind_cmd.format(test=self.testcase, logfile=logfile_basename).split(),
+                                                  stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                                  env={'CK_FORK': 'no'}, cwd=self.get_tmpdir(),
+                                                  timeout=self.timeout)
+            except subprocess.TimeoutExpired:
+                output += b'valgrind timed out, deducting full leak penalty...\n'
+                valgrind_deduct=True
+            else:
+                output += valgrind_process.stdout
+                valgrind_deduct = valgrind_process.returncode != 0
 
         if valgrind_deduct:
             leak_deduction = min(score, d.Decimal(self.leak_deduction))
@@ -383,6 +456,7 @@ class CTest(Test):
         weight = d.Decimal(self.weight)
         return {'score': score, 'max_score': weight,
                 'deductions': {'leak': leak_deduction},
+                'failed': failed > 0 or valgrind_deduct,
                 'description': self.description, 'output': output}
 
 class LC3Test(Test):
@@ -471,10 +545,10 @@ def print_breakdown(grader, student, graded):
                                 .format(test['description'],
                                         grader.round(test['score']),
                                         grader.round(test['max_score']))
-                                for test in graded['tests'])
+                                for test in graded['tests'] if test['failed'])
     print("Final grade for `{}': {}:\n{}. Total: {} -{}"
           .format(student, grader.round(graded['score']),
-                  score_breakdown, grader.round(graded['score']),
+                  score_breakdown or 'Perfect', grader.round(graded['score']),
                   grader.get_human()))
 
 def failed_compile(grader, student, err):
@@ -632,7 +706,8 @@ def main(argv):
                         help='skip straight to this student for grading, '
                              'ignoring previous students in the list. '
                              'useful if you accidentally hit control-C while grading')
-    parser.add_argument('-n', '--no-prompt', action='store_true')
+    parser.add_argument('-n', '--no-prompt', action='store_true',
+                        help='run all students without showing the prompt')
     args = parser.parse_args(argv[1:])
 
     # Strip these characters from student names
