@@ -1,4 +1,4 @@
-// Example homework file to test
+// Example homework file to test (solution)
 // If you say cfiles=my_math.c in lc3grade.config, this will be overwritten by
 // the student's copy
 
