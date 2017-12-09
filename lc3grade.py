@@ -116,9 +116,9 @@ class Grader:
 
         path = os.path.join(self.submissions_dir, student)
 
-        # Default to the safe option, 2 threads, if we can't count the
+        # Default to the safe option, 1 thread, if we can't count the
         # number of CPUs
-        num_threads = 2 * (os.cpu_count() or 1)
+        num_threads = os.cpu_count() or 1
         threads = []
         test_queue = queue.Queue()
         result_queue = queue.Queue()
