@@ -34,7 +34,7 @@ int main(int argc, char **argv) {
 
     SRunner *sr = srunner_create(s);
     srunner_set_log(sr, logfile);
-    // lc3grade discards the output of the tester, so don't bother printing
+    // zucchini discards the output of the tester, so don't bother printing
     // anything. (Reading the test results from a log file prevents students
     // from just printf()ing themselves to a 100. However, they could probably
     // guess that the log file is file descriptor 3 and write to it, but I

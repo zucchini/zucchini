@@ -245,10 +245,10 @@ class CBackend(Backend):
         """
         Create a temporary directory inside the student directory and
         compile a student's code by running build_cmd from
-        lc3grade.config
+        zucc.config
         """
 
-        self.tmpdir = tempfile.mkdtemp(prefix='lc3grade-', dir=student_dir)
+        self.tmpdir = tempfile.mkdtemp(prefix='zucc-', dir=student_dir)
 
         for cfile in self.cfiles:
             try:
@@ -689,9 +689,9 @@ def main(argv):
     parser = argparse.ArgumentParser(prog='python3 grader.py',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter,
                                      description='Grade homework submissions according to '
-                                                 'lc3grade.config. Run SubmissionFix.py '
-                                                 'first please.')
-    parser.add_argument('-c', '--config', metavar='CONFIG_PATH', default='lc3grade.config',
+                                                 'zucc.config. Run SubmissionFix.py first '
+                                                 'please.')
+    parser.add_argument('-c', '--config', metavar='CONFIG_PATH', default='zucc.config',
                         type=argparse.FileType('r'), help='path to config file')
     parser.add_argument('-d', '--submissions-dir', metavar='DIR_PATH', default='.',
                         help='path to submissions directory')
