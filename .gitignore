@@ -1,3 +1,5 @@
 *.o
 # Tester binaries
 tests
+# Student submission dirs for testing
+/*,*/
