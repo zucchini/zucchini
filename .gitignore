@@ -3,3 +3,5 @@
 tests
 # Student submission dirs for testing
 /*,*/
+# Config files for testing
+*.test.config
