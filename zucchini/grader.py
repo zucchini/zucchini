@@ -1,12 +1,8 @@
-#!/usr/bin/env python3
+"""Zucchini grading logic"""
 
-"""Grade an LC-3 homework. Cobbled together in Fall 2k17 by Mr. Austin"""
-
-import argparse
 import decimal as d
 import re
 import subprocess
-import sys
 import os
 import os.path
 import shutil
@@ -15,12 +11,6 @@ import threading
 import queue
 from configparser import ConfigParser
 from datetime import datetime
-
-# Use GNU readline for input()s if we can
-try:
-    import readline
-except ImportError:
-    pass
 
 class Grader:
     """
@@ -136,7 +126,7 @@ class Grader:
             else:
                 test_queue.put(test)
 
-        for i in range(num_threads):
+        for _ in range(num_threads):
             thread = threading.Thread(target=self.run_thread, args=(path, test_queue, result_queue))
             thread.start()
             threads.append(thread)
@@ -175,6 +165,11 @@ class Grader:
 
     @staticmethod
     def run_thread(path, test_queue, result_queue):
+        """
+        Dequeue Tests from test_queue until test_queue is empty, running them
+        at the path given and enqueue the results in result_queue.
+        """
+
         while True:
             try:
                 test = test_queue.get(block=False)
@@ -183,13 +178,19 @@ class Grader:
 
             try:
                 result = test.run(path)
-            except Exception as err:
+            except Exception as err: # pylint: disable=broad-except
                 result_queue.put(err)
                 return
             else:
                 result_queue.put(result)
 
     def write_raw_gradelog(self, student, data):
+        """
+        Write the bytes given to the student's grader log. Useful for when
+        compilation fails and you want to log the error, but you don't have any
+        test results yet.
+        """
+
         open(os.path.join(self.submissions_dir, student, 'gradeLog.txt'), 'wb').write(data)
 
     def round(self, grade):
@@ -225,6 +226,7 @@ class LC3Backend(Backend):
         self.runs = int(runs)
 
     def new_tests(self, **kwargs):
+        """Return a list of new tests based on this ini section."""
         return [LC3Test(runs=self.runs, **kwargs)]
 
 class CBackend(Backend):
@@ -368,8 +370,8 @@ class CTest(Test):
                                r'Failures:\s+(?P<failures>\d+),\s+'
                                r'Errors:\s+(?P<errors>\d+)')
 
-    def __init__(self, name, weight, get_tmpdir, run_cmd,
-                 valgrind_cmd, timeout, leak_deduction=0):
+    def __init__(self, name, weight, get_tmpdir, run_cmd, valgrind_cmd,
+                 timeout):
         self.description = self.testcase = name
         super().__init__(name, self.description, weight)
         self.get_tmpdir = get_tmpdir
@@ -396,7 +398,8 @@ class CTest(Test):
 
         # Timeout doesn't work when I say stdout=subprocess.PIPE,
         # stderr=subprocess.STDOUT.
-        process = subprocess.run(self.run_cmd.format(test=self.testcase, logfile=logfile_basename).split(),
+        process = subprocess.run(self.run_cmd.format(test=self.testcase,
+                                                     logfile=logfile_basename).split(),
                                  env={'CK_DEFAULT_TIMEOUT': str(self.timeout)},
                                  cwd=self.get_tmpdir(), stdout=subprocess.DEVNULL,
                                  stderr=subprocess.DEVNULL)
@@ -436,13 +439,15 @@ class CTest(Test):
             # break libcheck timeouts, so make sure to handle timeouts here with
             # subprocess
             try:
-                valgrind_process = subprocess.run(self.valgrind_cmd.format(test=self.testcase, logfile=logfile_basename).split(),
+                valgrind_cmd = self.valgrind_cmd.format(test=self.testcase,
+                                                        logfile=logfile_basename).split()
+                valgrind_process = subprocess.run(valgrind_cmd,
                                                   stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                                   env={'CK_FORK': 'no'}, cwd=self.get_tmpdir(),
                                                   timeout=self.timeout)
             except subprocess.TimeoutExpired:
                 output += b'valgrind timed out, deducting full leak penalty...\n'
-                valgrind_deduct=True
+                valgrind_deduct = True
             else:
                 output += valgrind_process.stdout
                 valgrind_deduct = valgrind_process.returncode != 0
@@ -534,202 +539,3 @@ class LC3Test(Test):
         return {'score': score, 'max_score': weight,
                 'deductions': {'warnings': warning_deduction},
                 'description': self.description, 'output': process.stdout}
-
-def pager(stdin):
-    """Open less to view the output of a test"""
-
-    subprocess.run(['less'], input=stdin)
-
-def print_breakdown(grader, student, graded):
-    score_breakdown = ', '.join('{}: {}/{}'
-                                .format(test['description'],
-                                        grader.round(test['score']),
-                                        grader.round(test['max_score']))
-                                for test in graded['tests'] if test['failed'])
-    print("Final grade for `{}': {}:\n{}. Total: {} -{}"
-          .format(student, grader.round(graded['score']),
-                  score_breakdown or 'Perfect', grader.round(graded['score']),
-                  grader.get_human()))
-
-def failed_compile(grader, student, err):
-    print("Final grade for `{}': 0:\n0 (did not compile) -{}".format(student, grader.get_human()))
-    grader.write_raw_gradelog(student, err.output)
-
-def headless_grade(grader, student):
-    skip_tests = []
-
-    while True:
-        try:
-            graded = grader.grade(student, skip_tests=skip_tests)
-        except SetupError as err:
-            failed_compile(grader, student, err)
-            # Blank line makes it a lot easier to visually separate students
-            print()
-            return
-        except TestError as err:
-            skip_tests.append(err.test)
-        else:
-            break
-
-    print_breakdown(grader, student, graded)
-    # Blank line makes it a lot easier to visually separate students
-    print()
-
-# XXX This function is really ugly (sorry), fix it
-def prompt(grader, student):
-    """
-    Print grades for student and show a prompt. Return False to exit
-    now, and True to continue to the next student.
-    """
-
-    state = 'retry'
-    skip_tests = []
-
-    while state in ('retry', 'reprompt'):
-        try:
-            if state == 'retry':
-                graded = grader.grade(student, skip_tests=skip_tests)
-        except SetupError as err:
-            print("Setup error for `{}': {}".format(student, err))
-            print(err.output.decode())
-            failed_compile(grader, student, err)
-            try:
-                response = input('→ Try again? N will give a 0 for this student [y/N/q] ').lower()
-            except (KeyboardInterrupt, EOFError):
-                # For courtesy, leave the shell prompt on a new line
-                print()
-                # Exit now
-                return False
-
-            if response == 'q':
-                # Exit now
-                return False
-            elif response != 'y':
-                return True
-            state = 'retry'
-        except TestError as err:
-            print("Testing error for `{}': {}".format(student, err))
-            try:
-                response = input('→ Try again? N will give a 0 for this test [y/N/q] ').lower()
-            except (KeyboardInterrupt, EOFError):
-                # For courtesy, leave the shell prompt on a new line
-                print()
-                # Exit now
-                return False
-
-            if response == 'q':
-                # Exit now
-                return False
-            elif response != 'y':
-                # Try again and skip this test (y will try again without
-                # skipping the test)
-                skip_tests.append(err.test)
-            state = 'retry'
-        else:
-            print_breakdown(grader, student, graded)
-
-            try:
-                response = input('→ Try again? '
-                                 '(Or print tester output (o)?) [y/N/o [testname]/q] ')
-            except (KeyboardInterrupt, EOFError):
-                # For courtesy, leave the shell prompt on a new line
-                print()
-                # Exit now
-                return False
-
-            if response.lower() == 'q':
-                # Exit now
-                return False
-            elif response.lower() == 'y':
-                state = 'retry'
-                # So this is kinda a clean retry, try failed tests again
-                skip_tests = []
-            elif response.lower().startswith('o'):
-                state = 'reprompt'
-
-                splat = response.split(maxsplit=1)
-                if len(splat) == 1:
-                    buf = b''
-                    # Print full output
-                    for test in graded['tests']:
-                        buf += "Output for `{}':\n".format(test['description']).encode()
-                        for deduction, points in test['deductions'].items():
-                            buf += "{} deduction: -{}\n" \
-                                   .format(deduction, points) \
-                                   .encode()
-                        buf += "------------\n".encode()
-                        buf += test['output']
-                        # Separate output of different tests with some blank lines
-                        buf += b'\n\n'
-                    pager(buf)
-                else:
-                    # Print output for specific test
-                    test_arg = splat[1]
-                    for test in graded['tests']:
-                        if test['description'] == test_arg:
-                            pager(''.join('{} deduction: -{}\n'
-                                          .format(deduction, points)
-                                          for deduction, points
-                                          in test['deductions'].items()).encode() +
-                                  test['output'])
-                            break
-                    else:
-                        print("couldn't find that test. choices:\n{}"
-                              .format('\n'.join(test['description']
-                                                for test in graded['tests'])))
-            else:
-                state = 'next'
-
-    # Continue to the next student instead of exiting now
-    return True
-
-def main(argv):
-    """Parse args, instantiate a Grader, and grade!"""
-
-    parser = argparse.ArgumentParser(prog='python3 grader.py',
-                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-                                     description='Grade homework submissions according to '
-                                                 'zucc.config. Run SubmissionFix.py first '
-                                                 'please.')
-    parser.add_argument('-c', '--config', metavar='CONFIG_PATH', default='zucc.config',
-                        type=argparse.FileType('r'), help='path to config file')
-    parser.add_argument('-d', '--submissions-dir', metavar='DIR_PATH', default='.',
-                        help='path to submissions directory')
-    parser.add_argument('-s', '--students', '--student', metavar='STUDENTS', default=None,
-                        help='colon-delimited list of students to grade '
-                             '(example: Adams, Austin:Murray, Kyle)')
-    parser.add_argument('-e', '--exclude-students', '--exclude-student', metavar='STUDENTS',
-                        default=None,
-                        help='colon-delimited list of students to exclude from grading '
-                             '(example: Adams, Austin:Murray, Kyle)')
-    parser.add_argument('-S', '--skip-to', '--skip', metavar='STUDENT', default=None,
-                        help='skip straight to this student for grading, '
-                             'ignoring previous students in the list. '
-                             'useful if you accidentally hit control-C while grading')
-    parser.add_argument('-n', '--no-prompt', action='store_true',
-                        help='run all students without showing the prompt')
-    args = parser.parse_args(argv[1:])
-
-    # Strip these characters from student names
-    strip = lambda student: None if student is None else student.strip(' \t\n/')
-    # Choose : as the delimiter since it's not reserved in bash (unlike ;)
-    splitstrip = lambda students: None if students is None else \
-                                  [strip(student) for student in students.split(':') \
-                                  if strip(student)]
-
-    grader = Grader(config_fp=args.config, submissions_dir=args.submissions_dir,
-                    students=splitstrip(args.students),
-                    exclude_students=splitstrip(args.exclude_students),
-                    skip_to=strip(args.skip_to))
-
-
-    for student in grader.get_students():
-        if args.no_prompt:
-            headless_grade(grader, student)
-        else:
-            # prompt() returns false when it gets `q', so exit in that case
-            if not prompt(grader, student):
-                return
-
-if __name__ == '__main__':
-    main(sys.argv)
