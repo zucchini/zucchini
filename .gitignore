@@ -1,5 +1,7 @@
 *.o
 *.pyc
+# Python zip binaries
+zucc
 # Tester binaries
 tests
 # Student submission dirs for testing
