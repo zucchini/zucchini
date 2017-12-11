@@ -12,6 +12,17 @@ There is a a backend named `LC-3` for running Brandon's lc3test and another
 named `C` for running [libcheck][1] test cases. To enable a backend, uncommment
 its section in `zucc.config`.
 
+Building
+--------
+
+To build the [Python Zip Application][2], run
+
+    make
+
+Then you can run it with
+
+    ./zucc
+
 Getting Started
 ---------------
 
@@ -19,11 +30,11 @@ Getting Started
     extract it.
  2. Run `python SubmissionFix.py bulk_download.zip tsquare` to extract the bulk
     download.
- 3. Copy `zucc.py` and `zucc.config` to the same directory.
+ 3. Copy `zucc` and `zucc.config` to the same directory.
  4. Copy your tests to the same directory and add them to `zucc.config`.
- 5. Run `python3 zucc.py`, entering T-Square grades as you go. Each student
-    directory contains tester output in `gradeLog.txt` if they want to see
-    which tests they failed.
+ 5. Run `./zucc`, entering T-Square grades as you go. Each student directory
+    contains tester output in `gradeLog.txt` if they want to see which tests
+    they failed.
 
 Grading with libcheck
 ---------------------
@@ -57,3 +68,4 @@ following sections (in addition to `[META]`):
     weight=75
 
 [1]: https://libcheck.github.io/check/
+[2]: https://www.python.org/dev/peps/pep-0441/#improving-python-zip-application-support
