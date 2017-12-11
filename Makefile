@@ -5,7 +5,7 @@
 # https://docs.python.org/3/library/zipapp.html#the-python-zip-application-archive-format
 # Why I didn't just use the zipapp module:
 # https://bugs.python.org/issue26277
-zucc:
+zucc: $(wildcard zucchini/*.py)
 	printf 'import runpy\nrunpy.run_module("zucchini")\n' >__main__.py
 	rm -f zucc.zip
 	zip -x '*.pyc' '*/__pycache__/' -r zucc.zip __main__.py zucchini/
