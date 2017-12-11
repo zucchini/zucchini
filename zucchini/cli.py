@@ -10,14 +10,16 @@ try:
 except ImportError:
     pass
 
-def main(argv):
+def main(argv, version=None):
     """Parse args, instantiate a Grader, and grade!"""
 
-    parser = argparse.ArgumentParser(prog='python3 grader.py',
+    parser = argparse.ArgumentParser(prog='zucc',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter,
                                      description='Grade homework submissions according to '
                                                  'zucc.config. Run SubmissionFix.py first '
                                                  'please.')
+    parser.add_argument('-V', '--version', action='version',
+                        version='%(prog)s ' + (version or '(unknown version)'))
     parser.add_argument('-c', '--config', metavar='CONFIG_PATH', default='zucc.config',
                         type=argparse.FileType('r'), help='path to config file')
     parser.add_argument('-d', '--submissions-dir', metavar='DIR_PATH', default='.',
