@@ -8,7 +8,7 @@
 zucc: $(wildcard zucchini/*.py)
 	printf 'import runpy\nrunpy.run_module("zucchini")\n' >__main__.py
 	rm -f zucc.zip
-	zip -x '*.pyc' '*/__pycache__/' -r zucc.zip __main__.py zucchini/
+	zip -x '*/.*' '*.pyc' '*/__pycache__/' -r zucc.zip __main__.py zucchini/
 	rm __main__.py
 	printf '#!/usr/bin/env python3\n' >$@
 	cat zucc.zip >>$@
