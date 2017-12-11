@@ -1,4 +1,4 @@
-VERSION = $(shell git describe || echo "UNKNOWN")
+VERSION = $(shell git describe)
 
 .PHONY: clean
 
