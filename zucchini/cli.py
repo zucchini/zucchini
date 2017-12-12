@@ -2,7 +2,8 @@
 
 import argparse
 import subprocess
-from .grader import Grader, SetupError, TestError
+from .grader import Grader
+from .grading import SetupError, TestError
 
 # Use GNU readline for input()s if we can
 try:
