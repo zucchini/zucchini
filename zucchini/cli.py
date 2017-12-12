@@ -65,31 +65,22 @@ def pager(stdin):
 
     subprocess.run(['less'], input=stdin)
 
-def print_breakdown(grader, student, graded):
+def print_breakdown(grade):
     """
     Generate a student-friendly grading summary ("breakdown") from the Grader
     instance, student name, and grade results given and print it to stdout
     """
 
-    score_breakdown = ', '.join('{}: {}/{}'
-                                .format(test['description'],
-                                        grader.round(test['score']),
-                                        grader.round(test['max_score']))
-                                for test in graded['tests'] if test['failed'])
-    print("Final grade for `{}': {}:\n{}. Total: {} -{}"
-          .format(student, grader.round(graded['score']),
-                  score_breakdown or 'Perfect', grader.round(graded['score']),
-                  grader.get_human()))
+    print(grade.breakdown())
 
-def failed_compile(grader, student, err):
+def failed_compile(grader, student, setup_err):
     """
     Setup failed (usually because they did not submit anything or their code
     does not compile), so print a zero for the student given the provided
     Grader, student name, and SetupError instance.
     """
 
-    print("Final grade for `{}': 0:\n0 (did not compile) -{}".format(student, grader.get_human()))
-    grader.write_raw_gradelog(student, err.output)
+    print_breakdown(grader.setup_abort(student, setup_err))
 
 def headless_grade(grader, student):
     """
@@ -102,7 +93,7 @@ def headless_grade(grader, student):
 
     while True:
         try:
-            graded = grader.grade(student, skip_tests=skip_tests)
+            grade = grader.grade(student, skip_tests=skip_tests)
         except SetupError as err:
             failed_compile(grader, student, err)
             # Blank line makes it a lot easier to visually separate students
@@ -113,7 +104,7 @@ def headless_grade(grader, student):
         else:
             break
 
-    print_breakdown(grader, student, graded)
+    print_breakdown(grade)
     # Blank line makes it a lot easier to visually separate students
     print()
 
@@ -130,10 +121,11 @@ def prompt(grader, student):
     while state in ('retry', 'reprompt'):
         try:
             if state == 'retry':
-                graded = grader.grade(student, skip_tests=skip_tests)
+                grade = grader.grade(student, skip_tests=skip_tests)
         except SetupError as err:
             print("Setup error for `{}': {}".format(student, err))
-            print(err.output.decode())
+            if err.output:
+                print(err.output.decode())
             failed_compile(grader, student, err)
             try:
                 response = input('→ Try again? N will give a 0 for this student [y/N/q] ').lower()
@@ -168,7 +160,7 @@ def prompt(grader, student):
                 skip_tests.append(err.test)
             state = 'retry'
         else:
-            print_breakdown(grader, student, graded)
+            print_breakdown(grade)
 
             try:
                 response = input('→ Try again? '
@@ -191,34 +183,17 @@ def prompt(grader, student):
 
                 splat = response.split(maxsplit=1)
                 if len(splat) == 1:
-                    buf = b''
-                    # Print full output
-                    for test in graded['tests']:
-                        buf += "Output for `{}':\n".format(test['description']).encode()
-                        for deduction, points in test['deductions'].items():
-                            buf += "{} deduction: -{}\n" \
-                                   .format(deduction, points) \
-                                   .encode()
-                        buf += "------------\n".encode()
-                        buf += test['output']
-                        # Separate output of different tests with some blank lines
-                        buf += b'\n\n'
-                    pager(buf)
+                    pager(grade.gradelog())
                 else:
                     # Print output for specific test
                     test_arg = splat[1]
-                    for test in graded['tests']:
-                        if test['description'] == test_arg:
-                            pager(''.join('{} deduction: -{}\n'
-                                          .format(deduction, points)
-                                          for deduction, points
-                                          in test['deductions'].items()).encode() +
-                                  test['output'])
-                            break
+                    gradelog = grade.test_gradelog(test_arg)
+                    if gradelog is not None:
+                        pager(gradelog)
                     else:
                         print("couldn't find that test. choices:\n{}"
-                              .format('\n'.join(test['description']
-                                                for test in graded['tests'])))
+                              .format('\n'.join(test.description
+                                                for test in grader.tests)))
             else:
                 state = 'next'
 
