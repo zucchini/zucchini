@@ -1,5 +1,7 @@
 *.o
 *.pyc
+# Generated Dockerfile
+Dockerfile
 # Python zip binaries
 zucc
 # Tester binaries

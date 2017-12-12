@@ -43,6 +43,9 @@ class Grader:
                     raise FileNotFoundError("could not find student submission "
                                             "dir `{}'".format(path))
 
+        # Attempt global backend setup
+        self.backend.global_setup()
+
     def parse_config(self, config_fp):
         """Parse config in the file-like object config_fp"""
 
