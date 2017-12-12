@@ -216,10 +216,12 @@ class StudentGrade:
         signoff in the grade breakdown.
         """
 
-        return ', '.join('{}: {}/{}'
+        return ', '.join('{}: {}/{}{}'
                          .format(test.description(),
                                  self.round(test.score()),
-                                 self.round(test.max_score()))
+                                 self.round(test.max_score()),
+                                 '' if not test.deductions()
+                                 else ' [{}]'.format(', '.join(test.deductions())))
                          for test in self.test_grades if test.failed()) \
                or 'Perfect'
 
@@ -313,6 +315,10 @@ class StudentTestGrade:
     def output(self):
         """Return the output of the test."""
         return self._output
+
+    def deductions(self):
+        """Return mapping of deduction names to deducted points for this test."""
+        return self._deductions
 
     def failed(self):
         """
