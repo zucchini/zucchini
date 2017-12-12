@@ -197,6 +197,10 @@ class Backend:
     create Test instances ready-to-go
     """
 
+    def global_setup(self):
+        """Do global setup for all students"""
+        pass
+
     def student_setup(self, student_dir):
         """Do pre-grading setup for a given student"""
         pass

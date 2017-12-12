@@ -11,6 +11,13 @@ from ..grading import Backend, Test, StudentTestGrade, TestError, SetupError
 class CBackend(Backend):
     """Run tests through a libcheck C tester"""
 
+    DOCKERFILE = '\n'.join((
+        'FROM ubuntu:16.04',
+        'WORKDIR /zucc',
+        'VOLUME /zucc',
+        'RUN apt-get update && apt-get install -y build-essential valgrind check pkg-config',
+    ))
+
     def __init__(self, timeout, cfiles, tests_dir, build_cmd, run_cmd,
                  valgrind_cmd, testcase_fmt):
         self.timeout = float(timeout)
@@ -22,6 +29,33 @@ class CBackend(Backend):
         self.tmpdir = None
         self.testcase_fmt = testcase_fmt
 
+    def global_setup(self):
+        """Create zucchini docker image with tag `zucc'"""
+
+        with open('Dockerfile', 'w') as dockerfile:
+            dockerfile.write(self.DOCKERFILE)
+
+        process = subprocess.run(['docker', 'build', '.', '-t', 'zucc'],
+                                 stdout=subprocess.PIPE,
+                                 stderr=subprocess.STDOUT)
+
+        if process.returncode != 0:
+            raise Exception("Could not start up docker: {}\n"
+                            "You may need to run zucc like:\n\tsudo -g docker ./zucc"
+                            .format(process.stdout.decode()))
+
+    def docker_cmdline(self, cmdline, env=None):
+        """Wrap this command line, a list, in a docker invocation."""
+
+        if env is None:
+            env = {}
+
+        env_args = ['--env={}={}'.format(env_key, env_val)
+                    for env_key, env_val in env.items()]
+
+        return ['docker', 'run', '--volume', '{}:/zucc'.format(self.tmpdir)] \
+               + env_args + ['zucc'] + cmdline
+
     def student_setup(self, student_dir):
         """
         Create a temporary directory inside the student directory and
@@ -29,7 +63,7 @@ class CBackend(Backend):
         zucc.config
         """
 
-        self.tmpdir = tempfile.mkdtemp(prefix='zucc-', dir=student_dir)
+        self.tmpdir = os.path.abspath(tempfile.mkdtemp(prefix='zucc-', dir=student_dir))
 
         for cfile in self.cfiles:
             try:
@@ -46,7 +80,7 @@ class CBackend(Backend):
                 shutil.copy2(os.path.join(self.tests_dir, graderfile), dest_file)
 
         try:
-            process = subprocess.run(self.build_cmd.split(), cwd=self.tmpdir,
+            process = subprocess.run(self.docker_cmdline(self.build_cmd.split()),
                                      timeout=self.timeout, stdout=subprocess.PIPE,
                                      stderr=subprocess.STDOUT)
         except subprocess.TimeoutExpired:
@@ -76,6 +110,7 @@ class CBackend(Backend):
             test_name = self.testcase_fmt.format(test=test, category=name)
             test_weight = Fraction(int(weight), len(tests))
             yield CTest(timeout=self.timeout, get_tmpdir=lambda: self.tmpdir,
+                        docker_cmdline=self.docker_cmdline,
                         run_cmd=self.run_cmd, valgrind_cmd=self.valgrind_cmd,
                         weight=test_weight, name=test_name)
 
@@ -86,11 +121,12 @@ class CTest(Test):
                                r'Failures:\s+(?P<failures>\d+),\s+'
                                r'Errors:\s+(?P<errors>\d+)')
 
-    def __init__(self, name, weight, get_tmpdir, run_cmd, valgrind_cmd,
-                 timeout):
+    def __init__(self, name, weight, get_tmpdir, docker_cmdline, run_cmd,
+                 valgrind_cmd, timeout):
         super().__init__(name, name, weight)
         self.testcase = name
         self.get_tmpdir = get_tmpdir
+        self.docker_cmdline = docker_cmdline
         self.run_cmd = run_cmd
         self.valgrind_cmd = valgrind_cmd
         self.timeout = timeout
@@ -109,10 +145,11 @@ class CTest(Test):
         os.close(logfile_fp)
         logfile_basename = os.path.basename(logfile_path)
 
-        process = subprocess.run(self.run_cmd.format(test=self.testcase,
-                                                     logfile=logfile_basename).split(),
-                                 env={'CK_DEFAULT_TIMEOUT': str(self.timeout)},
-                                 cwd=self.get_tmpdir(), stdout=subprocess.DEVNULL,
+        cmdline = self.docker_cmdline(
+            self.run_cmd.format(test=self.testcase, logfile=logfile_basename).split(),
+            {'CK_DEFAULT_TIMEOUT': str(self.timeout)})
+
+        process = subprocess.run(cmdline, stdout=subprocess.DEVNULL,
                                  stderr=subprocess.DEVNULL)
 
         if process.returncode != 0:
@@ -153,9 +190,9 @@ class CTest(Test):
             try:
                 valgrind_cmd = self.valgrind_cmd.format(test=self.testcase,
                                                         logfile=logfile_basename).split()
-                valgrind_process = subprocess.run(valgrind_cmd,
+                cmdline = self.docker_cmdline(valgrind_cmd, {'CK_FORK': 'no'})
+                valgrind_process = subprocess.run(cmdline,
                                                   stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                                  env={'CK_FORK': 'no'}, cwd=self.get_tmpdir(),
                                                   timeout=self.timeout)
             except subprocess.TimeoutExpired:
                 grade.add_output(b'valgrind timed out, deducting full leak penalty...\n')
