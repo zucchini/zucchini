@@ -197,7 +197,7 @@ class HeadlessInterface(Interface):
     """
 
     def print_breakdown(self, grade):
-        print(grade.breakdown(grade))
+        print(grade.breakdown())
         # Extra line is useful for visually separating students
         print()
 
