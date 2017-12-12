@@ -52,151 +52,217 @@ def main(argv, version=None):
                     exclude_students=splitstrip(args.exclude_students),
                     skip_to=strip(args.skip_to))
 
+    interface = HeadlessInterface() if args.no_prompt else PromptInterface()
+    Frontend(grader, interface).run()
 
-    for student in grader.get_students():
-        if args.no_prompt:
-            headless_grade(grader, student)
-        else:
-            # prompt() returns false when it gets `q', so exit in that case
-            if not prompt(grader, student):
+class StopGrading(Exception):
+    """Thrown when user aborts grading"""
+    pass
+
+class Frontend:
+    """Invoke a Grader on all of its students, prompting user as necessary"""
+
+    def __init__(self, grader, interface):
+        self.grader = grader
+        self.interface = interface
+
+    def run(self):
+        """
+        Run the Grader for each of its students until user tells us to stop
+        """
+
+        for student in self.grader.get_students():
+            try:
+                self.grade_student(student)
+            except StopGrading:
                 return
 
-def pager(stdin):
-    """Open less to view the output of a test"""
+    def failed_compile(self, student, setup_err):
+        """
+        Setup failed (usually because they did not submit anything or their code
+        does not compile), so print a zero for the student given the provided
+        Grader, student name, and SetupError instance.
+        """
 
-    subprocess.run(['less'], input=stdin)
+        self.interface.print_breakdown(self.grader.setup_abort(student, setup_err))
 
-def print_breakdown(grade):
-    """
-    Generate a student-friendly grading summary ("breakdown") from the Grader
-    instance, student name, and grade results given and print it to stdout
-    """
 
-    print(grade.breakdown())
+    def show_logs(self, grade, test=None):
+        """
+        Use a pager to display the logs for a given test, or the whole gradelog
+        if test is None.
+        """
 
-def failed_compile(grader, student, setup_err):
-    """
-    Setup failed (usually because they did not submit anything or their code
-    does not compile), so print a zero for the student given the provided
-    Grader, student name, and SetupError instance.
-    """
-
-    print_breakdown(grader.setup_abort(student, setup_err))
-
-def headless_grade(grader, student):
-    """
-    Grade this student using the Grader provided non-interactively. So no
-    prompts, just results to stdout. Useful if you're grading 400+ submissions
-    and don't want to develop carpal tunnel from pressing enter constantly.
-    """
-
-    skip_tests = []
-
-    while True:
-        try:
-            grade = grader.grade(student, skip_tests=skip_tests)
-        except SetupError as err:
-            failed_compile(grader, student, err)
-            # Blank line makes it a lot easier to visually separate students
-            print()
-            return
-        except TestError as err:
-            skip_tests.append(err.test)
-        else:
-            break
-
-    print_breakdown(grade)
-    # Blank line makes it a lot easier to visually separate students
-    print()
-
-# XXX This function is really ugly (sorry), fix it
-def prompt(grader, student):
-    """
-    Print grades for student and show a prompt. Return False to exit
-    now, and True to continue to the next student.
-    """
-
-    state = 'retry'
-    skip_tests = []
-
-    while state in ('retry', 'reprompt'):
-        try:
-            if state == 'retry':
-                grade = grader.grade(student, skip_tests=skip_tests)
-        except SetupError as err:
-            print("Setup error for `{}': {}".format(student, err))
-            if err.output:
-                print(err.output.decode())
-            failed_compile(grader, student, err)
-            try:
-                response = input('→ Try again? N will give a 0 for this student [y/N/q] ').lower()
-            except (KeyboardInterrupt, EOFError):
-                # For courtesy, leave the shell prompt on a new line
-                print()
-                # Exit now
-                return False
-
-            if response == 'q':
-                # Exit now
-                return False
-            elif response != 'y':
-                return True
-            state = 'retry'
-        except TestError as err:
-            print("Testing error for `{}': {}".format(student, err))
-            try:
-                response = input('→ Try again? N will give a 0 for this test [y/N/q] ').lower()
-            except (KeyboardInterrupt, EOFError):
-                # For courtesy, leave the shell prompt on a new line
-                print()
-                # Exit now
-                return False
-
-            if response == 'q':
-                # Exit now
-                return False
-            elif response != 'y':
-                # Try again and skip this test (y will try again without
-                # skipping the test)
-                skip_tests.append(err.test)
-            state = 'retry'
-        else:
-            print_breakdown(grade)
-
-            try:
-                response = input('→ Try again? '
-                                 '(Or print tester output (o)?) [y/N/o [testname]/q] ')
-            except (KeyboardInterrupt, EOFError):
-                # For courtesy, leave the shell prompt on a new line
-                print()
-                # Exit now
-                return False
-
-            if response.lower() == 'q':
-                # Exit now
-                return False
-            elif response.lower() == 'y':
-                state = 'retry'
-                # So this is kinda a clean retry, try failed tests again
-                skip_tests = []
-            elif response.lower().startswith('o'):
-                state = 'reprompt'
-
-                splat = response.split(maxsplit=1)
-                if len(splat) == 1:
-                    pager(grade.gradelog())
-                else:
-                    # Print output for specific test
-                    test_arg = splat[1]
-                    gradelog = grade.test_gradelog(test_arg)
-                    if gradelog is not None:
-                        pager(gradelog)
-                    else:
-                        print("couldn't find that test. choices:\n{}"
-                              .format('\n'.join(test.description
-                                                for test in grader.tests)))
+        if test:
+            gradelog = grade.test_gradelog(test)
+            if gradelog is not None:
+                self.interface.pager(gradelog)
             else:
-                state = 'next'
+                self.interface.warn("couldn't find that test. choices:\n{}".format(
+                    '\n'.join(test.description for test in self.grader.tests)))
+        else:
+            self.interface.pager(grade.gradelog())
 
-    # Continue to the next student instead of exiting now
-    return True
+    def grade_student(self, student):
+        """
+        Attempt to grade this student's work until we succeed, prompting the
+        user for guidance along the way.
+        """
+
+        done = False
+        reprompt = False
+        skip_tests = []
+        setup_err = None
+        test_err = None
+
+        while not done:
+            if not reprompt:
+                try:
+                    grade = self.grader.grade(student, skip_tests=skip_tests)
+                except SetupError as err:
+                    setup_err = err
+                except TestError as err:
+                    test_err = err
+                else:
+                    setup_err = test_err = None
+
+            reprompt = False
+
+            if setup_err:
+                self.interface.warn("Setup error for `{}': {}".format(student, setup_err))
+                if setup_err.output:
+                    self.interface.warn(setup_err.output.decode())
+                self.failed_compile(student, setup_err)
+
+                resp = self.interface.ask_to_retry('n will give a 0 for this student')
+                if resp is None:
+                    reprompt = True
+                elif not resp:
+                    done = True
+            elif test_err:
+                self.interface.warn("Testing error for `{}': {}".format(student, test_err))
+
+                resp = self.interface.ask_to_retry('n will give a 0 for this test')
+                if resp is None:
+                    reprompt = True
+                elif not resp:
+                    skip_tests.append(test_err.test)
+            else:
+                self.interface.print_breakdown(grade)
+
+                resp = self.interface.ask_to_retry("(or print logs for a test "
+                                                   "with `o <test name>'?)",
+                                                   commands=('o',))
+                if resp is None:
+                    reprompt = True
+                elif resp:
+                    # So this is kinda a clean retry, try failed tests again
+                    skip_tests = []
+                    setup_err = test_err = None
+                elif resp.was('o'):
+                    reprompt = True
+                    self.show_logs(grade, resp.arg())
+                else:
+                    done = True
+
+class Interface:
+    """Allow the user and Frontend to communicate."""
+
+    def print_breakdown(self, grade):
+        """
+        Generate a student-friendly grading summary ("breakdown") from the Grader
+        instance, student name, and grade results given and print it to stdout
+        """
+        pass
+
+    def ask_to_retry(self, message, default='n', commands=()):
+        """
+        Prompt the user asking if they want to retry, returning a
+        RetryPromptResponse matching their response. The RetryPromptResponse
+        evaluates to True if they do want to retry.
+        """
+        pass
+
+    def warn(self, message):
+        """Print a warning"""
+        pass
+
+    def pager(self, data):
+        """Display a bunch of data with a pager"""
+        pass
+
+class HeadlessInterface(Interface):
+    """
+    Discard warning messages and accept the default option for all prompts.
+    """
+
+    def print_breakdown(self, grade):
+        print(grade.breakdown(grade))
+        # Extra line is useful for visually separating students
+        print()
+
+    def ask_to_retry(self, message, default='n', commands=()):
+        return RetryPromptResponse([default])
+
+class PromptInterface(Interface):
+    """Use the console to log warnings and prompt."""
+
+    def print_breakdown(self, grade):
+        print(grade.breakdown())
+
+    def ask_to_retry(self, message, default='n', commands=()):
+        understood = ('y', 'n', 'q') + commands
+        cmd_help = '/'.join(cmd.upper() if cmd == default else cmd
+                            for cmd in understood)
+
+        try:
+            text = input('→ Try again? {} [{}] '.format(message, cmd_help))
+        except (KeyboardInterrupt, EOFError):
+            # For courtesy, leave the shell prompt on a new line
+            print()
+            raise StopGrading()
+
+        args = text.strip().lower().split(maxsplit=1)
+        # Empty response, so assume no
+        if not args:
+            args = [default]
+        elif args[0] == 'q':
+            raise StopGrading()
+        elif args[0] not in understood:
+            print('come again? I only understand {}'.format(', '.join(understood)))
+            return None
+
+        return RetryPromptResponse(args)
+
+    def warn(self, message):
+        print(message)
+
+    def pager(self, data):
+        subprocess.run(['less'], input=data)
+
+class RetryPromptResponse:
+    """
+    Represent a user's response to a retry prompt. Evaluates to True if they
+    want to retry. You can poke at commands with was() to see if they want to
+    ran a command instead.
+    """
+
+    def __init__(self, args):
+        self.response = args[0]
+        self._arg = args[1] if len(args) > 1 else None
+
+    def __bool__(self):
+        return self.response == 'y'
+
+    def was(self, command):
+        """Determine whether the response was command."""
+
+        return self.response and self.response[0] == command
+
+    def arg(self):
+        """
+        Return the argument passed to this command, or None if there was
+        none.
+        """
+
+        return self._arg
