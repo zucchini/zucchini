@@ -61,9 +61,10 @@ class LC3Test(Test):
                                  stderr=subprocess.STDOUT)
 
         if process.returncode != 0:
-            raise TestError(self, 'lc3test returned {} != 0: {}'
-                                  .format(process.returncode,
-                                          process.stdout.decode().strip()))
+            raise TestError(self,
+                            'lc3test returned {} != 0: {}'
+                            .format(process.returncode,
+                                    process.stdout.decode().strip()))
 
         grade.add_output(process.stdout)
 

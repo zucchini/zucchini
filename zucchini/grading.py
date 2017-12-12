@@ -171,8 +171,8 @@ class StudentTestGrade:
     def gradelog(self):
         """Construct the gradeLog.txt section for this test."""
 
-        deductions = ','.join('{} deduction: -{}'.format(deduction,
-                              StudentGrade.round(self._max_score * percent))
+        deductions = ','.join('{} deduction: -{}'
+                              .format(deduction, StudentGrade.round(self._max_score * percent))
                               for deduction, percent in self._deductions.items())
         deductions = deductions if not deductions else ' ({})'.format(deductions)
         result = '\n{}\nScore: {}/{}{}\n------------------\n\n' \

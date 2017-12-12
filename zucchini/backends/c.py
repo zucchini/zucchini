@@ -116,9 +116,10 @@ class CTest(Test):
                                  stderr=subprocess.DEVNULL)
 
         if process.returncode != 0:
-            raise TestError(self, 'tester returned {} != 0: {}'
-                                  .format(process.returncode,
-                                          (process.stdout or b'').decode().strip()))
+            raise TestError(self,
+                            'tester returned {} != 0: {}'
+                            .format(process.returncode,
+                                    (process.stdout or b'').decode().strip()))
 
         # Read the test summary from the log file so that student printf()s
         # don't mess up our parsing.
