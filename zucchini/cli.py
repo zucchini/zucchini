@@ -1,16 +1,50 @@
 # -*- coding: utf-8 -*-
 
-"""Console script for zucchini."""
+"""Command-line interface to zucchini."""
 
 import click
 
 
-@click.command()
+@click.group()
 def main(args=None):
-    """Console script for zucchini."""
-    click.echo("Replace this message by putting your code into "
-               "zucchini.cli.main")
-    click.echo("See click documentation at http://click.pocoo.org/")
+    """Command-line interface to zucchini."""
+    pass
+
+
+@main.command()
+def setup():
+    """Prompt for initial global config"""
+    pass
+
+
+@main.command()
+def farm():
+    """Add a farm for zucchini configuration"""
+    pass
+
+
+@main.command()
+def list():
+    """Update all farms and list all configurations"""
+    pass
+
+
+@main.command()
+def init():
+    """Configure a directory for grading"""
+    pass
+
+
+@main.command()
+def grade():
+    """Grade submissions"""
+    pass
+
+
+@main.command()
+def export():
+    """Export grades for uploading"""
+    pass
 
 
 if __name__ == "__main__":
