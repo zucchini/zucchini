@@ -7,7 +7,6 @@
 import unittest
 from click.testing import CliRunner
 
-from zucchini import zucchini
 from zucchini import cli
 
 
