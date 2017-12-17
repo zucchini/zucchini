@@ -17,7 +17,7 @@ requirements = [
 ]
 
 setup_requirements = [
-    # TODO(zucchini-bot): put setup requirements (distutils extensions, etc.) here
+    # TODO(zucchini): put setup requirements (distutils extensions, etc.) here
 ]
 
 test_requirements = [
@@ -31,7 +31,7 @@ setup(
     long_description=readme + '\n\n' + history,
     author="Zucchini Team",
     author_email='team@zucc.io',
-    url='https://github.com/zucchini-bot/zucchini',
+    url='https://github.com/zucchini/zucchini',
     packages=find_packages(include=['zucchini']),
     entry_points={
         'console_scripts': [
