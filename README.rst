@@ -6,15 +6,15 @@ Zucchini
 .. image:: https://img.shields.io/pypi/v/zucchini.svg
         :target: https://pypi.python.org/pypi/zucchini
 
-.. image:: https://img.shields.io/travis/zucchini-bot/zucchini.svg
-        :target: https://travis-ci.org/zucchini-bot/zucchini
+.. image:: https://img.shields.io/travis/zucchini/zucchini.svg
+        :target: https://travis-ci.org/zucchini/zucchini
 
 .. image:: https://readthedocs.org/projects/zucchini/badge/?version=latest
         :target: https://zucchini.readthedocs.io/en/latest/?badge=latest
         :alt: Documentation Status
 
-.. image:: https://pyup.io/repos/github/zucchini-bot/zucchini/shield.svg
-     :target: https://pyup.io/repos/github/zucchini-bot/zucchini/
+.. image:: https://pyup.io/repos/github/zucchini/zucchini/shield.svg
+     :target: https://pyup.io/repos/github/zucchini/zucchini/
      :alt: Updates
 
 
@@ -37,4 +37,3 @@ This package was created with Cookiecutter_ and the `audreyr/cookiecutter-pypack
 
 .. _Cookiecutter: https://github.com/audreyr/cookiecutter
 .. _`audreyr/cookiecutter-pypackage`: https://github.com/audreyr/cookiecutter-pypackage
-
