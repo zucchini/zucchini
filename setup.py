@@ -12,8 +12,11 @@ with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
 requirements = [
-    'Click>=6.0',
-    # TODO: put package requirements here
+    'click==6.7',
+    'gitdb2==2.0.3',
+    'GitPython==2.1.8',
+    'PyYAML==3.12',
+    'smmap2==2.0.3',
 ]
 
 setup_requirements = [
