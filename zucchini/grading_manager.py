@@ -1,0 +1,2 @@
+class GradingManager(object):
+    pass
