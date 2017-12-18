@@ -138,12 +138,15 @@ class FarmManager(object):
             farm.update()
 
     def recache_farm(self, farm_name):
-        farm = self.get_farm_by_name(farm_name)
+        # TODO: FIX THIS
+        #farm = self.get_farm_by_name(farm_name)
 
-        farm_url = farm.repo.remotes.origin.urls[0]
+        #farm_url = farm.repo.remotes.origin.urls[0]   <--- the line with the problem
 
-        self.remove_farm(farm_name)
-        self.add_farm(farm_url, farm_name)
+        #self.remove_farm(farm_name)
+        #self.add_farm(farm_url, farm_name)
+
+        pass
 
     def remove_farm(self, farm_name):
         farm = self.get_farm_by_name(farm_name)
