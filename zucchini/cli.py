@@ -1,75 +1,133 @@
 # -*- coding: utf-8 -*-
 
 """Command-line interface to zucchini."""
+import os
 
 import click
-from .backend import BackendRunner, InvalidBackendError
 
+from utils import mkdir_p
+from zucchini import ZucchiniState
+
+from constants import APP_NAME, USER_CONFIG
+
+pass_state = click.make_pass_decorator(ZucchiniState)
+
+def setup_handler():
+    cfgDir = click.get_app_dir(APP_NAME, force_posix=True, roaming=True)
+    mkdir_p(cfgDir)
+
+    cfgPath = os.path.join(cfgDir, USER_CONFIG)
+
+    click.echo("Zucchini will now set up your user configuration, overwriting any existing settings.")
+
+    new_conf = {}
+    for required_field in ZucchiniState.REQUIRED_CONFIG_FIELDS:
+        new_conf[required_field[0]] = click.prompt(required_field[1], type=required_field[2])
+
+    with click.open_file(cfgPath, 'w') as cfg_file:
+        ZucchiniState.save_config(cfg_file, new_conf)
 
 @click.group()
-def main(args=None):
+@click.option('-a', '--assignment', default='.', help="Path of the directory containing the Zucchini assignment.",
+              type=click.Path(exists=True, file_okay=False, dir_okay=True, writable=True, readable=True,
+                              resolve_path=True))
+@click.pass_context
+def cli(ctx, assignment):
     """zucchini, a fun autograder for the whole family."""
-    pass
 
+    cfgDir = click.get_app_dir(APP_NAME, force_posix=True, roaming=True)
+    mkdir_p(cfgDir)
 
-@main.command()
-def setup():
-    """Prompt for initial global config."""
-    pass
+    cfgPath = os.path.join(cfgDir, USER_CONFIG)
 
+    try:
+        with click.open_file(cfgPath, 'r') as cfg_file:
+            ctx.obj = ZucchiniState.load_from_config(cfg_file, cfgDir, assignment)
+    except:  # TODO: Maybe better handling here - is it corrupt or nonexistent? Also use a better-handled exception.
+        click.echo("We need to set up your configuration before doing any other work.")
+        setup_handler()
+        click.echo("Configuration set up successfully! Please retry your original command now.")
+        raise click.Abort()
+    # TODO: The way we handle this here makes it impossible to have a setup or reset command. We kinda need one.
 
-@main.command()
-def farm():
-    """Add a farm for zucchini configuration."""
-    pass
+@cli.command()
+@pass_state
+def update(state):
+    """Update all farms."""
+    # TODO: Add support for single-farm listing
+    click.echo("Updating farms...")
+    state.farm_manager.update_all_farms()
+    click.echo("Successfully updated all farms.") # TODO: Add stats about # configurations etc
 
+@cli.command()
+@pass_state
+def list(state):
+    """Update all farms and list downloadable assignments."""
+    # TODO: Add support for single-farm listing, also potentially do this by invoking the update cmd
+    click.echo("Updating farms...")
+    state.farm_manager.update_all_farms()
+    click.echo("Successfully updated all farms.\n")
 
-@main.command()
-def list():
-    """Update all farms and list all configurations."""
-    pass
+    click.echo("Available assignments:")
+    assignments = state.farm_manager.list_farm_assignments()
+    click.echo("\n".join(["%s: %s" % x for x in assignments]))
 
+@cli.command()
+@click.argument('assignment-name')
+@click.option('-t', '--target', default='.', help="Path of the directory to clone the zucchini assignment folder into.",
+              type=click.Path(exists=True, file_okay=False, dir_okay=True, writable=True, readable=True,
+                              resolve_path=True))
+@pass_state
+def init(state, assignment_name, target):
+    """Configure an assignment for grading."""
+    state.farm_manager.clone_farm_assignment(assignment_name, target)
+    click.echo("Successfully initialized %s into %s." % (assignment_name, target))
 
-@main.command()
-def init():
-    """Configure a directory for grading."""
-    pass
-
-
-@main.command()
+@cli.command()
+@pass_state
 def grade():
     """Grade submissions."""
     pass
 
-
-@main.command('run-backend')
-@click.argument('backend')
-@click.argument('directory', type=click.Path(exists=True))
-@click.option('--file', multiple=True, help='submitted file')
-@click.option('--grader-file', multiple=True, help='file for grading')
-def run_backend(backend, directory, file, grader_file):
-    """
-    Run a submission through a backend.
-
-    Useful for grading an individual submission component in a docker
-    container. Will use backend alias BACKEND inside temporary grading
-    directory DIRECTORY.
-    """
-
-    try:
-        runner = BackendRunner(backend, files=file, grader_files=grader_file)
-    except InvalidBackendError:
-        raise click.BadParameter("no such backend `{}'".format(backend),
-                                 param_hint='backend')
-
-    runner.run(directory)
-
-
-@main.command()
+@cli.command()
+@pass_state
 def export():
     """Export grades for uploading."""
     pass
 
+@cli.group()
+@pass_state
+def farm(state):
+    """Manage zucchini farms."""
+    pass
+
+@farm.command('add')
+@click.argument('farm-url')
+@click.argument('farm-name')
+@pass_state
+def add_farm(state, farm_url, farm_name):
+    state.farm_manager.add_farm(farm_url, farm_name)
+    click.echo("Successfully added farm %s" % farm_name)
+
+@farm.command('recache')
+@click.argument('farm-name')
+@pass_state
+def recache_farm(state, farm_name):
+    state.farm_manager.recache_farm(farm_name)
+    click.echo("Successfully recached farm %s" % farm_name)
+
+@farm.command('list')
+@pass_state
+def list_farms(state):
+    farms = state.farm_manager.list_farms()
+    click.echo("\n".join(farms))
+
+@farm.command('remove')
+@click.argument('farm-name')
+@pass_state
+def remove_farm(state, farm_name):
+    state.farm_manager.remove_farm(farm_name)
+    click.echo("Successfully removed farm %s" % farm_name)
 
 if __name__ == "__main__":
-    main()
+    cli()
