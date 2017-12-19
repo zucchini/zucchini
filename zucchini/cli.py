@@ -7,8 +7,7 @@ import click
 
 from .utils import mkdir_p
 from .zucchini import ZucchiniState
-
-from constants import APP_NAME, USER_CONFIG
+from .constants import APP_NAME, USER_CONFIG
 
 pass_state = click.make_pass_decorator(ZucchiniState)
 
