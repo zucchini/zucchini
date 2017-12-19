@@ -11,6 +11,6 @@ Contents:
    prompt-grader
    open-file-grader
    junit-grader
-   lc3-grader
+   lc3test-grader
    libcheck-grader
    docker-wrapper-grader

@@ -6,6 +6,8 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
+   overview
+
    zucchini-cli
 
    farm-manager
