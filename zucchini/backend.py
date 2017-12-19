@@ -20,7 +20,7 @@ class Backend:
         self.grader_files = grader_files or ()
 
     @staticmethod
-    def need_tmpdir(self):
+    def need_tmpdir():
         """
         Return True if this backend needs a temporary directory, else False.
         """

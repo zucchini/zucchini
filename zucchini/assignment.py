@@ -1,9 +1,10 @@
 import os
 
-import yaml
+# import yaml
 import git
 
 ASSIGNMENT_CONFIG = ".zucchini.yml"
+
 
 # This class contains the Assignment configuration for the local file
 class Assignment(object):
@@ -14,10 +15,10 @@ class Assignment(object):
         except git.exc.InvalidGitRepositoryError:
             raise ValueError("This directory is not a valid git repository.")
 
-        configFilePath = os.path.join(root, ASSIGNMENT_CONFIG)
+        config_file_path = os.path.join(root, ASSIGNMENT_CONFIG)
 
-        if not os.path.exists(configFilePath):
-            raise ValueError("This directory is not a valid Zucchini assignment: the Zucchini config is missing.")
+        if not os.path.exists(config_file_path):
+            raise ValueError("This directory is not a valid Zucchini"
+                             "assignment: the Zucchini config is missing.")
 
-        # TODO: Parse the whole thing here
-
+            # TODO: Parse the whole thing here

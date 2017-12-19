@@ -1,6 +1,9 @@
-import os, errno, re
+import errno
+import os
+import re
 
 import click
+
 
 def mkdir_p(path):
     try:
@@ -11,12 +14,14 @@ def mkdir_p(path):
         else:
             raise
 
+
 class EmailParamType(click.ParamType):
     name = 'email'
-    regex = '^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,4})$'
+    regex = '^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*' \
+            '(\.[a-z]{2,4})$'
 
     def convert(self, value, param, ctx):
-        if re.match(EmailParamType.regex, value) == None:
+        if re.match(EmailParamType.regex, value) is None:
             self.fail('%s is not a valid email address' % value, param, ctx)
 
         return value

@@ -9,9 +9,10 @@ from utils import mkdir_p
 
 FARM_ASSIGNMENT_NAME_REGEX = '^(.*).yml$'
 
+
 class FarmAssignment(object):
     """A farm assignment is an assignment on a farm that can be downloaded.
-    The file here is a simple .yml file that contains just a name, a maintainer,
+    The file here is a simple .yml file that contains just a name, maintainer,
     and a Git URL for the assignment."""
 
     def __init__(self, name, maintainer, url):
@@ -20,10 +21,12 @@ class FarmAssignment(object):
         self.url = url
 
     def clone(self, path):
-        return git.Repo.clone_from(url=self.url, to_path=path) # TODO: Why return a repo? We need success info
+        return git.Repo.clone_from(url=self.url, to_path=path)
+        # TODO: Why return a repo? We need success info
 
     def __str__(self):
         return "%s (Maintainer: %s)" % (self.name, self.maintainer)
+
 
 class Farm(object):
     def __init__(self, path):
@@ -43,14 +46,15 @@ class Farm(object):
             for file_name in files:
                 match = re.match(FARM_ASSIGNMENT_NAME_REGEX, file_name)
 
-                if match is not None: # This might be an assignment
+                if match is not None:  # This might be an assignment
                     try:
                         file_path = os.path.join(root, file_name)
-                        with open(file_path,'r') as config_file:
+                        with open(file_path, 'r') as config_file:
                             config = yaml.safe_load(config_file)
                             assignment = FarmAssignment(**config)
 
-                            slug = os.path.splitext(os.path.relpath(file_path, self.path))[0]
+                            slug = os.path.splitext(
+                                os.path.relpath(file_path, self.path))[0]
                             self.farm_assignments[slug] = assignment
                     except:
                         # TODO: Do something here: the load failed
@@ -61,11 +65,13 @@ class Farm(object):
 
     def update(self):
         """Call Git Pull on the repository to update its contents"""
-        self.repo.remotes.origin.pull() # TODO: Get some info here about the fetch status
+        self.repo.remotes.origin.pull()
+        # TODO: Get some info here about the fetch status
         self._parse_assignments()
 
     def list_assignments(self):
         return sorted(self.farm_assignments.items(), key=lambda x: x[0])
+
 
 class FarmManager(object):
     def __init__(self, farm_root):
@@ -80,8 +86,10 @@ class FarmManager(object):
     def _parse_farms(self):
         self.farms = {}
 
-        farms = [name for name in os.listdir(self.root) if os.path.isdir(os.path.join(self.root, name))]
-        self.farms = {name: Farm(os.path.join(self.root, name)) for name in farms}
+        farms = [name for name in os.listdir(self.root) if
+                 os.path.isdir(os.path.join(self.root, name))]
+        self.farms = {name: Farm(os.path.join(self.root, name)) for name in
+                      farms}
 
     def get_farm_by_name(self, name):
         return self.farms[name]
@@ -110,12 +118,14 @@ class FarmManager(object):
         parsed_name = assignment_name.split('/', 1)
 
         if len(parsed_name) != 2:
-            raise ValueError("You need to specify assignment names in farm/assignment format.")
+            raise ValueError("You need to specify assignment names in"
+                             "farm/assignment format.")
 
         farm, assignment = parsed_name
 
         clone_path = os.path.join(path, assignment.split('/')[-1])
-        self.get_farm_by_name(farm).get_farm_assignment_by_name(assignment).clone(clone_path)
+        self.get_farm_by_name(farm).get_farm_assignment_by_name(
+            assignment).clone(clone_path)
 
     def add_farm(self, farm_url, farm_name):
         if self.farm_exists(farm_name):
@@ -139,12 +149,12 @@ class FarmManager(object):
 
     def recache_farm(self, farm_name):
         # TODO: FIX THIS
-        #farm = self.get_farm_by_name(farm_name)
+        # farm = self.get_farm_by_name(farm_name)
 
-        #farm_url = farm.repo.remotes.origin.urls[0]   <--- the line with the problem
+        # farm_url = farm.repo.remotes.origin.urls[0] <--- the problem
 
-        #self.remove_farm(farm_name)
-        #self.add_farm(farm_url, farm_name)
+        # self.remove_farm(farm_name)
+        # self.add_farm(farm_url, farm_name)
 
         pass
 
