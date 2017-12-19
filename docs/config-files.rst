@@ -1,3 +1,7 @@
+==================
+Config File Format
+==================
+
 What shall be in the config file?
 
 Component configuration:

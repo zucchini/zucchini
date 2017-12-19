@@ -1,3 +1,7 @@
+=========================
+Example Zucchini Workflow
+=========================
+
 The following is a zucchini workflow that would be used for grading an
 assignment, Homework Zero, for a fictional class CS 1337 at Utopia Tech.
 We assume that Utopia Tech uses Sakai and that we have downloaded
