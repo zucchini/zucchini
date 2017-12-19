@@ -1,3 +1,7 @@
+================
+The Zucchini CLI
+================
+
 Set the user configuration: what’s your name? etc. and reset if
 necessary. Run by default on first run.
 
@@ -10,9 +14,10 @@ that you set:
 
 ::
 
-    zucc tap <git-repo-url> <tap-name>
-    zucc untap <tap-name>
-    zucc retap <tap-name> # Equivalent to untapping tap-name and then tapping its URL again as tap-name
+    zucc farm add <git-repo-url> <tap-name>
+    zucc farm remove <tap-name>
+    zucc farm recache <tap-name> # Equivalent to untapping tap-name and then
+    tapping its URL again as tap-name
 
 List the assignments available for grading
 

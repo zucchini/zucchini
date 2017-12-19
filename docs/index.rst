@@ -1,5 +1,5 @@
 Welcome to Zucchini's documentation!
-======================================
+====================================
 
 Contents:
 
@@ -9,6 +9,11 @@ Contents:
    readme
    installation
    usage
+   example-workflow
+   config-files
+
+   architecture/index
+
    modules
    contributing
    authors

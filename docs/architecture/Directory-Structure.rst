@@ -1,3 +1,7 @@
+=======================
+The Directory Structure
+=======================
+
 ::
 
     /
@@ -5,7 +9,7 @@
             zucc.yml
             Makefile
             grader.c
-        students/ (created by loader)
+        submissions/ (created by loader)
             Adams, Austin/
                 file1.c
                 file2.h
