@@ -6,8 +6,7 @@ import git
 import yaml
 
 from .utils import mkdir_p
-
-FARM_ASSIGNMENT_NAME_REGEX = '^(.*).yml$'
+from .constants import FARM_ASSIGNMENT_NAME_REGEX, FARM_IDENTIFIER_FILE
 
 
 class FarmAssignment(object):
@@ -35,7 +34,6 @@ class Farm(object):
         self.repo = git.Repo(self.path)
         self.farm_assignments = dict()
 
-        # TODO: Do we want to validate a zucchini repo somehow?
         self._parse_assignments()
 
     def _parse_assignments(self):
@@ -136,6 +134,11 @@ class FarmManager(object):
 
         if repo is None:
             raise ValueError("Could not add farm: is the URL valid?")
+
+        if not os.path.exists(os.path.join(path, FARM_IDENTIFIER_FILE)):
+            shutil.rmtree(path)
+            raise ValueError("The given git repo is not a valid zucchini "
+                             "farm.")
 
         self._parse_farms()
 
