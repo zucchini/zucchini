@@ -9,10 +9,10 @@ import os
 
 import yaml
 
-from utils import EmailParamType
-from assignment import Assignment
-from farms import FarmManager
-from constants import FARM_DIRECTORY
+from .utils import EmailParamType
+from .assignment import Assignment
+from .farms import FarmManager
+from .constants import FARM_DIRECTORY
 
 
 class ZucchiniState(object):

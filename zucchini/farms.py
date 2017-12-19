@@ -5,7 +5,7 @@ import re
 import git
 import yaml
 
-from utils import mkdir_p
+from .utils import mkdir_p
 
 FARM_ASSIGNMENT_NAME_REGEX = '^(.*).yml$'
 

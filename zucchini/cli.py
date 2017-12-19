@@ -5,8 +5,8 @@ import os
 
 import click
 
-from utils import mkdir_p
-from zucchini import ZucchiniState
+from .utils import mkdir_p
+from .zucchini import ZucchiniState
 
 from constants import APP_NAME, USER_CONFIG
 
