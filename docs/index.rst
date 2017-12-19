@@ -10,7 +10,9 @@ Contents:
    installation
    usage
    example-workflow
+
    config-files
+   config-samples/index
 
    architecture/index
 
