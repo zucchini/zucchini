@@ -103,8 +103,9 @@ class FarmManager(object):
 
     def list_farm_assignments(self):
         assignments = []
-        for farm in self.farms.values():
-            assignments += farm.list_assignments()
+        for farm_name, farm in self.farms.items():
+            assignments += [("%s/%s" % (farm_name, x[0]), x[1]) for x in
+                            farm.list_assignments()]
 
         return sorted(assignments, key=lambda x: x[0])
 
