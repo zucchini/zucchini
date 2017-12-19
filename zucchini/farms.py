@@ -56,7 +56,7 @@ class Farm(object):
                             slug = os.path.splitext(
                                 os.path.relpath(file_path, self.path))[0]
                             self.farm_assignments[slug] = assignment
-                    except:
+                    except:  # noqa
                         # TODO: Do something here: the load failed
                         pass
 

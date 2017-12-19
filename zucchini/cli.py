@@ -50,7 +50,8 @@ def cli(ctx, assignment):
         with click.open_file(config_path, 'r') as cfg_file:
             ctx.obj = ZucchiniState.load_from_config(cfg_file, config_dir,
                                                      assignment)
-    except:  # TODO: Maybe better handling here, is it corrupt or nonexistent?
+    except:  # noqa
+        # TODO: Maybe better handling here, is it corrupt or nonexistent?
         click.echo("We need to set up your configuration before doing any"
                    "other work.")
         setup_handler()
