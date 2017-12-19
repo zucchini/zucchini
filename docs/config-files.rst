@@ -14,8 +14,9 @@ Component configuration:
       course-id: 1
       assignment-id: 1
     components:
-      - weight: 2
-        files: my_math.c
+      - name: malloc()
+        weight: 2
+        files: my_malloc.c
         grading-files: tests/*
         backend: docker
         backend-options:
@@ -110,14 +111,16 @@ Component configuration:
               weight: 1
             - name: test_malloc_realloc_bad_trailing_canary
               weight: 1
-      - weight: 1
+      - name: Headshot image
+        weight: 1
         files: headshot.jpg
         backend:
           name: open-file
         prompts:
           - question: Is the image an acceptable image of the student?
             type: boolean
-      - weight: 1
+      - name: XOR circuit
+        weight: 1
         files: xor.circ
         grading-files: hw1checker.jar brandonsim.jar
         backend: logisim
@@ -130,7 +133,8 @@ Component configuration:
           weight: 2
         - question: Does the circuit produce the intended result?
           weight: 5
-      - weight: 5
+      - name: LC-3 BitVector implementation
+        weight: 5
         files: bitvector.asm
         grader-files: bitvector_test.xml
         backend: lc3test
