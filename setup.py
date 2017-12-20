@@ -17,6 +17,7 @@ requirements = [
     'GitPython==2.1.8',
     'PyYAML==3.12',
     'smmap2==2.0.3',
+    'requests==2.18.4',
 ]
 
 setup_requirements = [
