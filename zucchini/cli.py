@@ -6,8 +6,9 @@ import os
 import click
 
 from .utils import mkdir_p
+from .grading_manager import GradingManager
 from .zucchini import ZucchiniState
-from .constants import APP_NAME, USER_CONFIG
+from .constants import APP_NAME, USER_CONFIG, DEFAULT_SUBMISSION_DIRECTORY
 
 pass_state = click.make_pass_decorator(ZucchiniState)
 
@@ -104,15 +105,29 @@ def init(state, assignment_name, target):
 
 
 @cli.command()
+@click.option('-f', '--from-dir', default=DEFAULT_SUBMISSION_DIRECTORY,
+              help="Path of the directory to read submissions from.",
+              type=click.Path(exists=True, file_okay=False, dir_okay=True,
+                              writable=True, readable=True,
+                              resolve_path=True))
 @pass_state
-def grade():
+def grade(state, from_dir):
     """Grade submissions."""
-    pass
+
+    # TODO: We need to validate the assignment object
+
+    # At this point, the assignment object is loaded. We need a GradingManager
+
+    # TODO: We need to set up the submission filtering function to pass to the
+    # grading manager
+
+    grading_manager = GradingManager(state.assignment, from_dir)
+    grading_manager.grade()
 
 
 @cli.command()
 @pass_state
-def export():
+def export(state):
     """Export grades for uploading."""
     pass
 

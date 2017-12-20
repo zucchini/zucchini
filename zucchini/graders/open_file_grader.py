@@ -1,3 +1,5 @@
+import os
+
 import click
 
 from . import PromptGrader, InvalidGraderConfigError
@@ -15,9 +17,10 @@ class OpenFileGrader(PromptGrader):
             raise InvalidGraderConfigError(
                 "A file_name needs to be specified.")
 
-    def grade(self, submission):
+    def grade(self, submission, path):
         # Let's get the file from the submission
-        file_to_launch = submission.get_absolute_path(self.file_name)
+        file_to_launch = os.path.join(path, self.file_name)
         click.launch(file_to_launch)
 
-        return super(OpenFileGrader, self).grade(submission=submission)
+        return super(OpenFileGrader, self).grade(submission=submission,
+                                                 path=path)

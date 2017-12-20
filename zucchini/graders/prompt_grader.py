@@ -65,7 +65,7 @@ class PromptGrader(GraderInterface):
         for index, prompt_options in enumerate(prompts):
             self.prompts.append(Prompt(**prompt_options))
 
-    def grade(self, submission):
+    def grade(self, submission, path):
         # The submission is not relevant here
         total = 0
 

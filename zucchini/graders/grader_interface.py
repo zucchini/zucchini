@@ -20,6 +20,9 @@ class GraderInterface:
         return []
 
     @abstractmethod
-    def grade(self, submission):  # type: (Submission) -> int
-        """This function should take in a Submission object, complete the
-        grading on it, and return the submission's score."""
+    def grade(self, submission, path):  # type: (Submission, str) -> int
+        """This function should take in a Submission object and a path, where
+        the path can be assumed to be the root of the submission directory (it
+        will be a directory where the grading manager has copied the required
+        files for this grader); then complete the grading on it, and return the
+        submission's score."""
