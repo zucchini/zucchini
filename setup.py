@@ -38,7 +38,7 @@ setup(
     packages=find_packages(include=['zucchini']),
     entry_points={
         'console_scripts': [
-            'zucc=zucchini.cli:main'
+            'zucc=zucchini.cli:cli'
         ]
     },
     include_package_data=True,
