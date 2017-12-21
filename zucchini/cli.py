@@ -19,7 +19,7 @@ def setup_handler():
 
     config_path = os.path.join(config_dir, USER_CONFIG)
 
-    click.echo("Zucchini will now set up your user configuration, overwriting"
+    click.echo("Zucchini will now set up your user configuration, overwriting "
                "any existing settings.")
 
     new_conf = {}
@@ -52,10 +52,10 @@ def cli(ctx, assignment):
                                                      assignment)
     except:  # noqa
         # TODO: Maybe better handling here, is it corrupt or nonexistent?
-        click.echo("We need to set up your configuration before doing any"
+        click.echo("We need to set up your configuration before doing any "
                    "other work.")
         setup_handler()
-        click.echo("Configuration set up successfully! Please retry your"
+        click.echo("Configuration set up successfully! Please retry your "
                    "original command now.")
         raise SystemExit()  # TODO: Use better exception
         # TODO: The way we handle this here makes it impossible to have a setup
