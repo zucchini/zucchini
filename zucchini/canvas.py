@@ -4,8 +4,14 @@ import os
 import re
 import requests
 import shutil
-from json import JSONDecodeError
 from collections import namedtuple
+
+# json.load() started throwing JSONDecodeError instead of ValueError
+# back in Python 3.5, so catch ValueError instead for earlier versions
+try:
+    from json import JSONDecodeError
+except ImportError:
+    JSONDecodeError = ValueError
 
 
 class CanvasAPIError(Exception):
