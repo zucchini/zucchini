@@ -9,6 +9,7 @@ import os
 
 import yaml
 
+from .canvas import CanvasAPI
 from .utils import EmailParamType
 from .assignment import Assignment
 from .farms import FarmManager
@@ -28,6 +29,9 @@ class ZucchiniState(object):
         self.user_name = user_name
         self.user_email = user_email
 
+        self.canvas_url = canvas_url
+        self.canvas_token = canvas_token
+
         self.assignment = None
         self.assignmentError = None
 
@@ -40,6 +44,12 @@ class ZucchiniState(object):
 
         self.farm_manager = FarmManager(
             os.path.join(config_directory, FARM_DIRECTORY))
+
+    def canvas_api(self):
+        if not self.canvas_url or not self.canvas_token:
+            raise ValueError('The Canvas API is not configured!')
+
+        return CanvasAPI(self.canvas_url, self.canvas_token)
 
     @staticmethod
     def save_config(cfg_file, cfg_dict):
