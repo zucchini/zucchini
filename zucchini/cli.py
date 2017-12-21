@@ -209,5 +209,54 @@ def canvas_assignments(state, course_id):
         click.echo(str(assign))
 
 
+@canvas.command('sections')
+@click.argument('course-id')
+@pass_state
+def canvas_sections(state, course_id):
+    """List sections in a Canvas course"""
+
+    api = state.canvas_api()
+    for section in api.list_sections(course_id):
+        click.echo(str(section))
+
+
+@canvas.command('section-students')
+@click.argument('course-id')
+@click.argument('section-id')
+@pass_state
+def canvas_section_students(state, course_id, section_id):
+    """List students in a Canvas section"""
+
+    api = state.canvas_api()
+    for student in api.list_section_students(course_id, section_id):
+        click.echo(str(student))
+
+
+@canvas.command('submissions')
+@click.argument('course-id')
+@click.argument('assignment-id')
+@pass_state
+def canvas_submissions(state, course_id, assignment_id):
+    """List submissions for a Canvas assignment"""
+
+    api = state.canvas_api()
+    for submission in api.list_submissions(course_id, assignment_id):
+        click.echo(str(submission))
+
+
+@canvas.command('download')
+@click.argument('course-id')
+@click.argument('assignment-id')
+@click.argument('user-id')
+@click.argument('dest-directory')
+@pass_state
+def canvas_download(state, course_id, assignment_id, user_id, dest_directory):
+    """Download a submission"""
+
+    api = state.canvas_api()
+    submission = api.get_submission(course_id, assignment_id, user_id)
+    submission.download(dest_directory)
+
+
 if __name__ == "__main__":
     cli()
