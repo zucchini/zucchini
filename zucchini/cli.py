@@ -57,7 +57,7 @@ def cli(ctx, assignment):
         setup_handler()
         click.echo("Configuration set up successfully! Please retry your"
                    "original command now.")
-        raise click.Abort()  # TODO: Use better exception
+        raise SystemExit()  # TODO: Use better exception
         # TODO: The way we handle this here makes it impossible to have a setup
         # or reset command. We kinda need one.
 
