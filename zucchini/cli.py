@@ -194,7 +194,19 @@ def canvas_courses(state):
     """List Canvas courses"""
 
     api = state.canvas_api()
-    click.echo('\n'.join(str(course) for course in api.list_courses()))
+    for course in api.list_courses():
+        click.echo(str(course))
+
+
+@canvas.command('assignments')
+@click.argument('course-id')
+@pass_state
+def canvas_assignments(state, course_id):
+    """List assignments in a Canvas course"""
+
+    api = state.canvas_api()
+    for assign in api.list_assignments(course_id):
+        click.echo(str(assign))
 
 
 if __name__ == "__main__":
