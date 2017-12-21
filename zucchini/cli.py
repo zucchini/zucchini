@@ -182,5 +182,20 @@ def remove_farm(state, farm_name):
     click.echo("Successfully removed farm %s" % farm_name)
 
 
+@cli.group()
+def canvas():
+    """Talk to the Canvas API."""
+    pass
+
+
+@canvas.command('courses')
+@pass_state
+def canvas_courses(state):
+    """List Canvas courses"""
+
+    api = state.canvas_api()
+    click.echo('\n'.join(str(course) for course in api.list_courses()))
+
+
 if __name__ == "__main__":
     cli()
