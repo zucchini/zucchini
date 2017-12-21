@@ -191,6 +191,9 @@ class CanvasAPI(object):
             raise CanvasNotFoundError()
         elif resp.status_code >= 500 and resp.status_code < 600:
             raise CanvasInternalError()
+        elif resp.status_code != 200:
+            raise CanvasAPIError('unexpected response code {}'
+                                 .format(resp.status_code))
 
         return resp
 
