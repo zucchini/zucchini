@@ -5,7 +5,7 @@ import os
 
 import click
 
-from .utils import mkdir_p
+from .utils import mkdir_p, CANVAS_URL, CANVAS_TOKEN
 from .grading_manager import GradingManager
 from .zucchini import ZucchiniState
 from .constants import APP_NAME, USER_CONFIG, DEFAULT_SUBMISSION_DIRECTORY
@@ -26,6 +26,18 @@ def setup_handler():
     for required_field in ZucchiniState.REQUIRED_CONFIG_FIELDS:
         new_conf[required_field[0]] = click.prompt(required_field[1],
                                                    type=required_field[2])
+
+    new_conf['canvas_url'] = click.prompt('Canvas URL (press enter to skip '
+                                          'Canvas configuration)',
+                                          type=CANVAS_URL, default='')
+    if new_conf['canvas_url']:
+        new_conf['canvas_token'] = click.prompt(
+            'Canvas API token (To generate one, go to {}/profile/settings and '
+            'choose "New Access Token")'
+            .format(new_conf['canvas_url']), type=CANVAS_TOKEN)
+    else:
+        click.echo('Skipping canvas configuration...')
+        new_conf['canvas_token'] = ''
 
     with click.open_file(config_path, 'w') as cfg_file:
         ZucchiniState.save_config(cfg_file, new_conf)
