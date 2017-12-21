@@ -22,7 +22,7 @@ class ZucchiniState(object):
     ]
 
     def __init__(self, user_name, user_email, config_directory,
-                 assignment_directory):
+                 assignment_directory, canvas_url='', canvas_token=''):
         self.config_directory = config_directory
 
         self.user_name = user_name
