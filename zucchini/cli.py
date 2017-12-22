@@ -258,5 +258,28 @@ def canvas_download(state, course_id, assignment_id, user_id, dest_directory):
     submission.download(dest_directory)
 
 
+@canvas.command('grade')
+@click.argument('course-id')
+@click.argument('assignment-id')
+@click.argument('user-id')
+@click.argument('grade')
+@click.option('--comment', help='Add TEXT as a new grading comment')
+@pass_state
+def canvas_grade(state, course_id, assignment_id, user_id, grade,
+                 comment=None):
+    """
+    Grade a submission.
+
+    Warning: supplying --comment adds a new grade comment; it does not update
+    existing comments. Thus, every time you run `zucc canvas grade ...
+    --comment hello', you will add a brand new comment "hello." This is because
+    the canvas API cannot edit or delete submission comments; it can only add
+    them.
+    """
+
+    api = state.canvas_api()
+    api.set_submission_grade(course_id, assignment_id, user_id, grade, comment)
+
+
 if __name__ == "__main__":
     cli()
