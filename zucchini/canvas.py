@@ -180,12 +180,13 @@ class CanvasAPI(object):
         """Return authentication headers"""
         return {'authorization': 'Bearer {}'.format(self.token)}
 
-    def _request(self, url, stream=False):
+    def _request(self, url, method='get', json=None, stream=False):
         """
         Attempt to request the URL url, raising exceptions in error
         conditions
         """
-        resp = requests.get(url, headers=self._headers(), stream=stream)
+        resp = requests.request(method, url, headers=self._headers(),
+                                json=json, stream=stream)
 
         if resp.status_code == 404:
             raise CanvasNotFoundError()
@@ -194,8 +195,10 @@ class CanvasAPI(object):
         elif resp.status_code != 200:
             raise CanvasAPIError('unexpected response code {}'
                                  .format(resp.status_code))
-
         return resp
+
+    def _put(self, name, json):
+        self._request(self._url(name), method='put', json=json)
 
     def _get_json(self, name):
         """
@@ -328,3 +331,23 @@ class CanvasAPI(object):
         return self._get('courses/{}/assignments/{}/submissions/{}'
                          .format(course_id, assignment_id, user_id),
                          CanvasSubmission)
+
+    def set_submission_grade(self, course_id, assignment_id, user_id, grade,
+                             comment=None):
+        """
+        Set the grade and optionally add a comment to the submission for
+        the given user in the given assignment.
+
+        Warning: specifying `comment' will add a new comment, not edit
+        an existing one. So every time you call this method with
+        comment='XYZ', you will add a new comment.
+        """
+
+        json = {'submission': {'posted_grade': '{}%'.format(grade)},
+                'comment': {}}
+
+        if comment is not None:
+            json['comment']['text_comment'] = comment
+
+        self._put('courses/{}/assignments/{}/submissions/{}'
+                  .format(course_id, assignment_id, user_id), json)
