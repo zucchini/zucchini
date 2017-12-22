@@ -32,20 +32,29 @@ class ZucchiniState(object):
         self.canvas_url = canvas_url
         self.canvas_token = canvas_token
 
-        self.assignment = None
-        self.assignmentError = None
-
-        try:
-            self.assignment = Assignment(assignment_directory)
-        except ValueError as e:
-            self.assignmentError = e
-            # TODO: I can imagine this being an antipattern,
-            # but we need to tolerate missing assignments
+        self.assignment_directory = assignment_directory
+        self._assignment = None
 
         self.farm_manager = FarmManager(
             os.path.join(config_directory, FARM_DIRECTORY))
 
+    def get_assignment(self):
+        """
+        Return an Assignment instance based on the configuration for this
+        assignment.
+        """
+
+        if self._assignment is None:
+            self._assignment = Assignment(self.assignment_directory)
+
+        return self._assignment
+
     def canvas_api(self):
+        """
+        Return a CanvasAPI instance configured according to the user's global
+        configuration.
+        """
+
         if not self.canvas_url or not self.canvas_token:
             raise ValueError('The Canvas API is not configured!')
 
