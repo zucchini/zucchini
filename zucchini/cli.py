@@ -51,7 +51,20 @@ def setup_handler():
                               resolve_path=True))
 @click.pass_context
 def cli(ctx, assignment):
-    """zucchini, a fun autograder for the whole family."""
+    """
+    zucchini, a fun autograder for the whole family.
+
+    \b
+    example workflow:
+        $ zucc farm add https://some/git/repo/url.git my-farm
+        $ zucc init my-farm/my-assignment
+        $ cd my-assignment
+        $ zucc load canvas
+        $ zucc grade
+        $ zucc export canvas
+
+    documentation: https://zucchini.readthedocs.io/
+    """
 
     config_dir = click.get_app_dir(APP_NAME, force_posix=True, roaming=True)
     mkdir_p(config_dir)
