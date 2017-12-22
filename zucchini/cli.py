@@ -117,6 +117,11 @@ def init(state, assignment_name, target):
 
 
 @cli.group()
+@click.option('-f', '--to-dir', default=DEFAULT_SUBMISSION_DIRECTORY,
+              help="Path of the directory in which to put submissions loaded.",
+              type=click.Path(file_okay=False, dir_okay=True,
+                              writable=True, readable=True,
+                              resolve_path=True))
 @pass_state
 def load(state):
     """Load student submissions."""
@@ -124,12 +129,14 @@ def load(state):
 
 
 @load.command('sakai')
+@pass_state
 def load_sakai(state):
     """Load student submissions from Sakai"""
-    pass
+    raise NotImplementedError
 
 
 @load.command('canvas')
+@pass_state
 def load_canvas(state):
     """Load student submissions from Canvas"""
     pass
