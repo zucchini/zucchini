@@ -201,15 +201,15 @@ def remove_farm(state, farm_name):
     click.echo("Successfully removed farm %s" % farm_name)
 
 
-@cli.group()
-def canvas():
-    """Talk to the Canvas API."""
+@cli.group('canvas-api')
+def canvas_api():
+    """Talk to the Canvas API (low-level interface)."""
     pass
 
 
-@canvas.command('courses')
+@canvas_api.command('courses')
 @pass_state
-def canvas_courses(state):
+def canvas_api_courses(state):
     """List Canvas courses"""
 
     api = state.canvas_api()
@@ -217,10 +217,10 @@ def canvas_courses(state):
         click.echo(str(course))
 
 
-@canvas.command('assignments')
+@canvas_api.command('assignments')
 @click.argument('course-id')
 @pass_state
-def canvas_assignments(state, course_id):
+def canvas_api_assignments(state, course_id):
     """List assignments in a Canvas course"""
 
     api = state.canvas_api()
@@ -228,10 +228,10 @@ def canvas_assignments(state, course_id):
         click.echo(str(assign))
 
 
-@canvas.command('sections')
+@canvas_api.command('sections')
 @click.argument('course-id')
 @pass_state
-def canvas_sections(state, course_id):
+def canvas_api_sections(state, course_id):
     """List sections in a Canvas course"""
 
     api = state.canvas_api()
@@ -239,11 +239,11 @@ def canvas_sections(state, course_id):
         click.echo(str(section))
 
 
-@canvas.command('section-students')
+@canvas_api.command('section-students')
 @click.argument('course-id')
 @click.argument('section-id')
 @pass_state
-def canvas_section_students(state, course_id, section_id):
+def canvas_api_section_students(state, course_id, section_id):
     """List students in a Canvas section"""
 
     api = state.canvas_api()
@@ -251,11 +251,11 @@ def canvas_section_students(state, course_id, section_id):
         click.echo(str(student))
 
 
-@canvas.command('submissions')
+@canvas_api.command('submissions')
 @click.argument('course-id')
 @click.argument('assignment-id')
 @pass_state
-def canvas_submissions(state, course_id, assignment_id):
+def canvas_api_submissions(state, course_id, assignment_id):
     """List submissions for a Canvas assignment"""
 
     api = state.canvas_api()
@@ -263,13 +263,14 @@ def canvas_submissions(state, course_id, assignment_id):
         click.echo(str(submission))
 
 
-@canvas.command('download')
+@canvas_api.command('download')
 @click.argument('course-id')
 @click.argument('assignment-id')
 @click.argument('user-id')
 @click.argument('dest-directory')
 @pass_state
-def canvas_download(state, course_id, assignment_id, user_id, dest_directory):
+def canvas_api_download(state, course_id, assignment_id, user_id,
+                        dest_directory):
     """Download a submission"""
 
     api = state.canvas_api()
@@ -277,15 +278,15 @@ def canvas_download(state, course_id, assignment_id, user_id, dest_directory):
     submission.download(dest_directory)
 
 
-@canvas.command('grade')
+@canvas_api.command('grade')
 @click.argument('course-id')
 @click.argument('assignment-id')
 @click.argument('user-id')
 @click.argument('grade')
 @click.option('--comment', help='Add TEXT as a new grading comment')
 @pass_state
-def canvas_grade(state, course_id, assignment_id, user_id, grade,
-                 comment=None):
+def canvas_api_grade(state, course_id, assignment_id, user_id, grade,
+                     comment=None):
     """
     Grade a submission.
 
