@@ -72,15 +72,15 @@ class Assignment(object):
         config_file_path = os.path.join(self.root, ASSIGNMENT_CONFIG_FILE)
 
         if not os.path.exists(config_file_path):
-            raise ValueError("This directory is not a valid Zucchini"
+            raise ValueError("This directory is not a valid Zucchini "
                              "assignment: the Zucchini config is missing.")
 
         with click.open_file(config_file_path, 'r') as config_file:
             config = yaml.safe_load(config_file)
 
         if config is None:
-            raise ValueError("The assignment configuration file could not be"
-                             " parsed.")
+            raise ValueError("The assignment configuration file could not be "
+                             "parsed.")
 
         try:
             # Get the assignment's name, author
