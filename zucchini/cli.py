@@ -116,6 +116,25 @@ def init(state, assignment_name, target):
                                                          target))
 
 
+@cli.group()
+@pass_state
+def load(state):
+    """Load student submissions."""
+    pass
+
+
+@load.command('sakai')
+def load_sakai(state):
+    """Load student submissions from Sakai"""
+    pass
+
+
+@load.command('canvas')
+def load_canvas(state):
+    """Load student submissions from Canvas"""
+    pass
+
+
 @cli.command()
 @click.option('-f', '--from-dir', default=DEFAULT_SUBMISSION_DIRECTORY,
               help="Path of the directory to read submissions from.",
