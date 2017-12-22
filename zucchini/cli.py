@@ -152,7 +152,7 @@ def grade(state, from_dir):
     # TODO: We need to set up the submission filtering function to pass to the
     # grading manager
 
-    grading_manager = GradingManager(state.assignment, from_dir)
+    grading_manager = GradingManager(state.get_assignment(), from_dir)
     grading_manager.grade()
 
 
