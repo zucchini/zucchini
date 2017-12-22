@@ -35,6 +35,8 @@ class ZucchiniState(object):
         self.assignment_directory = assignment_directory
         self._assignment = None
 
+        self.submission_dir = None
+
         self.farm_manager = FarmManager(
             os.path.join(config_directory, FARM_DIRECTORY))
 
