@@ -136,9 +136,10 @@ def init(state, assignment_name, target):
                               writable=True, readable=True,
                               resolve_path=True))
 @pass_state
-def load(state):
+def load(state, to_dir):
     """Load student submissions."""
-    pass
+
+    state.set_submission_dir = to_dir
 
 
 @load.command('sakai')
