@@ -16,7 +16,7 @@ class GraderInterface:
     @staticmethod
     def list_prerequisites():  # type: () -> List[str]
         """This function should return a list of commands required to install
-        this grader's prerequisites on an Ubuntu 14.04 machine."""
+        this grader's prerequisites on an Ubuntu 16.04 machine."""
         return []
 
     @abstractmethod
