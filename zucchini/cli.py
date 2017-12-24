@@ -2,6 +2,7 @@
 
 """Command-line interface to zucchini."""
 import os
+import shutil
 
 import click
 
@@ -9,7 +10,8 @@ from .utils import mkdir_p, CANVAS_URL, CANVAS_TOKEN
 from .grading_manager import GradingManager
 from .zucchini import ZucchiniState
 from .canvas import CanvasAPIError, CanvasNotFoundError, CanvasInternalError
-from .constants import APP_NAME, USER_CONFIG, DEFAULT_SUBMISSION_DIRECTORY
+from .constants import APP_NAME, USER_CONFIG, DEFAULT_SUBMISSION_DIRECTORY, \
+                       SUBMISSION_FILES_DIRECTORY
 
 pass_state = click.make_pass_decorator(ZucchiniState)
 
@@ -239,11 +241,16 @@ def load_canvas(state, section=None):
         submissions = api.list_section_submissions(section_chosen.id,
                                                    assignment_id)
 
-    for submission in submissions:
-        submission_dir = os.path.join(state.submission_dir,
-                                      submission.user.sortable_name)
-        mkdir_p(submission_dir)
-        submission.download(submission_dir)
+    click.echo('Downloading submissions from Canvas...')
+    with click.progressbar(submissions) as bar:
+        for submission in bar:
+            files_dir = os.path.join(state.submission_dir,
+                                     submission.user.sortable_name,
+                                     SUBMISSION_FILES_DIRECTORY)
+            # Remove submission if it already exists
+            shutil.rmtree(files_dir, ignore_errors=True)
+            mkdir_p(files_dir)
+            submission.download(files_dir)
 
 
 @cli.command()
