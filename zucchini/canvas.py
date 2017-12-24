@@ -77,7 +77,7 @@ class CanvasSection(namedtuple('CanvasSection',
 
 
 class CanvasUser(namedtuple('CanvasUser',
-                 ('api_', 'id', 'name'))):
+                 ('api_', 'id', 'name', 'sortable_name'))):
     """Hold user info"""
     __slots__ = ()
 

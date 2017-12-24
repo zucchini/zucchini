@@ -241,7 +241,7 @@ def load_canvas(state, section=None):
 
     for submission in submissions:
         submission_dir = os.path.join(state.submission_dir,
-                                      submission.user.name)
+                                      submission.user.sortable_name)
         mkdir_p(submission_dir)
         submission.download(submission_dir)
 
