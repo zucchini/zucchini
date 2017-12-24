@@ -3,9 +3,10 @@ import collections
 import click
 
 from . import GraderInterface, InvalidGraderConfigError
+from ..utils import FromConfigDictMixin
 
 
-class Prompt(object):
+class Prompt(FromConfigDictMixin):
     def __init__(self, text, answer_type, weight, answer_range=None):
         self.text = text
         self.answer_type = None
@@ -63,7 +64,7 @@ class PromptGrader(GraderInterface):
                                            "list of Prompt dictionaries.")
 
         for index, prompt_options in enumerate(prompts):
-            self.prompts.append(Prompt(**prompt_options))
+            self.prompts.append(Prompt.from_config_dict(prompt_options))
 
     def grade(self, submission, path):
         # The submission is not relevant here

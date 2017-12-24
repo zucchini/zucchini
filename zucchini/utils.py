@@ -1,6 +1,7 @@
 import errno
 import os
 import re
+import inspect
 
 try:
     # Python 3
@@ -20,6 +21,48 @@ def mkdir_p(path):
             pass
         else:
             raise
+
+
+class FromConfigDictMixin(object):
+    @classmethod
+    def from_config_dict(cls, config_dict, **extra_kwargs):
+        """
+        Convert a dictionary, checking for invalid keys, that can be
+        safely passed as kwargs. Checks only for the presence of options
+        (keys), not their types. Converts dashes to underscores in
+        option names.
+
+        Considers optional arguments to cls.__init__() optional options,
+        and required arguments to cls.__init__() required options.
+        Rejects options also found in extra_kwargs.
+        """
+        arg_spec = inspect.getargspec(cls.__init__)
+        num_optional_args = 0 if arg_spec.defaults is None \
+            else min(len(arg_spec.args)-1, len(arg_spec.defaults))
+
+        required_args = [arg for arg in arg_spec.args[1:-num_optional_args]
+                         if arg not in extra_kwargs]
+        optional_args = [arg for arg in arg_spec.args[-num_optional_args:]
+                         if arg not in extra_kwargs]
+
+        kwargs = {}
+
+        for raw_key in config_dict:
+            key = raw_key.replace('-', '_')
+
+            if key not in required_args + optional_args:
+                raise ValueError("Unknown config key `{}'".format(raw_key))
+
+            kwargs[key] = config_dict[raw_key]
+
+        for key in required_args:
+            if key not in kwargs:
+                raw_key = key.replace('_', '-')
+                raise ValueError("Missing required config key `{}'"
+                                 .format(raw_key))
+
+        kwargs.update(extra_kwargs)
+        return cls(**kwargs)
 
 
 class CanvasURLType(click.ParamType):

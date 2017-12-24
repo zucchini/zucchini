@@ -1,7 +1,9 @@
 from abc import ABCMeta, abstractmethod
 
+from ..utils import FromConfigDictMixin
 
-class GraderInterface:
+
+class GraderInterface(FromConfigDictMixin):
     __metaclass__ = ABCMeta
 
     # The class needs an init method that will take in all of its desired
