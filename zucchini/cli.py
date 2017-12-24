@@ -8,6 +8,7 @@ import click
 from .utils import mkdir_p, CANVAS_URL, CANVAS_TOKEN
 from .grading_manager import GradingManager
 from .zucchini import ZucchiniState
+from .canvas import CanvasAPIError, CanvasNotFoundError, CanvasInternalError
 from .constants import APP_NAME, USER_CONFIG, DEFAULT_SUBMISSION_DIRECTORY
 
 pass_state = click.make_pass_decorator(ZucchiniState)
@@ -150,10 +151,73 @@ def load_sakai(state):
 
 
 @load.command('canvas')
+@click.option('--section', '-s', type=lambda s: s.lower())
 @pass_state
-def load_canvas(state):
+def load_canvas(state, section=None):
     """Load student submissions from Canvas"""
-    pass
+
+    course_id = state.get_assignment().canvas_course_id
+    if course_id is None:
+        raise click.ClickException('Need to configure canvas in assignment '
+                                   'config')
+
+    api = state.canvas_api()
+    try:
+        sections = tuple(api.list_sections(course_id))
+    except CanvasNotFoundError:
+        raise click.ClickException('Canvas reports no course with id {}'
+                                   .format(course_id))
+    except CanvasInternalError:
+        raise click.ClickException('Canvas reported an internal error (5xx '
+                                   'status code). Try again later?')
+    except CanvasAPIError as err:
+        raise click.ClickException(str(err))
+
+    if not sections:
+        raise click.ClickException('No sections, so no students! Bailing out')
+
+    click.echo('List of sections:')
+    for s in sections:
+        click.echo(str(s))
+
+    section_chosen = None
+
+    # Find a section matching criteria (either id or substring of section name)
+    while True:
+        # If this is not their first attempt, print an error describing
+        # why we're prompting again
+        if section is not None:
+            if section == 'all':
+                break
+
+            # First, try to find a match by id
+            try:
+                section_id = int(section)
+                id_matches = [s for s in sections if section_id == s.id]
+
+                if id_matches:
+                    # Assume a section id is unique
+                    section_chosen, = id_matches
+                    break
+            except ValueError:
+                # Not an integer
+                pass
+
+            # Now, try to find a match by name
+            name_matches = [s for s in sections if section in s.name.lower()]
+
+            if len(name_matches) == 1:
+                section_chosen, = name_matches
+                break
+            elif len(name_matches) > 1:
+                click.echo('More than one section matches. Try again? (Canvas '
+                           'is an extremely good website and allows duplicate '
+                           'section names, so you may have to supply an id.)')
+            else:
+                click.echo('No sections match. Try again?')
+
+        section = click.prompt('Choose a section (name or id)',
+                               default='all', type=lambda s: s.lower())
 
 
 @cli.command()

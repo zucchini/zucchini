@@ -5,16 +5,14 @@ import click
 import git
 import yaml
 
-from .graders import GraderInterface
+from .graders import AVAILABLE_GRADERS
 from .constants import ASSIGNMENT_CONFIG_FILE
-
-AVAILABLE_GRADERS = {cls.__name__: cls for cls in
-                     GraderInterface.__subclasses__()}
+from .utils import FromConfigDictMixin
 
 
-class AssignmentComponent(object):
-    def __init__(self, assignment, name, backend, weight, files, grader_files,
-                 backend_options):
+class AssignmentComponent(FromConfigDictMixin):
+    def __init__(self, assignment, name, backend, weight, files=None,
+                 grader_files=None, backend_options=None):
         self.assignment = assignment
         self.name = name
 
@@ -35,7 +33,7 @@ class AssignmentComponent(object):
         # TODO: Confirm that all of the files in the grading list exist
 
         # We then initialize the grader
-        self.grader = backend_class(**backend_options)
+        self.grader = backend_class.from_config_dict(backend_options)
 
     def prepare_submission_for_grading(self, submission):
         grading_directory = None  # TODO: WHERE DO WE STORE TEMP GRADING?
@@ -86,22 +84,34 @@ class Assignment(object):
             # Get the assignment's name, author
             self.name = config['name']
             self.author = config['author']
-
-            # TODO: How do we handle config about the assignment's existence on
-            # LMS platforms? Like the canvas: config?
         except KeyError as e:
             raise ValueError("Missing field in assignment config: %s" %
                              e.args[0])
+
+        # TODO: Don't hardcode Canvas logic in here. Need to make something
+        #       like "Modules" for handling these things.
+        if 'canvas' in config:
+            try:
+                self.canvas_course_id = int(config['canvas']['course-id'])
+                self.canvas_assignment_id = \
+                    int(config['canvas']['assignment-id'])
+            except KeyError as err:
+                raise ValueError('canvas section in assignment config is '
+                                 'missing key: {}'.format(err.args[0]))
+            except ValueError as err:
+                raise ValueError('canvas id is not an integer: {}'
+                                 .format(str(err)))
+        else:
+            self.canvas_course_id = None
+            self.canvas_assignment_id = None
 
         self.components = []
 
         # Now load the components (this is the fun part!)
         for component_config in config['components']:
-            component = AssignmentComponent(assignment=self,
-                                            **component_config)
+            component = AssignmentComponent.from_config_dict(component_config,
+                                                             assignment=self)
             self.components.append(component)
-
-            # TODO: This URGENTLY needs error handling.
 
         self.total_weight = sum(x.weight for x in self.components)
 
