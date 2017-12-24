@@ -12,6 +12,7 @@ from .zucchini import ZucchiniState
 from .canvas import CanvasAPIError, CanvasNotFoundError, CanvasInternalError
 from .constants import APP_NAME, USER_CONFIG, DEFAULT_SUBMISSION_DIRECTORY, \
                        SUBMISSION_FILES_DIRECTORY
+from .flatten import flatten
 
 pass_state = click.make_pass_decorator(ZucchiniState)
 
@@ -251,6 +252,7 @@ def load_canvas(state, section=None):
             shutil.rmtree(files_dir, ignore_errors=True)
             mkdir_p(files_dir)
             submission.download(files_dir)
+            flatten(files_dir)
 
 
 @cli.command()
@@ -417,6 +419,22 @@ def canvas_api_grade(state, course_id, assignment_id, user_id, grade,
 
     api = state.canvas_api()
     api.set_submission_grade(course_id, assignment_id, user_id, grade, comment)
+
+
+@cli.command('flatten')
+@click.argument('dir-path')
+@pass_state
+def flatten_(self, dir_path):
+    """
+    Flatten archives in a directory.
+
+    Not as good, but behaves similarly to Marie's classic
+    SubmissionFix.py script. Give it a directory and it will extract all
+    of the archives in the top level, removing a common directory prefix
+    from them if it exists. Checks for malicious archives like zipbombs
+    and forged archive filenames.
+    """
+    flatten(dir_path)
 
 
 if __name__ == "__main__":
