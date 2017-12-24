@@ -131,7 +131,7 @@ def init(state, assignment_name, target):
 
 
 @cli.group()
-@click.option('-f', '--to-dir', default=DEFAULT_SUBMISSION_DIRECTORY,
+@click.option('-t', '--to-dir', default=DEFAULT_SUBMISSION_DIRECTORY,
               help="Path of the directory in which to put submissions loaded.",
               type=click.Path(file_okay=False, dir_okay=True,
                               writable=True, readable=True,
@@ -140,7 +140,7 @@ def init(state, assignment_name, target):
 def load(state, to_dir):
     """Load student submissions."""
 
-    state.set_submission_dir = to_dir
+    state.submission_dir = to_dir
 
 
 @load.command('sakai')
@@ -151,7 +151,8 @@ def load_sakai(state):
 
 
 @load.command('canvas')
-@click.option('--section', '-s', type=lambda s: s.lower())
+@click.option('--section', '-s', type=lambda s: s.lower(), metavar='SECTION',
+              help='section id, substring of section name, or "all"')
 @pass_state
 def load_canvas(state, section=None):
     """Load student submissions from Canvas"""
@@ -176,14 +177,12 @@ def load_canvas(state, section=None):
     if not sections:
         raise click.ClickException('No sections, so no students! Bailing out')
 
-    click.echo('List of sections:')
-    for s in sections:
-        click.echo(str(s))
-
     section_chosen = None
 
     # Find a section matching criteria (either id or substring of section name)
     while True:
+        error_message = None
+
         # If this is not their first attempt, print an error describing
         # why we're prompting again
         if section is not None:
@@ -210,14 +209,41 @@ def load_canvas(state, section=None):
                 section_chosen, = name_matches
                 break
             elif len(name_matches) > 1:
-                click.echo('More than one section matches. Try again? (Canvas '
-                           'is an extremely good website and allows duplicate '
-                           'section names, so you may have to supply an id.)')
+                error_message = 'More than one section matches. Try again? ' \
+                                '(Canvas is an extremely good website and ' \
+                                'allows duplicate section names, so you may ' \
+                                'have to supply an id.)'
             else:
-                click.echo('No sections match. Try again?')
+                error_message = 'No sections match. Try again?'
+
+        click.echo('List of sections:')
+        for s in sections:
+            click.echo(str(s))
+
+        # Print the error message _after_ the list of sections. Even if
+        # there are tons of sections, we still want the user to see the
+        # error message.
+        if error_message:
+            click.echo(error_message)
 
         section = click.prompt('Choose a section (name or id)',
                                default='all', type=lambda s: s.lower())
+
+    assignment_id = state.get_assignment().canvas_assignment_id
+
+    # If they specified "all", use all submissions in the course,
+    # otherwise use just those from one section
+    if section_chosen is None:
+        submissions = api.list_submissions(course_id, assignment_id)
+    else:
+        submissions = api.list_section_submissions(section_chosen.id,
+                                                   assignment_id)
+
+    for submission in submissions:
+        submission_dir = os.path.join(state.submission_dir,
+                                      submission.user.name)
+        mkdir_p(submission_dir)
+        submission.download(submission_dir)
 
 
 @cli.command()
