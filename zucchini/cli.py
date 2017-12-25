@@ -12,6 +12,7 @@ from .zucchini import ZucchiniState
 from .canvas import CanvasAPIError, CanvasNotFoundError, CanvasInternalError
 from .constants import APP_NAME, USER_CONFIG, DEFAULT_SUBMISSION_DIRECTORY, \
                        SUBMISSION_FILES_DIRECTORY
+from .submission import Submission
 from .flatten import flatten
 
 pass_state = click.make_pass_decorator(ZucchiniState)
@@ -244,15 +245,22 @@ def load_canvas(state, section=None):
 
     click.echo('Downloading submissions from Canvas...')
     with click.progressbar(submissions) as bar:
-        for submission in bar:
-            files_dir = os.path.join(state.submission_dir,
-                                     submission.user.sortable_name,
-                                     SUBMISSION_FILES_DIRECTORY)
+        for canvas_submission in bar:
+            base_dir = os.path.join(state.submission_dir,
+                                    canvas_submission.user.sortable_name)
             # Remove submission if it already exists
-            shutil.rmtree(files_dir, ignore_errors=True)
+            shutil.rmtree(base_dir, ignore_errors=True)
+
+            files_dir = os.path.join(base_dir, SUBMISSION_FILES_DIRECTORY)
             mkdir_p(files_dir)
-            submission.download(files_dir)
+            canvas_submission.download(files_dir)
             flatten(files_dir)
+
+            # Create initial meta.json in submission dir
+            submission = Submission(state.get_assignment(), base_dir,
+                                    id=canvas_submission.user_id,
+                                    submission_time=canvas_submission.time())
+            submission.initialize_metadata()
 
 
 @cli.command()

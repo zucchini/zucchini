@@ -6,6 +6,8 @@ import requests
 import shutil
 from collections import namedtuple
 
+from .utils import datetime_from_string
+
 # json.load() started throwing JSONDecodeError instead of ValueError
 # back in Python 3.5, so catch ValueError instead for earlier versions
 try:
@@ -107,7 +109,8 @@ class CanvasSubmissionAttachment(namedtuple('CanvasSubmission',
 
 
 class CanvasSubmission(namedtuple('CanvasSubmission',
-                       ('api_', 'id', 'late', 'user_id', 'attachments'))):
+                       ('api_', 'id', 'late', 'user_id', 'attachments',
+                        'submitted_at'))):
     """Hold assignment info"""
     __slots__ = ()
     _sub_entities = {'attachments': CanvasSubmissionAttachment}
@@ -122,6 +125,10 @@ class CanvasSubmission(namedtuple('CanvasSubmission',
     @property
     def user(self):
         return self.api_.get_user(self.user_id)
+
+    def time(self):
+        """Return the submission time as an aware datetime object."""
+        return datetime_from_string(self.submitted_at)
 
     def download(self, directory):
         """
