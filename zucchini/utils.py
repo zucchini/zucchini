@@ -2,7 +2,7 @@ import errno
 import os
 import re
 import inspect
-from datetime import datetime, timezone
+from datetime import datetime
 
 try:
     # Python 3
@@ -29,12 +29,10 @@ _DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
 def datetime_from_string(date_str):
     """
     Convert a human-readable date/time string (in the format used by
-    Canvas and in submission metadata files) to an aware datetime
-    instance.
+    Canvas and in submission metadata files) to a datetime instance.
     """
 
-    return datetime.strptime(date_str, _DATETIME_FORMAT) \
-                   .replace(tzinfo=timezone.utc)
+    return datetime.strptime(date_str, _DATETIME_FORMAT)
 
 def datetime_to_string(datetime_obj):
     """Convert a datetime UTC instance to a human-readable date/time string."""
