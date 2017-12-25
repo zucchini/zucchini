@@ -1,17 +1,52 @@
 import os
+import json
 
-import yaml
-
-from .constants import GRADE_LOG_FILE
+from .constants import SUBMISSION_META_FILE
+from .utils import datetime_from_string, datetime_to_string
 
 
 class Submission(object):
-    def __init__(self, assignment, path):
+    def __init__(self, assignment, path, id=None, submission_time=None):
         self.assignment = assignment
         self.path = path
+        self.metadata_path = os.path.join(self.path, SUBMISSION_META_FILE)
+        self.id = id
+
+        if isinstance(submission_time, str):
+            self.submission_time = datetime_from_string(submission_time)
+        else:
+            self.submission_time = submission_time
+
+        self.grading = None
 
         # TODO: Validate the path - make sure everything that's needed for the
         # assignment is available in the path
+
+    def _meta_json(self):
+        """Return a json representation of this instance"""
+
+        meta = {}
+        if id is not None:
+            meta['id'] = self.id
+        if self.submission_time is not None:
+            meta['submission-time'] = datetime_to_string(self.submission_time)
+        if self.grading is not None:
+            meta['grading'] = self.grading
+
+        return meta
+
+    def _write_meta_json(self):
+        """Json-ify this instance and write to the metadata json file"""
+
+        meta = self._meta_json()
+
+        with open(self.metadata_path, 'w') as meta_file:
+            json.dump(meta, meta_file)
+
+    def initialize_metadata(self):
+        """Create initial meta.json"""
+
+        self._write_meta_json()
 
     def copy_files(self, files, path):  # (List[str], str) -> None
         """Copy the assignment files in the files list to the new path"""
@@ -21,7 +56,7 @@ class Submission(object):
         pass
 
     def write_grade(self, grade_data):  # (Dict[object, object]) -> None
-        """Write the grade_data dictionary to the log file"""
+        """Write the grade_data dictionary to the metadata file"""
 
-        with open(os.path.join(self.path, GRADE_LOG_FILE)) as grade_file:
-            yaml.safe_dump(grade_data, grade_file)
+        self.grading = grade_data
+        self._write_meta_json()
