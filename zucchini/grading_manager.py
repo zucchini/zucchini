@@ -40,12 +40,9 @@ class GradingManager(object):
 
             full_path = os.path.join(self.submission_path, directory)
 
-            try:
-                submission = Submission(self.assignment, full_path)
-                self.submissions.append(submission)
-            except:  # noqa
-                # TODO: Handle broken submissions right here
-                pass
+            submission = Submission.load_from_dir(self.assignment, full_path)
+            self.submissions.append(submission)
+            # TODO: Handle broken submissions right here
 
     def grade(self):
         for submission in self.submissions:

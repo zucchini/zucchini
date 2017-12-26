@@ -23,8 +23,10 @@ def mkdir_p(path):
         else:
             raise
 
+
 # Same as the Canvas date format
 _DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
+
 
 def datetime_from_string(date_str):
     """
@@ -34,10 +36,12 @@ def datetime_from_string(date_str):
 
     return datetime.strptime(date_str, _DATETIME_FORMAT)
 
+
 def datetime_to_string(datetime_obj):
     """Convert a datetime UTC instance to a human-readable date/time string."""
 
     return datetime_obj.strftime(_DATETIME_FORMAT)
+
 
 class FromConfigDictMixin(object):
     @classmethod
