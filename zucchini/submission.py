@@ -2,14 +2,15 @@ import os
 import json
 
 from .constants import SUBMISSION_META_FILE
-from .utils import datetime_from_string, datetime_to_string
+from .utils import FromConfigDictMixin, datetime_from_string, \
+                   datetime_to_string
 
 
-class Submission(object):
-    def __init__(self, assignment, path, id=None, submission_time=None):
+class Submission(FromConfigDictMixin):
+    def __init__(self, assignment, path, id=None, submission_time=None,
+                 grading=None):
         self.assignment = assignment
         self.path = path
-        self.metadata_path = os.path.join(self.path, SUBMISSION_META_FILE)
         self.id = id
 
         if isinstance(submission_time, str):
@@ -17,10 +18,22 @@ class Submission(object):
         else:
             self.submission_time = submission_time
 
-        self.grading = None
+        self.grading = grading
 
         # TODO: Validate the path - make sure everything that's needed for the
         # assignment is available in the path
+
+    @classmethod
+    def load_from_dir(cls, assignment, path):
+        """Load a Submission instance from a submission directory."""
+
+        metadata_path = os.path.join(path, SUBMISSION_META_FILE)
+
+        with open(metadata_path) as meta_file:
+            meta_json = json.load(meta_file)
+
+        return cls.from_config_dict(meta_json, assignment=assignment,
+                                    path=path)
 
     def _meta_json(self):
         """Return a json representation of this instance"""
@@ -40,7 +53,8 @@ class Submission(object):
 
         meta = self._meta_json()
 
-        with open(self.metadata_path, 'w') as meta_file:
+        metadata_path = os.path.join(self.path, SUBMISSION_META_FILE)
+        with open(metadata_path, 'w') as meta_file:
             json.dump(meta, meta_file)
 
     def initialize_metadata(self):

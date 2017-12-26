@@ -1,5 +1,6 @@
 import os
 import shutil
+import tempfile
 
 import click
 import git
@@ -35,25 +36,19 @@ class AssignmentComponent(FromConfigDictMixin):
         # We then initialize the grader
         self.grader = backend_class.from_config_dict(backend_options)
 
-    def prepare_submission_for_grading(self, submission):
-        grading_directory = None  # TODO: WHERE DO WE STORE TEMP GRADING?
-
-        # Copy the submission first and the grading later so that if a file
-        # exists in both, the grading copy overwrites the submission copy
-        submission.copy_files(self.files, grading_directory)
-        self.assignment.copy_files(self.grader_files, grading_directory)
-
-        return grading_directory
-
-    def tear_down_graded_submission(self, grading_directory):
-        shutil.rmtree(grading_directory)
-
     def grade_for_submission(self, submission):
-        tmp_dir = self.prepare_submission_for_grading(submission)
-        score = self.grader.grade(submission, tmp_dir) * self.weight
-        self.tear_down_graded_submission(tmp_dir)
+        grading_directory = tempfile.mkdtemp('zucchini-component-')
 
-        return score
+        try:
+            # Copy the submission first and the grading later so that if a file
+            # exists in both, the grading copy overwrites the submission copy
+            submission.copy_files(self.files, grading_directory)
+            self.assignment.copy_files(self.grader_files, grading_directory)
+            percent = self.grader.grade(submission, grading_directory)
+        finally:
+            shutil.rmtree(grading_directory)
+
+        return percent * self.weight
 
 
 # This class contains the Assignment configuration for the local file
