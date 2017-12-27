@@ -28,7 +28,8 @@ class AssignmentComponent(FromConfigDictMixin):
             raise ValueError("Component weights need to be integers.")
 
         self.files = files
-        # TODO: Confirm that the files input is a list
+        if self.files is not None and not isinstance(self.files, list):
+            raise ValueError('List of files must be a list')
 
         self.grader_files = grader_files
         # TODO: Confirm that all of the files in the grading list exist
