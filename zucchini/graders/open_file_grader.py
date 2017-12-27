@@ -3,6 +3,7 @@ import os
 import click
 
 from . import PromptGrader, InvalidGraderConfigError
+from ..utils import sanitize_path
 
 
 class OpenFileGrader(PromptGrader):
@@ -11,11 +12,11 @@ class OpenFileGrader(PromptGrader):
         # Set up the Prompt Grader first
         super(OpenFileGrader, self).__init__(prompts=prompts)
 
-        self.file_name = file_name
-
-        if not isinstance(self.file_name, str) or len(self.file_name) == 0:
+        if not isinstance(file_name, str) or len(file_name) == 0:
             raise InvalidGraderConfigError(
                 "A file_name needs to be specified.")
+        else:
+            self.file_name = sanitize_path(file_name)
 
     def grade(self, submission, path):
         # Let's get the file from the submission

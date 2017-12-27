@@ -3,12 +3,11 @@
 import os
 import tarfile
 import posixpath
-import ntpath
 import shutil
 import zipfile
 from abc import ABCMeta, abstractmethod
 
-from .utils import mkdir_p
+from .utils import mkdir_p, sanitize_path
 
 # XXX Slow because unlike Marie's SubmissionFix script, does not use
 #     native extractors
@@ -132,18 +131,10 @@ def extract(archive, dest_dir):
         names = {}
 
         for name in archive.names():
-            # Remove backslash memes
+            # Remove backslash memes from malformed zip files
             safe_name = name.replace('\\', '/')
-            # Remove intermediate ..s
-            safe_name = posixpath.normpath(safe_name)
-            # Remove leading /s
-            safe_name = safe_name.lstrip('/')
-            # For Windows, remove drive
-            _, safe_name = ntpath.splitdrive(safe_name)
-            # Remove leading /s again
-            safe_name = safe_name.lstrip('/')
-
-            components = safe_name.split('/')
+            components = sanitize_path(safe_name, path_lib=posixpath,
+                                       join=False)
 
             if '__MACOSX' in components:
                 # Skip macOS "Resource Forks"
@@ -151,10 +142,6 @@ def extract(archive, dest_dir):
             elif not components:
                 # Empty filename
                 continue
-
-            # Remove trailing ..s
-            while components and components[0] == '..':
-                components = components[1:]
 
             names[name] = components
 
