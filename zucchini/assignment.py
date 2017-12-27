@@ -38,7 +38,7 @@ class AssignmentComponent(FromConfigDictMixin):
         self.grader = backend_class.from_config_dict(backend_options)
 
     def grade_for_submission(self, submission):
-        grading_directory = tempfile.mkdtemp('zucchini-component-')
+        grading_directory = tempfile.mkdtemp(prefix='zucchini-component-')
 
         try:
             # Copy the submission first and the grading later so that if a file
