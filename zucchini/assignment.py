@@ -8,7 +8,7 @@ import yaml
 
 from .graders import AVAILABLE_GRADERS
 from .constants import ASSIGNMENT_CONFIG_FILE, ASSIGNMENT_FILES_DIRECTORY
-from .utils import FromConfigDictMixin, copy_globs
+from .utils import FromConfigDictMixin, copy_globs, sanitize_path
 
 
 class AssignmentComponent(FromConfigDictMixin):
@@ -28,11 +28,20 @@ class AssignmentComponent(FromConfigDictMixin):
             raise ValueError("Component weights need to be integers.")
 
         self.files = files
-        if self.files is not None and not isinstance(self.files, list):
-            raise ValueError('List of files must be a list')
+        if self.files is not None:
+            if not isinstance(self.files, list):
+                raise ValueError('List of files must be a list')
+            else:
+                self.files = [sanitize_path(file_) for file_ in self.files]
 
-        self.grading_files = grading_files
         # TODO: Confirm that all of the files in the grading list exist
+        self.grading_files = grading_files
+        if self.grading_files is not None:
+            if not isinstance(self.grading_files, list):
+                raise ValueError('List of grading files must be a list')
+            else:
+                self.grading_files = [sanitize_path(file_)
+                                      for file_ in self.grading_files]
 
         # We then initialize the grader
         self.grader = backend_class.from_config_dict(backend_options)

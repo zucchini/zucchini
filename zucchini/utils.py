@@ -26,6 +26,34 @@ def mkdir_p(path):
             raise
 
 
+def sanitize_path(path, path_lib=os.path, join=True):
+    """
+    Convert an untrusted path to a relative path.
+
+    Defaults to using os.path to manipulate (native) paths, but you can
+    pass path_lib=posixpath to always use Unix paths, for example.
+
+    If `join=False', return a list of path components. Default (True) is
+    to path_lib.join() them.
+    """
+
+    # Remove intermediate ..s
+    path = path_lib.normpath(path)
+    # Remove leading /s
+    path = path.lstrip(path_lib.sep)
+    components = path.split(path_lib.sep)
+
+    # Remove leading ..s and DOS drive letters
+    while components and (components[0] == '..' or
+                          len(components[0]) == 2 and components[0][1] == ':'):
+        components = components[1:]
+
+    if join:
+        return path_lib.join(*components)
+    else:
+        return components
+
+
 # XXX Support copying directories
 def copy_globs(globs, src_dir, dest_dir):
     """
