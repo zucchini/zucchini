@@ -2,6 +2,8 @@ import errno
 import os
 import re
 import inspect
+import glob
+import shutil
 from datetime import datetime
 
 try:
@@ -22,6 +24,37 @@ def mkdir_p(path):
             pass
         else:
             raise
+
+
+# XXX Support copying directories
+def copy_globs(globs, src_dir, dest_dir):
+    """
+    Copy files matched by `globs' (a list of glob strings) from src_dir
+    to dest_dir, maintaining directories if possible.
+    """
+
+    files_to_copy = []
+
+    # Do a first pass to check for missing files. This way, we don't
+    # copy a bunch of files only to blow up when we can't find a
+    # later file.
+    for file_glob in globs:
+        absolute_glob = os.path.join(src_dir, file_glob)
+        # Match only files, not directories
+        matches = [path for path in glob.iglob(absolute_glob)
+                   if os.path.isfile(path)]
+
+        if not matches:
+            raise FileNotFoundError("missing file `{}'".format(file_glob))
+
+        files_to_copy += matches
+
+    for file_to_copy in files_to_copy:
+        relative_path = os.path.relpath(file_to_copy, start=src_dir)
+        dirname = os.path.dirname(relative_path)
+
+        mkdir_p(os.path.join(dest_dir, dirname))
+        shutil.copyfile(file_to_copy, os.path.join(dest_dir, relative_path))
 
 
 # Same as the Canvas date format

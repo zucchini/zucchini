@@ -1,11 +1,9 @@
 import os
 import json
-import glob
-import shutil
 
 from .constants import SUBMISSION_META_FILE, SUBMISSION_FILES_DIRECTORY
 from .utils import FromConfigDictMixin, datetime_from_string, \
-                   datetime_to_string, mkdir_p
+                   datetime_to_string, copy_globs
 
 
 class BrokenSubmissionError(Exception):
@@ -70,30 +68,12 @@ class Submission(FromConfigDictMixin):
 
     # XXX Support copying directories
     def copy_files(self, files, path):  # (List[str], str) -> None
-        """Copy the assignment files in the files list to the new path"""
-
         files_dir = os.path.join(self.path, SUBMISSION_FILES_DIRECTORY)
-        files_to_copy = []
 
-        # Do a first pass to check for missing files. This way, we don't
-        # copy a bunch of files only to blow up when we can't find a
-        # later file.
-        for file_glob in files:
-            absolute_glob = os.path.join(files_dir, file_glob)
-            matches = glob.glob(absolute_glob)
-
-            if not matches:
-                raise BrokenSubmissionError("missing file `{}'"
-                                            .format(file_glob))
-
-            files_to_copy += matches
-
-        for file_to_copy in files_to_copy:
-            relative_path = os.path.relpath(file_to_copy, start=files_dir)
-            dirname = os.path.dirname(relative_path)
-
-            mkdir_p(os.path.join(path, dirname))
-            shutil.copyfile(file_to_copy, os.path.join(path, relative_path))
+        try:
+            copy_globs(files, files_dir, path)
+        except FileNotFoundError as err:
+            raise BrokenSubmissionError(str(err))
 
     def write_grade(self, grade_data):  # (Dict[object, object]) -> None
         """Write the grade_data dictionary to the metadata file"""

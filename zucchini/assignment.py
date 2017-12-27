@@ -7,13 +7,13 @@ import git
 import yaml
 
 from .graders import AVAILABLE_GRADERS
-from .constants import ASSIGNMENT_CONFIG_FILE
-from .utils import FromConfigDictMixin
+from .constants import ASSIGNMENT_CONFIG_FILE, ASSIGNMENT_FILES_DIRECTORY
+from .utils import FromConfigDictMixin, copy_globs
 
 
 class AssignmentComponent(FromConfigDictMixin):
     def __init__(self, assignment, name, backend, weight, files=None,
-                 grader_files=None, backend_options=None):
+                 grading_files=None, backend_options=None):
         self.assignment = assignment
         self.name = name
 
@@ -31,7 +31,7 @@ class AssignmentComponent(FromConfigDictMixin):
         if self.files is not None and not isinstance(self.files, list):
             raise ValueError('List of files must be a list')
 
-        self.grader_files = grader_files
+        self.grading_files = grading_files
         # TODO: Confirm that all of the files in the grading list exist
 
         # We then initialize the grader
@@ -43,8 +43,11 @@ class AssignmentComponent(FromConfigDictMixin):
         try:
             # Copy the submission first and the grading later so that if a file
             # exists in both, the grading copy overwrites the submission copy
-            submission.copy_files(self.files, grading_directory)
-            self.assignment.copy_files(self.grader_files, grading_directory)
+            if self.files:
+                submission.copy_files(self.files, grading_directory)
+            if self.grading_files:
+                self.assignment.copy_files(self.grading_files,
+                                           grading_directory)
             percent = self.grader.grade(submission, grading_directory)
         finally:
             shutil.rmtree(grading_directory)
@@ -115,10 +118,10 @@ class Assignment(object):
 
     def copy_files(self, files, path):  # (List[str], str) -> None
         """Copy the grader files in the files list to the new path"""
-        # TODO: Implement this - we need some sort of glob call here
-        # TODO: How to make it safe?
 
-        pass
+        grading_files_dir = os.path.join(self.root, ASSIGNMENT_FILES_DIRECTORY)
+        # XXX Replace FileNotFoundError raised with a better exception
+        copy_globs(files, grading_files_dir, path)
 
     def grade_for_submission(self, submission):
         # Return a tuple (earned_points, max_points)
