@@ -46,4 +46,4 @@ class GradingManager(object):
 
     def grade(self):
         for submission in self.submissions:
-            self.assignment.grade_for_submission(submission)
+            self.assignment.grade_submission(submission)

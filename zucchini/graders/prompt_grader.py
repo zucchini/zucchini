@@ -1,18 +1,21 @@
 import collections
+from fractions import Fraction
 
 import click
 
-from . import GraderInterface, InvalidGraderConfigError
-from ..utils import FromConfigDictMixin
+from . import GraderInterface, InvalidGraderConfigError, SubcomponentGrade
+from ..utils import ConfigDictMixin
 
 
-class Prompt(FromConfigDictMixin):
+class Prompt(ConfigDictMixin):
     def __init__(self, text, answer_type, weight, answer_range=None):
         self.text = text
         self.answer_type = None
 
         if answer_type == bool or answer_type == "bool":
             self.answer_type = bool
+            self.range_low = 0
+            self.range_high = 1
         elif answer_type == int or answer_type == "int":
             self.answer_type = int
         else:
@@ -46,11 +49,17 @@ class Prompt(FromConfigDictMixin):
                     raise InvalidGraderConfigError(
                         "Types of the answer_range elements need to be int.")
 
-            self.answer_type = click.IntRange(*self.answer_range)
+            self.range_low, self.range_high = self.answer_range
+            self.answer_type = click.IntRange(self.range_low, self.range_high)
 
-    def execute(self):
-        return click.prompt(text=self.text,
-                            type=self.answer_type) * self.weight
+    def grade(self):
+        """Prompt the user and return a SubcomponentGrade for this prompt"""
+
+        response = click.prompt(text=self.text, type=self.answer_type)
+        score = Fraction(response - self.range_low,
+                         self.range_high - self.range_low)
+        return SubcomponentGrade(id=self.text, score=score,
+                                 logs='response: {}'.format(response))
 
 
 class PromptGrader(GraderInterface):
@@ -63,14 +72,9 @@ class PromptGrader(GraderInterface):
             raise InvalidGraderConfigError("The prompts option needs to be a "
                                            "list of Prompt dictionaries.")
 
-        for index, prompt_options in enumerate(prompts):
+        for prompt_options in prompts:
             self.prompts.append(Prompt.from_config_dict(prompt_options))
 
     def grade(self, submission, path):
-        # The submission is not relevant here
-        total = 0
-
-        for prompt in self.prompts:
-            total += prompt.execute()
-
-        return total
+        # The submission is not relevant here, so don't use it
+        return [prompt.grade() for prompt in self.prompts]

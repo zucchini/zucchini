@@ -6,12 +6,31 @@ import click
 import git
 import yaml
 
-from .graders import AVAILABLE_GRADERS
+from .graders import AVAILABLE_GRADERS, SubcomponentGrade
 from .constants import ASSIGNMENT_CONFIG_FILE, ASSIGNMENT_FILES_DIRECTORY
-from .utils import FromConfigDictMixin, copy_globs, sanitize_path
+from .utils import ConfigDictMixin, copy_globs, sanitize_path
 
 
-class AssignmentComponent(FromConfigDictMixin):
+class AssignmentComponentGrade(ConfigDictMixin):
+    def __init__(self, name, subcomponent_grades):
+        self.name = name
+        self.subcomponent_grades = subcomponent_grades
+
+    @classmethod
+    def from_config_dict(cls, **kwargs):
+        grade = super().from_config_dict(**kwargs)
+        grade.subcomponent_grades = [SubcomponentGrade.from_config_dict(g)
+                                     for g in grade.subcomponent_grades]
+        return grade
+
+    def to_config_dict(cls, *args):
+        dict_ = super().to_config_dict(*args)
+        dict_['subcomponent-grades'] = [g.to_config_dict()
+                                        for g in dict_['subcomponent-grades']]
+        return dict_
+
+
+class AssignmentComponent(ConfigDictMixin):
     def __init__(self, assignment, name, backend, weight, files=None,
                  grading_files=None, backend_options=None):
         self.assignment = assignment
@@ -46,7 +65,7 @@ class AssignmentComponent(FromConfigDictMixin):
         # We then initialize the grader
         self.grader = backend_class.from_config_dict(backend_options)
 
-    def grade_for_submission(self, submission):
+    def grade_submission(self, submission):
         grading_directory = tempfile.mkdtemp(prefix='zucchini-component-')
 
         try:
@@ -57,11 +76,12 @@ class AssignmentComponent(FromConfigDictMixin):
             if self.grading_files:
                 self.assignment.copy_files(self.grading_files,
                                            grading_directory)
-            percent = self.grader.grade(submission, grading_directory)
+            subcomponent_grades = self.grader.grade(submission,
+                                                    grading_directory)
         finally:
             shutil.rmtree(grading_directory)
 
-        return percent * self.weight
+        return AssignmentComponentGrade(self.name, subcomponent_grades)
 
 
 # This class contains the Assignment configuration for the local file
@@ -121,7 +141,11 @@ class Assignment(object):
                                                              assignment=self)
             self.components.append(component)
 
-        self.total_weight = sum(x.weight for x in self.components)
+        if len({component.name for component in self.components}) \
+                != len(self.components):
+            raise ValueError('Duplicate component names')
+
+        self.total_weight = sum(c.weight for c in self.components)
 
         # TODO: Handle assignments with no components or with 0 total weight
 
@@ -132,14 +156,11 @@ class Assignment(object):
         # XXX Replace FileNotFoundError raised with a better exception
         copy_globs(files, grading_files_dir, path)
 
-    def grade_for_submission(self, submission):
-        # Return a tuple (earned_points, max_points)
-        earned_score = 0
-        for component in self.components:
-            earned_score += component.grade_for_submission(submission)
-
-        submission.write_grade({'earned': earned_score,
-                                'out_of': self.total_weight})
-        # TODO: Obviously a placeholder. We need to do a better implementation
+    def grade_submission(self, submission):
+        # The grading data for each subcomponent (individual test) of
+        # each component (test suite) of this assignment
+        grades = [component.grade_submission(submission).to_config_dict()
+                  for component in self.components]
+        submission.write_grade(grades)
 
         # TODO: We probably want to log, too
