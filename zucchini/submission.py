@@ -2,7 +2,7 @@ import os
 import json
 
 from .constants import SUBMISSION_META_FILE, SUBMISSION_FILES_DIRECTORY
-from .utils import FromConfigDictMixin, datetime_from_string, \
+from .utils import ConfigDictMixin, datetime_from_string, \
                    datetime_to_string, copy_globs
 
 
@@ -10,11 +10,12 @@ class BrokenSubmissionError(Exception):
     pass
 
 
-class Submission(FromConfigDictMixin):
-    def __init__(self, assignment, path, id=None, submission_time=None,
-                 grading=None):
+class Submission(ConfigDictMixin):
+    def __init__(self, assignment, path, graded, id=None, submission_time=None,
+                 component_grades=None):
         self.assignment = assignment
         self.path = path
+        self.graded = graded
         self.id = id
 
         if isinstance(submission_time, str):
@@ -22,7 +23,7 @@ class Submission(FromConfigDictMixin):
         else:
             self.submission_time = submission_time
 
-        self.grading = grading
+        self.component_grades = component_grades
 
         # TODO: Validate the path - make sure everything that's needed for the
         # assignment is available in the path
@@ -42,13 +43,9 @@ class Submission(FromConfigDictMixin):
     def _meta_json(self):
         """Return a json representation of this instance"""
 
-        meta = {}
-        if id is not None:
-            meta['id'] = self.id
-        if self.submission_time is not None:
+        meta = self.to_config_dict('assignment', 'path')
+        if 'submission-time' in meta:
             meta['submission-time'] = datetime_to_string(self.submission_time)
-        if self.grading is not None:
-            meta['grading'] = self.grading
 
         return meta
 
@@ -75,8 +72,9 @@ class Submission(FromConfigDictMixin):
         except FileNotFoundError as err:
             raise BrokenSubmissionError(str(err))
 
-    def write_grade(self, grade_data):  # (Dict[object, object]) -> None
-        """Write the grade_data dictionary to the metadata file"""
+    def write_grade(self, component_grades):  # (Dict[object, object]) -> None
+        """Write the component grades to the metadata file"""
 
-        self.grading = grade_data
+        self.graded = True
+        self.component_grades = component_grades
         self._write_meta_json()

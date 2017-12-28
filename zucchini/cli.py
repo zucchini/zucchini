@@ -258,7 +258,7 @@ def load_canvas(state, section=None):
 
             # Create initial meta.json in submission dir
             submission = Submission(state.get_assignment(), base_dir,
-                                    id=canvas_submission.user_id,
+                                    graded=False, id=canvas_submission.user_id,
                                     submission_time=canvas_submission.time())
             submission.initialize_metadata()
 

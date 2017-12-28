@@ -104,7 +104,47 @@ def datetime_to_string(datetime_obj):
     return datetime_obj.strftime(_DATETIME_FORMAT)
 
 
-class FromConfigDictMixin(object):
+class ConfigDictMixin(object):
+    @classmethod
+    def _find_args(cls, exclude_args):
+        """
+        Find the required and optional arguments of the constructor for
+        the class `cls'. Returns a tuple containing two lists: the first
+        contains required args; the second contains optional args.
+
+        Exclude arguments found in `exclude_args'.
+        """
+
+        arg_spec = inspect.getargspec(cls.__init__)
+        num_optional_args = 0 if arg_spec.defaults is None \
+            else min(len(arg_spec.args)-1, len(arg_spec.defaults))
+        first_optional_arg = len(arg_spec.args) - num_optional_args
+
+        required_args = [arg for arg in arg_spec.args[1:first_optional_arg]
+                         if arg not in exclude_args]
+        optional_args = [arg for arg in arg_spec.args[first_optional_arg:]
+                         if arg not in exclude_args]
+
+        return required_args, optional_args
+
+    def to_config_dict(self, *exclude):
+        """
+        Try to convert an instance to a configuration dictionary by
+        accessing fields named after constructor fields.
+        """
+
+        required_args, optional_args = self._find_args(exclude)
+        result = {}
+
+        for arg in required_args:
+            result[arg.replace('_', '-')] = getattr(self, arg)
+
+        for arg in optional_args:
+            if hasattr(self, arg) and getattr(self, arg) is not None:
+                result[arg.replace('_', '-')] = getattr(self, arg)
+
+        return result
+
     @classmethod
     def from_config_dict(cls, config_dict, **extra_kwargs):
         """
@@ -117,14 +157,8 @@ class FromConfigDictMixin(object):
         and required arguments to cls.__init__() required options.
         Rejects options also found in extra_kwargs.
         """
-        arg_spec = inspect.getargspec(cls.__init__)
-        num_optional_args = 0 if arg_spec.defaults is None \
-            else min(len(arg_spec.args)-1, len(arg_spec.defaults))
 
-        required_args = [arg for arg in arg_spec.args[1:-num_optional_args]
-                         if arg not in extra_kwargs]
-        optional_args = [arg for arg in arg_spec.args[-num_optional_args:]
-                         if arg not in extra_kwargs]
+        required_args, optional_args = cls._find_args(extra_kwargs)
 
         kwargs = {}
 
