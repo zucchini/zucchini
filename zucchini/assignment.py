@@ -1,6 +1,7 @@
 import os
 import shutil
 import tempfile
+from fractions import Fraction
 from collections import namedtuple
 
 import click
@@ -30,6 +31,20 @@ class AssignmentComponentGrade(ConfigDictMixin):
         dict_['part-grades'] = [g.to_config_dict()
                                 for g in dict_['part-grades']]
         return dict_
+
+    def calculate_grade(self, component_parts):
+        # type: (List[ComponentPart]) -> fractions.Fraction
+        """
+        Using the list of ComponentPart instances provided (which
+        contain the weight of components) and the part grades held in
+        this instance, calculate the percentage of this component
+        earned.
+        """
+        total_possible = sum(part.weight for part in component_parts)
+        total_earned = sum(grade.score * part.weight
+                           for grade, part
+                           in zip(self.part_grades, component_parts))
+        return Fraction(total_earned, total_possible)
 
 
 ComponentPart = namedtuple('ComponentPart', ('weight', 'part'))
@@ -100,6 +115,10 @@ class AssignmentComponent(ConfigDictMixin):
             shutil.rmtree(grading_directory)
 
         return AssignmentComponentGrade(part_grades)
+
+    def calculate_grade(self, component_grade):
+        # type: (AssignmentComponentGrade) -> fractions.Fraction
+        return component_grade.calculate_grade(self.parts)
 
 
 # This class contains the Assignment configuration for the local file
@@ -175,12 +194,28 @@ class Assignment(object):
         copy_globs(files, grading_files_dir, path)
 
     def grade_submission(self, submission):
+        # type: (Submission) -> List[AssignmentComponentGrade]
+        """
+        Grade each assignment component of submission, returning an
+        AssignmentComponentGrade for each component.
+        """
+
         # The grading data for each part (individual test) of each
         # component (test suite) of this assignment
-        grades = [component.grade_submission(submission).to_config_dict()
+        grades = [component.grade_submission(submission)
                   for component in self.components]
-        submission.write_grade(grades)
+        return grades
         # TODO: We probably want to log, too
 
-    def calculate_grade(self, submission):
-        pass
+    def calculate_grade(self, component_grades):
+        # type: (List[AssignmentComponentGrade] -> fractions.Fraction
+        """
+        Calculate the final grade for a submission given the list of
+        AssignmentComponentGrades for the submission.
+        """
+        total_possible = sum(component.weight for component in self.components)
+        total_earned = sum(component.calculate_grade(grade) * component.weight
+                           for grade, component
+                           in zip(component_grades, self.components))
+
+        return Fraction(total_earned, total_possible)

@@ -1,10 +1,54 @@
 import os
+import decimal
 
 from .submission import Submission
 
 
 def grade_all(submission_name):
     return True
+
+
+class Grade(object):
+    """
+    Hold information about a student's grade and format grade
+    breakdowns. Abstracts away the more annoying assignment grading
+    logic from the command-line interface.
+    """
+
+    def __init__(self, assignment, submission):
+        self._assignment = assignment
+        self._submission = submission
+        self._component_grades = None
+        self._grade = None
+
+    def grade(self):
+        """Grade the submission and calculate the grade."""
+        self._component_grades = self._assignment.grade_submission(
+                self._submission)
+        self._grade = self._assignment.calculate_grade(self._component_grades)
+
+    def write_grade(self):
+        """Write this grade to the submission metadata json."""
+        # Need to put the components in the form used in the submission
+        # meta.json
+        grades = [grade.to_config_dict() for grade in self._component_grades]
+        self._submission.write_grade(grades)
+
+    def student_name(self):
+        """Return the name of the student."""
+        return self._submission.student_name
+
+    def score(self):
+        """Return the grade as an integer out of 100."""
+        # We want a number on [0,100], not [0,1]
+        out_of_100 = self._grade * 100
+        # Now, use decimal to round the fraction to an integer
+        # Round 0.5 -> 1
+        decimal.getcontext().rounding = decimal.ROUND_05UP
+        quotient = decimal.Decimal(out_of_100.numerator) \
+            / decimal.Decimal(out_of_100.denominator)
+        # round(D) for any Decimal object D will return an int
+        return round(quotient)
 
 
 class GradingManager(object):
@@ -45,5 +89,11 @@ class GradingManager(object):
             # TODO: Handle broken submissions right here
 
     def grade(self):
+        """Grade all submissions, returning an iterable of Grade instances."""
+
         for submission in self.submissions:
-            self.assignment.grade_submission(submission)
+            grade = Grade(self.assignment, submission)
+            grade.grade()
+            grade.write_grade()
+
+            yield grade

@@ -244,7 +244,9 @@ def load_canvas(state, section=None):
                                                    assignment_id)
 
     click.echo('Downloading submissions from Canvas...')
-    with click.progressbar(submissions) as bar:
+    # Need to iterate over the list of submissions so that click can
+    # call len(iterator) to know how to progress the progress bar
+    with click.progressbar(list(submissions)) as bar:
         for canvas_submission in bar:
             student_name = canvas_submission.user.sortable_name
             base_dir = os.path.join(state.submission_dir, student_name)
@@ -282,7 +284,16 @@ def grade(state, from_dir):
     # grading manager
 
     grading_manager = GradingManager(state.get_assignment(), from_dir)
-    grading_manager.grade()
+
+    # TODO: Show a progress bar if all components are non-interactive
+    click.echo('Grading submissions...')
+    grades = sorted(grading_manager.grade(),
+                    key=lambda grade: grade.student_name())
+
+    grade_report = '\n'.join('{}\t{}'.format(grade.student_name(),
+                                             grade.score())
+                             for grade in grades)
+    click.echo_via_pager('grade report:\n\n' + grade_report)
 
 
 @cli.command()
