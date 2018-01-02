@@ -44,11 +44,10 @@ class Grade(object):
         out_of_100 = self._grade * 100
         # Now, use decimal to round the fraction to an integer
         # Round 0.5 -> 1
-        decimal.getcontext().rounding = decimal.ROUND_05UP
         quotient = decimal.Decimal(out_of_100.numerator) \
             / decimal.Decimal(out_of_100.denominator)
         # round(D) for any Decimal object D will return an int
-        return round(quotient)
+        return int(quotient.to_integral_value(decimal.ROUND_05UP))
 
 
 class GradingManager(object):
