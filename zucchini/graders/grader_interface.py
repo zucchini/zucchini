@@ -7,14 +7,17 @@ from ..utils import ConfigDictMixin
 class GraderInterface(ConfigDictMixin):
     __metaclass__ = ABCMeta
 
-    # The class needs an init method that will take in all of its desired
-    # options from the config file as keyword args.
-    # Required options that need to be in the config file should not have
-    # default values.
-    # Optional ones can have default values but still need to exist as kwargs.
-    # Each of the elements in the options: section of the component config of
-    # the assignment will be passed as a keyword argument during
-    # initialization.
+    def __init__(self):
+        """
+        The class needs an init method that will take in all of its
+        desired options from the config file as keyword args. Required
+        options that need to be in the config file should not have
+        default values. Optional ones can have default values but still
+        need to exist as kwargs. Each of the elements in the options:
+        section of the component config of the assignment will be passed
+        as a keyword argument during initialization.
+        """
+        pass
 
     @staticmethod
     def list_prerequisites():  # type: () -> List[str]
@@ -25,39 +28,82 @@ class GraderInterface(ConfigDictMixin):
         return []
 
     @abstractmethod
-    def grade(self, submission,
-              path):  # type: (Submission, str) -> List[SubcomponentGrade]
+    def part_from_config_dict(self, config_dict):  # type: (dict) -> Part
+        """
+        Convert and validate a dictionary parsed from the `parts'
+        section of a component configuration to a Part instance.
+        """
+        pass
+
+    @abstractmethod
+    def grade(self,
+              submission,  # type: Submission
+              path,        # type: str
+              parts):      # type: List[Part]
+        # type: (...) -> List[PartGrade]
         """
         This function should take in a Submission object and a path,
         where the path can be assumed to be the root of the submission
         directory (it will be a directory where the grading manager has
         copied the required files for this grader); then complete the
-        grading on it, and then return a list of SubcomponentGrade
+        grading on it, and then return a list of kasjdfkasjdfkj
         instances containing the result for each subcomponent.
         """
-        return []
+        pass
 
 
-class SubcomponentGrade(ConfigDictMixin):
+class Part(ConfigDictMixin):
     """
-    Hold the results of grading one subcomponent.
-
-    id is a unique identifier for the subcomponent (like the name of the
-    test), score is the percentage passed as a Fraction instance,
-    deductions is a list of deduction ids, and logs is a string
-    containing full logs.
+    Represent a `part' of grading which has its own weight and its own
+    score: one prompt question, one unit test, etc.
     """
 
-    __slots__ = ('id', 'score', 'deductions', 'logs')
+    __metaclass__ = ABCMeta
 
-    def __init__(self, id, score, deductions=None, logs=None):
-        self.id = id
+    @abstractmethod
+    def __init__(self):
+        """
+        Subclasses should override this method and include
+        required/optional config keys as arguments. Then you can simply
+        return MyPartSubclass.from_config_dict(config_dict) in
+        MyGrader.part_from_config_dict().
+        """
+        pass
+
+    @abstractmethod
+    def description(self):
+        """
+        Return a human-friendly description for this part. Used in grade
+        breakdowns and logs.
+        """
+        pass
+
+
+class PartGrade(ConfigDictMixin):
+    """
+    Hold the results of grading one part.
+
+    score is the percentage passed as a Fraction instance, deductions is
+    a list of deduction ids, and log is a string containing verbose logs
+    for this part.
+    """
+
+    __slots__ = ('id', 'score', 'deductions', 'log')
+
+    def __init__(self, score, deductions=None, log=None):
         self.score = Fraction(score)
         self.deductions = deductions
-        self.logs = logs
+        self.log = log
 
     def to_config_dict(self, *exclude):
-        result = super().to_config_dict(exclude)
+        result = super(PartGrade, self).to_config_dict(exclude)
         # Convert Fraction instance to a string
         result['score'] = str(result['score'])
         return result
+
+    @classmethod
+    def from_config_dict(cls, config_dict):
+        part_grade = super(PartGrade, cls).from_config_dict(config_dict)
+        # Convert string to Fraction instance
+        part_grade.score = Fraction(part_grade.score)
+        return part_grade

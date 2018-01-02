@@ -3,12 +3,11 @@ from fractions import Fraction
 
 import click
 
-from . import GraderInterface, InvalidGraderConfigError, SubcomponentGrade
-from ..utils import ConfigDictMixin
+from . import GraderInterface, InvalidGraderConfigError, Part, PartGrade
 
 
-class Prompt(ConfigDictMixin):
-    def __init__(self, text, answer_type, weight, answer_range=None):
+class Prompt(Part):
+    def __init__(self, text, answer_type, answer_range=None):
         self.text = text
         self.answer_type = None
 
@@ -22,10 +21,6 @@ class Prompt(ConfigDictMixin):
             raise InvalidGraderConfigError("Invalid answer_type: %s. Only bool"
                                            " and int are supported." %
                                            answer_type)
-
-        self.weight = weight
-        if type(self.weight) != int:
-            raise InvalidGraderConfigError("Weight must be an integer.")
 
         if self.answer_type == int:  # In this case we also need a range
             if answer_range is None:
@@ -52,29 +47,22 @@ class Prompt(ConfigDictMixin):
             self.range_low, self.range_high = self.answer_range
             self.answer_type = click.IntRange(self.range_low, self.range_high)
 
+    def description(self):
+        return self.text
+
     def grade(self):
         """Prompt the user and return a SubcomponentGrade for this prompt"""
 
         response = click.prompt(text=self.text, type=self.answer_type)
         score = Fraction(response - self.range_low,
                          self.range_high - self.range_low)
-        return SubcomponentGrade(id=self.text, score=score,
-                                 logs='response: {}'.format(response))
+        return PartGrade(score=score, log='response: {}'.format(response))
 
 
 class PromptGrader(GraderInterface):
-    def __init__(self,
-                 prompts):  # type: (List[Dict[str, object]]) -> PromptGrader
-        self.prompts = []
+    def part_from_config_dict(self, config_dict):
+        return Prompt.from_config_dict(config_dict)
 
-        # Check if our prompts are a list
-        if not isinstance(prompts, collections.Iterable):
-            raise InvalidGraderConfigError("The prompts option needs to be a "
-                                           "list of Prompt dictionaries.")
-
-        for prompt_options in prompts:
-            self.prompts.append(Prompt.from_config_dict(prompt_options))
-
-    def grade(self, submission, path):
+    def grade(self, submission, path, parts):
         # The submission is not relevant here, so don't use it
-        return [prompt.grade() for prompt in self.prompts]
+        return [prompt.grade() for prompt in parts]
