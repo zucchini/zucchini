@@ -1,5 +1,6 @@
 import os
 import json
+from datetime import datetime
 
 from .constants import SUBMISSION_META_FILE, SUBMISSION_FILES_DIRECTORY
 from .utils import ConfigDictMixin, datetime_from_string, \
@@ -18,10 +19,10 @@ class Submission(ConfigDictMixin):
         self.graded = graded
         self.id = id
 
-        if isinstance(submission_time, str):
-            self.submission_time = datetime_from_string(submission_time)
-        else:
+        if isinstance(submission_time, datetime):
             self.submission_time = submission_time
+        else:
+            self.submission_time = datetime_from_string(submission_time)
 
         self.component_grades = component_grades
 
@@ -73,7 +74,10 @@ class Submission(ConfigDictMixin):
             raise BrokenSubmissionError(str(err))
 
     def write_grade(self, component_grades):  # (Dict[object, object]) -> None
-        """Write the component grades to the metadata file"""
+        """
+        Set the component grades to `component_grades' and write the
+        new submission metadata to the metadata file.
+        """
 
         self.graded = True
         self.component_grades = component_grades

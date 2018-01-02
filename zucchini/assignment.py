@@ -1,37 +1,42 @@
 import os
 import shutil
 import tempfile
+from collections import namedtuple
 
 import click
 import git
 import yaml
 
-from .graders import AVAILABLE_GRADERS, SubcomponentGrade
+from .graders import AVAILABLE_GRADERS, PartGrade
 from .constants import ASSIGNMENT_CONFIG_FILE, ASSIGNMENT_FILES_DIRECTORY
 from .utils import ConfigDictMixin, copy_globs, sanitize_path
 
 
 class AssignmentComponentGrade(ConfigDictMixin):
-    def __init__(self, name, subcomponent_grades):
-        self.name = name
-        self.subcomponent_grades = subcomponent_grades
+    """Hold the score for an assignment component."""
+
+    def __init__(self, part_grades):
+        self.part_grades = part_grades
 
     @classmethod
-    def from_config_dict(cls, **kwargs):
-        grade = super().from_config_dict(**kwargs)
-        grade.subcomponent_grades = [SubcomponentGrade.from_config_dict(g)
-                                     for g in grade.subcomponent_grades]
+    def from_config_dict(cls, dict_):
+        grade = super(AssignmentComponentGrade, cls).from_config_dict(dict_)
+        grade.part_grades = [PartGrade.from_config_dict(g)
+                             for g in grade.part_grades]
         return grade
 
-    def to_config_dict(cls, *args):
-        dict_ = super().to_config_dict(*args)
-        dict_['subcomponent-grades'] = [g.to_config_dict()
-                                        for g in dict_['subcomponent-grades']]
+    def to_config_dict(self, *args):
+        dict_ = super(AssignmentComponentGrade, self).to_config_dict(*args)
+        dict_['part-grades'] = [g.to_config_dict()
+                                for g in dict_['part-grades']]
         return dict_
 
 
+ComponentPart = namedtuple('ComponentPart', ('weight', 'part'))
+
+
 class AssignmentComponent(ConfigDictMixin):
-    def __init__(self, assignment, name, backend, weight, files=None,
+    def __init__(self, assignment, name, backend, weight, parts, files=None,
                  grading_files=None, backend_options=None):
         self.assignment = assignment
         self.name = name
@@ -63,7 +68,17 @@ class AssignmentComponent(ConfigDictMixin):
                                       for file_ in self.grading_files]
 
         # We then initialize the grader
-        self.grader = backend_class.from_config_dict(backend_options)
+        self.grader = backend_class.from_config_dict(backend_options or {})
+        self.parts = []
+
+        for part_dict in parts:
+            if 'weight' not in part_dict:
+                raise ValueError('every part needs a weight!')
+            else:
+                weight = part_dict['weight']
+                del part_dict['weight']
+            part = self.grader.part_from_config_dict(part_dict)
+            self.parts.append(ComponentPart(weight=weight, part=part))
 
     def grade_submission(self, submission):
         grading_directory = tempfile.mkdtemp(prefix='zucchini-component-')
@@ -76,12 +91,15 @@ class AssignmentComponent(ConfigDictMixin):
             if self.grading_files:
                 self.assignment.copy_files(self.grading_files,
                                            grading_directory)
-            subcomponent_grades = self.grader.grade(submission,
-                                                    grading_directory)
+            # self.parts is a list of (weight, Part) tuples, but we only
+            # wanna pass Part instances to the grader
+            parts = [part.part for part in self.parts]
+            part_grades = self.grader.grade(submission, grading_directory,
+                                            parts)
         finally:
             shutil.rmtree(grading_directory)
 
-        return AssignmentComponentGrade(self.name, subcomponent_grades)
+        return AssignmentComponentGrade(part_grades)
 
 
 # This class contains the Assignment configuration for the local file
@@ -157,10 +175,12 @@ class Assignment(object):
         copy_globs(files, grading_files_dir, path)
 
     def grade_submission(self, submission):
-        # The grading data for each subcomponent (individual test) of
-        # each component (test suite) of this assignment
+        # The grading data for each part (individual test) of each
+        # component (test suite) of this assignment
         grades = [component.grade_submission(submission).to_config_dict()
                   for component in self.components]
         submission.write_grade(grades)
-
         # TODO: We probably want to log, too
+
+    def calculate_grade(self, submission):
+        pass
