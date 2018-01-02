@@ -246,8 +246,8 @@ def load_canvas(state, section=None):
     click.echo('Downloading submissions from Canvas...')
     with click.progressbar(submissions) as bar:
         for canvas_submission in bar:
-            base_dir = os.path.join(state.submission_dir,
-                                    canvas_submission.user.sortable_name)
+            student_name = canvas_submission.user.sortable_name
+            base_dir = os.path.join(state.submission_dir, student_name)
             # Remove submission if it already exists
             shutil.rmtree(base_dir, ignore_errors=True)
 
@@ -257,8 +257,9 @@ def load_canvas(state, section=None):
             flatten(files_dir)
 
             # Create initial meta.json in submission dir
-            submission = Submission(state.get_assignment(), base_dir,
-                                    graded=False, id=canvas_submission.user_id,
+            submission = Submission(student_name, state.get_assignment(),
+                                    base_dir, graded=False,
+                                    id=canvas_submission.user_id,
                                     submission_time=canvas_submission.time())
             submission.initialize_metadata()
 
