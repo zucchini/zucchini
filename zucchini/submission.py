@@ -12,8 +12,9 @@ class BrokenSubmissionError(Exception):
 
 
 class Submission(ConfigDictMixin):
-    def __init__(self, assignment, path, graded, id=None, submission_time=None,
-                 component_grades=None):
+    def __init__(self, student_name, assignment, path, graded, id=None,
+                 submission_time=None, component_grades=None):
+        self.student_name = student_name
         self.assignment = assignment
         self.path = path
         self.graded = graded
