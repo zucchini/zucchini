@@ -268,14 +268,16 @@ def load_canvas(state, section=None):
             submission.initialize_metadata()
 
 
-def print_grades(grades):
+def print_grades(grades, grader_name):
     """Display grades, an iterable of Grade instances, in a pager."""
     grades = sorted(grades,
                     key=lambda grade: grade.student_name())
 
     grade_report = '\n'.join(
-        '{}\t{}'.format(grade.student_name(), grade.score()
-                        if grade.graded() else '(ungraded)')
+        '{}\t{}\t{}'.format(grade.student_name(), grade.score()
+                            if grade.graded() else '(ungraded)',
+                            grade.breakdown(grader_name)
+                            if grade.graded() else '')
         for grade in grades)
     click.echo_via_pager('grade report:\n\n' + grade_report)
 
@@ -301,7 +303,7 @@ def grade(state, from_dir):
 
     # TODO: Show a progress bar if all components are non-interactive
     click.echo('Grading submissions...')
-    print_grades(grading_manager.grade())
+    print_grades(grading_manager.grade(), state.user_name)
 
 
 @cli.command('show-grades')
@@ -314,7 +316,7 @@ def grade(state, from_dir):
 def show_grades(state, from_dir):
     """Print the grade for all submissions."""
     grading_manager = GradingManager(state.get_assignment(), from_dir)
-    print_grades(grading_manager.grades())
+    print_grades(grading_manager.grades(), state.user_name)
 
 
 @cli.group()
@@ -349,7 +351,8 @@ def export_csv(state, out_file=None):
     try:
         writer = csv.writer(csvfile)
         for grade in state.grades:
-            writer.writerow([grade.student_name(), grade.score()])
+            writer.writerow([grade.student_name(), grade.score(),
+                             grade.breakdown(state.user_name)])
     finally:
         if out_file is not None:
             csvfile.close()
@@ -373,8 +376,10 @@ def export_canvas(state):
         for grade in bar:
             # Submissions not from canvas won't have an id set, so skip them
             if grade.student_id() is not None:
+                breakdown = grade.breakdown(state.user_name)
                 api.set_submission_grade(course_id, assignment_id,
-                                         grade.student_id(), grade.score())
+                                         grade.student_id(), grade.score(),
+                                         comment=breakdown)
 
 
 @cli.group()

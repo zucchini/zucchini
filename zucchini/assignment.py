@@ -52,6 +52,7 @@ class AssignmentComponent(ConfigDictMixin):
         # We then initialize the grader
         self.grader = backend_class.from_config_dict(backend_options or {})
         self.parts = []
+        self.total_part_weight = 0
 
         for part_dict in parts:
             if 'weight' not in part_dict:
@@ -61,6 +62,7 @@ class AssignmentComponent(ConfigDictMixin):
                 del part_dict['weight']
             part = self.grader.part_from_config_dict(part_dict)
             self.parts.append(ComponentPart(weight=weight, part=part))
+            self.total_part_weight += weight
 
     def grade_submission(self, submission):
         grading_directory = tempfile.mkdtemp(prefix='zucchini-component-')
@@ -180,9 +182,8 @@ class Assignment(object):
         Calculate the final grade for a submission given the list of
         AssignmentComponentGrades for the submission.
         """
-        total_possible = sum(component.weight for component in self.components)
         total_earned = sum(component.calculate_grade(grade) * component.weight
                            for grade, component
                            in zip(component_grades, self.components))
 
-        return Fraction(total_earned, total_possible)
+        return Fraction(total_earned, self.total_weight)

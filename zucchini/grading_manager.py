@@ -15,6 +15,9 @@ class Grade(object):
     logic from the command-line interface.
     """
 
+    # Round 0.5->1 when rounding fraction scores
+    ROUNDING = decimal.ROUND_HALF_UP
+
     def __init__(self, assignment, submission):
         self._assignment = assignment
         self._submission = submission
@@ -50,16 +53,78 @@ class Grade(object):
         """Return the id of the student, or None if unset."""
         return self._submission.id
 
+    @staticmethod
+    def _decimal_out_of_100(frac):
+        """
+        Convert frac to a decimal.Decimal instance representing the
+        score it represents out of 100.
+        """
+        # We want a number on [0,100], not [0,1]
+        out_of_100 = frac * 100
+        return decimal.Decimal(out_of_100.numerator) \
+            / decimal.Decimal(out_of_100.denominator)
+
+    @classmethod
+    def _to_integer(cls, frac):
+        """Round frac to an integer out of 100"""
+        quotient = cls._decimal_out_of_100(frac)
+        return int(quotient.to_integral_value(cls.ROUNDING))
+
+    @classmethod
+    def _two_decimals(cls, frac):
+        """
+        Convert frac to a string holding the number of points out of 100
+        to two decimal points.
+        """
+        quotient = cls._decimal_out_of_100(frac)
+        # Round to two decimal places
+        return str(quotient.quantize(decimal.Decimal('1.00'), cls.ROUNDING))
+
     def score(self):
         """Return the grade as an integer out of 100."""
-        # We want a number on [0,100], not [0,1]
-        out_of_100 = self._grade * 100
-        # Now, use decimal to round the fraction to an integer
-        # Round 0.5 -> 1
-        quotient = decimal.Decimal(out_of_100.numerator) \
-            / decimal.Decimal(out_of_100.denominator)
-        # round(D) for any Decimal object D will return an int
-        return int(quotient.to_integral_value(decimal.ROUND_05UP))
+        return self._to_integer(self._grade)
+
+    def breakdown(self, grader_name):
+        """
+        Generate a grade breakdown for this grade. Each part whose score
+        != 1 is included.
+        """
+        deducted_parts = []
+
+        for component, component_grade in zip(self._assignment.components,
+                                              self._component_grades):
+            for part, part_grade in zip(component.parts,
+                                        component_grade.part_grades):
+                # To keep the breakdown easy to read, exclude parts
+                # which the student passed
+                if part_grade.score == 1:
+                    continue
+
+                # Sometimes we want to warn students about things
+                # without penalizing them, so we'll set the weight of a
+                # part to 0. Handle that case:
+                if 0 in (component.weight, part.weight,
+                         component.total_part_weight,
+                         self._assignment.total_weight):
+                    # The code below will add a + if it's needed
+                    sign = '-' if part_grade.score < 1 else ''
+                    percent_delta = '{}0'.format(sign)
+                else:
+                    # Calculate the percentage of the final grade lost/gained
+                    # on this part. Basically, we want deviations from a
+                    # perfect score.
+                    percent_delta = component.weight * part.weight \
+                        * (part_grade.score - 1) \
+                        / component.total_part_weight \
+                        / self._assignment.total_weight
+
+                deducted_parts.append(
+                    '{}: {}{}'.format(part.part.description(),
+                                      '+' if part_grade.score > 1 else '',
+                                      self._two_decimals(percent_delta)))
+
+        breakdown = ', '.join(deducted_parts)
+        return '{} -{}'.format(breakdown or 'Perfect!', grader_name)
 
 
 class GradingManager(object):
