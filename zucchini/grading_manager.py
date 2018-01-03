@@ -1,5 +1,6 @@
 import os
 import decimal
+from fractions import Fraction
 
 from .submission import Submission
 
@@ -27,6 +28,11 @@ class Grade(object):
         else:
             self._grade = self._assignment.calculate_grade(
                 self._component_grades)
+
+    def __repr__(self):
+        return '<Grade assignment={}, submission={}, component_grades={}, ' \
+               'grade={}>'.format(self._assignment, self._submission,
+                                  self._component_grades, self._grade)
 
     def graded(self):
         """Return True if this submission has been graded, False otherwise."""
@@ -93,35 +99,50 @@ class Grade(object):
 
         for component, component_grade in zip(self._assignment.components,
                                               self._component_grades):
-            for part, part_grade in zip(component.parts,
-                                        component_grade.part_grades):
-                # To keep the breakdown easy to read, exclude parts
-                # which the student passed
-                if part_grade.score == 1:
-                    continue
+            if component_grade.is_broken():
+                percentage_of_total = Fraction(component.weight,
+                                               self._assignment.total_weight)
+                component_points = self._two_decimals(percentage_of_total)
+                deducted_parts.append('{}: -{} ({})'.format(
+                    component.name, component_points, component_grade.error))
+            else:
+                for part, part_grade in zip(component.parts,
+                                            component_grade.part_grades):
+                    # To keep the breakdown easy to read, exclude parts
+                    # which the student passed
+                    if part_grade.score == 1:
+                        continue
 
-                # Sometimes we want to warn students about things
-                # without penalizing them, so we'll set the weight of a
-                # part to 0. Handle that case:
-                if 0 in (component.weight, part.weight,
-                         component.total_part_weight,
-                         self._assignment.total_weight):
-                    # The code below will add a + if it's needed
-                    sign = '-' if part_grade.score < 1 else ''
-                    percent_delta = '{}0'.format(sign)
-                else:
-                    # Calculate the percentage of the final grade lost/gained
-                    # on this part. Basically, we want deviations from a
-                    # perfect score.
-                    percent_delta = component.weight * part.weight \
-                        * (part_grade.score - 1) \
-                        / component.total_part_weight \
-                        / self._assignment.total_weight
+                    # Sometimes we want to warn students about things
+                    # without penalizing them, so we'll set the weight of a
+                    # part to 0. Handle that case:
+                    if 0 in (component.weight, part.weight,
+                             component.total_part_weight,
+                             self._assignment.total_weight):
+                        # The code below will add a + if it's needed
+                        sign = '-' if part_grade.score < 1 else ''
+                        delta = '{}0'.format(sign)
+                    else:
+                        # Calculate the percentage of the final grade
+                        # lost/gained on this part. Basically, we want
+                        # deviations from a perfect score.
+                        percent_delta = component.weight * part.weight \
+                            * (part_grade.score - 1) \
+                            / component.total_part_weight \
+                            / self._assignment.total_weight
+                        delta = self._two_decimals(percent_delta)
 
-                deducted_parts.append(
-                    '{}: {}{}'.format(part.part.description(),
-                                      '+' if part_grade.score > 1 else '',
-                                      self._two_decimals(percent_delta)))
+                    if part_grade.deductions:
+                        deductions = ' ({})'.format(
+                            ', '.join(part_grade.deductions))
+                    else:
+                        deductions = ''
+
+                    deducted_parts.append(
+                        '{}: {}{}{}'.format(
+                            part.part.description(),
+                            '+' if part_grade.score > 1 else '',
+                            delta, deductions))
 
         breakdown = ', '.join(deducted_parts)
         return '{} -{}'.format(breakdown or 'Perfect!', grader_name)

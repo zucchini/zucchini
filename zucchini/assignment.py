@@ -8,6 +8,7 @@ import click
 import git
 import yaml
 
+from .submission import BrokenSubmissionError
 from .grades import AssignmentComponentGrade
 from .graders import AVAILABLE_GRADERS
 from .constants import ASSIGNMENT_CONFIG_FILE, ASSIGNMENT_FILES_DIRECTORY
@@ -87,6 +88,9 @@ class AssignmentComponent(ConfigDictMixin):
             parts = [part.part for part in self.parts]
             part_grades = self.grader.grade(submission, grading_directory,
                                             parts)
+        except BrokenSubmissionError as err:
+            return AssignmentComponentGrade(error=str(err),
+                                            error_verbose=err.verbose)
         finally:
             shutil.rmtree(grading_directory)
 
