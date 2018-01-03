@@ -48,7 +48,7 @@ class PartGrade(ConfigDictMixin):
     for this part.
     """
 
-    __slots__ = ('id', 'score', 'deductions', 'log')
+    __slots__ = ('score', 'deductions', 'log')
 
     def __init__(self, score, deductions=None, log=None):
         self.score = Fraction(score)
