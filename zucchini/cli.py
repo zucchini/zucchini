@@ -339,7 +339,7 @@ def export(state, from_dir):
                               resolve_path=True))
 @pass_state
 def export_csv(state, out_file=None):
-    """Export grades to a CSV."""
+    """Export grades to an Excel CSV."""
 
     if out_file is None:
         csvfile = sys.stdout
