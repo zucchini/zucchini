@@ -5,7 +5,7 @@ from datetime import datetime
 from .grades import AssignmentComponentGrade
 from .constants import SUBMISSION_META_FILE, SUBMISSION_FILES_DIRECTORY
 from .utils import ConfigDictMixin, datetime_from_string, \
-                   datetime_to_string, copy_globs
+                   datetime_to_string, copy_globs, FileNotFoundError
 
 
 class BrokenSubmissionError(Exception):
