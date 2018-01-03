@@ -301,9 +301,17 @@ def grade(state, from_dir):
 
     grading_manager = GradingManager(state.get_assignment(), from_dir)
 
-    # TODO: Show a progress bar if all components are non-interactive
     click.echo('Grading submissions...')
-    print_grades(grading_manager.grade(), state.user_name)
+
+    if grading_manager.is_interactive():
+        grades = grading_manager.grade()
+    else:
+        # Show a progress bar iff all components are non-interactive.
+        # This way, we know prompts won't mess up our progress bar.
+        with click.progressbar(grading_manager.grade()) as bar:
+            grades = list(bar)
+
+    print_grades(grades, state.user_name)
 
 
 @cli.command('show-grades')
