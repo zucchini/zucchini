@@ -148,6 +148,13 @@ class GradingManager(object):
 
         self.load_submissions()
 
+    def is_interactive(self):
+        """
+        Return True if and only if grading will produce command-line
+        prompts.
+        """
+        return self.assignment.is_interactive()
+
     def load_submissions(self):
         self.submissions = []
 

@@ -26,6 +26,13 @@ class GraderInterface(ConfigDictMixin):
         """
         return []
 
+    def is_interactive(self):  # type: () -> bool
+        """
+        Return True if and only if this grader will produce command-line
+        prompts.
+        """
+        return False
+
     @abstractmethod
     def part_from_config_dict(self, config_dict):  # type: (dict) -> Part
         """

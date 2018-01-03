@@ -61,6 +61,9 @@ class Prompt(Part):
 
 
 class PromptGrader(GraderInterface):
+    def is_interactive(self):
+        return True
+
     def part_from_config_dict(self, config_dict):
         return Prompt.from_config_dict(config_dict)
 

@@ -64,6 +64,13 @@ class AssignmentComponent(ConfigDictMixin):
             self.parts.append(ComponentPart(weight=weight, part=part))
             self.total_part_weight += weight
 
+    def is_interactive(self):
+        """
+        Return True if and only if this component will produce
+        command-line prompts.
+        """
+        return self.grader.is_interactive()
+
     def grade_submission(self, submission):
         grading_directory = tempfile.mkdtemp(prefix='zucchini-component-')
 
@@ -152,8 +159,16 @@ class Assignment(object):
             raise ValueError('Duplicate component names')
 
         self.total_weight = sum(c.weight for c in self.components)
+        self.interactive = any(c.is_interactive() for c in self.components)
 
         # TODO: Handle assignments with no components or with 0 total weight
+
+    def is_interactive(self):
+        """
+        Return True if and only if grading this assignment will produce
+        command-line prompts.
+        """
+        return self.interactive
 
     def copy_files(self, files, path):  # (List[str], str) -> None
         """Copy the grader files in the files list to the new path"""
