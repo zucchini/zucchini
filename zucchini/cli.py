@@ -355,6 +355,28 @@ def export_csv(state, out_file=None):
             csvfile.close()
 
 
+@export.command('canvas')
+@pass_state
+def export_canvas(state):
+    """Upload grades to Canvas."""
+
+    api = state.canvas_api()
+    course_id = state.get_assignment().canvas_course_id
+    assignment_id = state.get_assignment().canvas_assignment_id
+
+    if None in (course_id, assignment_id):
+        raise click.ClickException('Need to configure canvas in assignment '
+                                   'config')
+
+    click.echo('Uploading grades to canvas...')
+    with click.progressbar(state.grades) as bar:
+        for grade in bar:
+            # Submissions not from canvas won't have an id set, so skip them
+            if grade.student_id() is not None:
+                api.set_submission_grade(course_id, assignment_id,
+                                         grade.student_id(), grade.score())
+
+
 @cli.group()
 def farm():
     """Manage zucchini farms."""

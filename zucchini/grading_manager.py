@@ -46,6 +46,10 @@ class Grade(object):
         """Return the name of the student."""
         return self._submission.student_name
 
+    def student_id(self):
+        """Return the id of the student, or None if unset."""
+        return self._submission.id
+
     def score(self):
         """Return the grade as an integer out of 100."""
         # We want a number on [0,100], not [0,1]
