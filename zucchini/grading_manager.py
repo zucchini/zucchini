@@ -18,8 +18,16 @@ class Grade(object):
     def __init__(self, assignment, submission):
         self._assignment = assignment
         self._submission = submission
-        self._component_grades = None
-        self._grade = None
+        self._component_grades = self._submission.component_grades
+        if self._component_grades is None:
+            self._grade = None
+        else:
+            self._grade = self._assignment.calculate_grade(
+                self._component_grades)
+
+    def graded(self):
+        """Return True if this submission has been graded, False otherwise."""
+        return self._submission.graded
 
     def grade(self):
         """Grade the submission and calculate the grade."""
@@ -96,3 +104,9 @@ class GradingManager(object):
             grade.write_grade()
 
             yield grade
+
+    def grades(self):
+        """Return a list of all grades"""
+
+        for submission in self.submissions:
+            yield Grade(self.assignment, submission)
