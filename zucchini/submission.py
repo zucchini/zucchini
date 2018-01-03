@@ -2,7 +2,7 @@ import os
 import json
 from datetime import datetime
 
-from .assignment import AssignmentComponentGrade
+from .grades import AssignmentComponentGrade
 from .constants import SUBMISSION_META_FILE, SUBMISSION_FILES_DIRECTORY
 from .utils import ConfigDictMixin, datetime_from_string, \
                    datetime_to_string, copy_globs

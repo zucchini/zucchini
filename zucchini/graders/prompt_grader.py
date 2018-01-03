@@ -3,7 +3,8 @@ from fractions import Fraction
 
 import click
 
-from . import GraderInterface, InvalidGraderConfigError, Part, PartGrade
+from ..grades import PartGrade
+from . import GraderInterface, InvalidGraderConfigError, Part
 
 
 class Prompt(Part):

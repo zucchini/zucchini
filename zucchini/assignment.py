@@ -8,43 +8,10 @@ import click
 import git
 import yaml
 
-from .graders import AVAILABLE_GRADERS, PartGrade
+from .grades import AssignmentComponentGrade
+from .graders import AVAILABLE_GRADERS
 from .constants import ASSIGNMENT_CONFIG_FILE, ASSIGNMENT_FILES_DIRECTORY
 from .utils import ConfigDictMixin, copy_globs, sanitize_path
-
-
-class AssignmentComponentGrade(ConfigDictMixin):
-    """Hold the score for an assignment component."""
-
-    def __init__(self, part_grades):
-        self.part_grades = part_grades
-
-    @classmethod
-    def from_config_dict(cls, dict_):
-        grade = super(AssignmentComponentGrade, cls).from_config_dict(dict_)
-        grade.part_grades = [PartGrade.from_config_dict(g)
-                             for g in grade.part_grades]
-        return grade
-
-    def to_config_dict(self, *args):
-        dict_ = super(AssignmentComponentGrade, self).to_config_dict(*args)
-        dict_['part-grades'] = [g.to_config_dict()
-                                for g in dict_['part-grades']]
-        return dict_
-
-    def calculate_grade(self, component_parts):
-        # type: (List[ComponentPart]) -> fractions.Fraction
-        """
-        Using the list of ComponentPart instances provided (which
-        contain the weight of components) and the part grades held in
-        this instance, calculate the percentage of this component
-        earned.
-        """
-        total_possible = sum(part.weight for part in component_parts)
-        total_earned = sum(grade.score * part.weight
-                           for grade, part
-                           in zip(self.part_grades, component_parts))
-        return Fraction(total_earned, total_possible)
 
 
 ComponentPart = namedtuple('ComponentPart', ('weight', 'part'))

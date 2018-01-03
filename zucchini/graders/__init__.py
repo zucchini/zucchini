@@ -1,9 +1,9 @@
 from .exceptions import InvalidGraderConfigError
-from .grader_interface import GraderInterface, PartGrade, Part
+from .grader_interface import GraderInterface, Part
 from .prompt_grader import PromptGrader
 from .open_file_grader import OpenFileGrader
 
-__all__ = ['InvalidGraderConfigError', 'GraderInterface', 'Part', 'PartGrade',
+__all__ = ['InvalidGraderConfigError', 'GraderInterface', 'Part',
            'PromptGrader', 'OpenFileGrader']
 
 _GRADERS = (
