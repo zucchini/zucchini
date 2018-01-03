@@ -2,6 +2,7 @@ import os
 import json
 from datetime import datetime
 
+from .assignment import AssignmentComponentGrade
 from .constants import SUBMISSION_META_FILE, SUBMISSION_FILES_DIRECTORY
 from .utils import ConfigDictMixin, datetime_from_string, \
                    datetime_to_string, copy_globs
@@ -25,7 +26,12 @@ class Submission(ConfigDictMixin):
         else:
             self.submission_time = datetime_from_string(submission_time)
 
-        self.component_grades = component_grades
+        if component_grades is None:
+            self.component_grades = None
+        else:
+            self.component_grades = [
+                AssignmentComponentGrade.from_config_dict(grade_dict)
+                for grade_dict in component_grades]
 
         # TODO: Validate the path - make sure everything that's needed for the
         # assignment is available in the path

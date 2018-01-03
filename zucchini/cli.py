@@ -266,6 +266,18 @@ def load_canvas(state, section=None):
             submission.initialize_metadata()
 
 
+def print_grades(grades):
+    """Display grades, an iterable of Grade instances, in a pager."""
+    grades = sorted(grades,
+                    key=lambda grade: grade.student_name())
+
+    grade_report = '\n'.join(
+        '{}\t{}'.format(grade.student_name(), grade.score()
+                        if grade.graded() else '(ungraded)')
+        for grade in grades)
+    click.echo_via_pager('grade report:\n\n' + grade_report)
+
+
 @cli.command()
 @click.option('-f', '--from-dir', default=DEFAULT_SUBMISSION_DIRECTORY,
               help="Path of the directory to read submissions from.",
@@ -287,13 +299,20 @@ def grade(state, from_dir):
 
     # TODO: Show a progress bar if all components are non-interactive
     click.echo('Grading submissions...')
-    grades = sorted(grading_manager.grade(),
-                    key=lambda grade: grade.student_name())
+    print_grades(grading_manager.grade())
 
-    grade_report = '\n'.join('{}\t{}'.format(grade.student_name(),
-                                             grade.score())
-                             for grade in grades)
-    click.echo_via_pager('grade report:\n\n' + grade_report)
+
+@cli.command('show-grades')
+@click.option('-f', '--from-dir', default=DEFAULT_SUBMISSION_DIRECTORY,
+              help="Path of the directory to read submissions from.",
+              type=click.Path(exists=True, file_okay=False, dir_okay=True,
+                              writable=True, readable=True,
+                              resolve_path=True))
+@pass_state
+def show_grades(state, from_dir):
+    """Print the grade for all submissions."""
+    grading_manager = GradingManager(state.get_assignment(), from_dir)
+    print_grades(grading_manager.grades())
 
 
 @cli.command()
