@@ -9,7 +9,10 @@ from .utils import ConfigDictMixin, datetime_from_string, \
 
 
 class BrokenSubmissionError(Exception):
-    pass
+    def __init__(self, message, verbose=None):
+        super(BrokenSubmissionError, self).__init__(message)
+        self.message = message
+        self.verbose = verbose
 
 
 class Submission(ConfigDictMixin):
