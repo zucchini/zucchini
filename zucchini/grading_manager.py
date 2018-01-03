@@ -171,6 +171,10 @@ class GradingManager(object):
             self.submissions.append(submission)
             # TODO: Handle broken submissions right here
 
+    def submission_count(self):
+        """Return the number of submissions to grade."""
+        return len(self.submissions)
+
     def grade(self):
         """Grade all submissions, returning an iterable of Grade instances."""
 

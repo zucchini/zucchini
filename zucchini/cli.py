@@ -308,7 +308,8 @@ def grade(state, from_dir):
     else:
         # Show a progress bar iff all components are non-interactive.
         # This way, we know prompts won't mess up our progress bar.
-        with click.progressbar(grading_manager.grade()) as bar:
+        with click.progressbar(grading_manager.grade(),
+                               grading_manager.submission_count()) as bar:
             grades = list(bar)
 
     print_grades(grades, state.user_name)
