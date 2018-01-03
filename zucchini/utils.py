@@ -54,6 +54,14 @@ def sanitize_path(path, path_lib=os.path, join=True):
         return components
 
 
+# Support FileNotFoundError, which does not exist in Python 2
+try:
+    FileNotFoundError = FileNotFoundError
+except NameError:
+    class FileNotFoundError(Exception):
+        pass
+
+
 # XXX Support copying directories
 def copy_globs(globs, src_dir, dest_dir):
     """
