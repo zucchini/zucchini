@@ -1,4 +1,3 @@
-from fractions import Fraction
 from abc import ABCMeta, abstractmethod
 
 from ..utils import ConfigDictMixin
@@ -77,33 +76,3 @@ class Part(ConfigDictMixin):
         breakdowns and logs.
         """
         pass
-
-
-class PartGrade(ConfigDictMixin):
-    """
-    Hold the results of grading one part.
-
-    score is the percentage passed as a Fraction instance, deductions is
-    a list of deduction ids, and log is a string containing verbose logs
-    for this part.
-    """
-
-    __slots__ = ('id', 'score', 'deductions', 'log')
-
-    def __init__(self, score, deductions=None, log=None):
-        self.score = Fraction(score)
-        self.deductions = deductions
-        self.log = log
-
-    def to_config_dict(self, *exclude):
-        result = super(PartGrade, self).to_config_dict(exclude)
-        # Convert Fraction instance to a string
-        result['score'] = str(result['score'])
-        return result
-
-    @classmethod
-    def from_config_dict(cls, config_dict):
-        part_grade = super(PartGrade, cls).from_config_dict(config_dict)
-        # Convert string to Fraction instance
-        part_grade.score = Fraction(part_grade.score)
-        return part_grade
