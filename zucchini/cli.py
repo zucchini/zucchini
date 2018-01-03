@@ -2,6 +2,8 @@
 
 """Command-line interface to zucchini."""
 import os
+import sys
+import csv
 import shutil
 
 import click
@@ -315,11 +317,42 @@ def show_grades(state, from_dir):
     print_grades(grading_manager.grades())
 
 
-@cli.command()
+@cli.group()
+@click.option('-f', '--from-dir', default=DEFAULT_SUBMISSION_DIRECTORY,
+              help="Path of the directory to read submissions from.",
+              type=click.Path(exists=True, file_okay=False, dir_okay=True,
+                              writable=True, readable=True,
+                              resolve_path=True))
 @pass_state
-def export(state):
+def export(state, from_dir):
     """Export grades for uploading."""
-    pass
+
+    grading_manager = GradingManager(state.get_assignment(), from_dir)
+    state.grades = list(grade for grade in grading_manager.grades()
+                        if grade.graded())
+
+
+@export.command('csv')
+@click.option('--out-file', '-o', help='Where to write the CSV. Default is '
+                                       'stdout',
+              type=click.Path(file_okay=True, dir_okay=False,
+                              resolve_path=True))
+@pass_state
+def export_csv(state, out_file=None):
+    """Export grades to a CSV."""
+
+    if out_file is None:
+        csvfile = sys.stdout
+    else:
+        csvfile = open(out_file, 'w')
+
+    try:
+        writer = csv.writer(csvfile)
+        for grade in state.grades:
+            writer.writerow([grade.student_name(), grade.score()])
+    finally:
+        if out_file is not None:
+            csvfile.close()
 
 
 @cli.group()
