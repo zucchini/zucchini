@@ -121,7 +121,7 @@ class LibcheckGrader(GraderInterface):
         self.valgrind_deduction = Fraction(valgrind_deduction)
 
         if timeout is None:
-            self.timeout = self.DEFAULT_TIME
+            self.timeout = self.DEFAULT_TIMEOUT
         else:
             self.timeout = timeout
 
