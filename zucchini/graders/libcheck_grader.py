@@ -7,7 +7,7 @@ from fractions import Fraction
 from ..submission import BrokenSubmissionError
 from ..utils import run_process, PIPE, STDOUT, TimeoutExpired
 from ..grades import PartGrade
-from . import GraderInterface, Part
+from . import ThreadedGrader, Part
 
 """
 Grade a native C assignment using Check, a C unit testing framework.
@@ -110,11 +110,13 @@ class LibcheckTest(Part):
         return grade
 
 
-class LibcheckGrader(GraderInterface):
+class LibcheckGrader(ThreadedGrader):
     DEFAULT_TIMEOUT = 5
 
     def __init__(self, build_cmd, run_cmd, valgrind_cmd,
-                 valgrind_deduction, timeout=None):
+                 valgrind_deduction, timeout=None, num_threads=None):
+        super(LibcheckGrader, self).__init__(num_threads)
+
         self.build_cmd = shlex.split(build_cmd)
         self.run_cmd = shlex.split(run_cmd)
         self.valgrind_cmd = shlex.split(valgrind_cmd)
@@ -124,6 +126,9 @@ class LibcheckGrader(GraderInterface):
             self.timeout = self.DEFAULT_TIMEOUT
         else:
             self.timeout = timeout
+
+    def grade_part(self, part, path, submission):
+        return part.grade(path, self)
 
     def part_from_config_dict(self, config_dict):
         return LibcheckTest.from_config_dict(config_dict)
@@ -144,4 +149,4 @@ class LibcheckGrader(GraderInterface):
                 .format(process.returncode),
                 verbose=process.stdout.decode() if process.stdout else None)
 
-        return [test.grade(path, self) for test in parts]
+        return super(LibcheckGrader, self).grade(submission, path, parts)
