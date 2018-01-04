@@ -1,3 +1,4 @@
+import sys
 import errno
 import os
 import re
@@ -5,15 +6,26 @@ import inspect
 import glob
 import shutil
 from datetime import datetime
-
-try:
-    # Python 3
-    from urllib.parse import urlparse
-except ImportError:
-    # Python 2
-    from urlparse import urlparse
+from collections import namedtuple
 
 import click
+
+if sys.version_info[0] < 3:
+    # subprocess32, the python 3 subprocess module backported to python
+    # 2, does not support non-POSIX platforms (aka Windows). So if
+    # you're on Windows, you need to use python 3, since it has a more
+    # up-to-date subprocess module in the standard library
+    if os.name != 'posix':
+        raise NotImplementedError('You need to use Python 3 on non-POSIX '
+                                  'platforms')
+
+    # Python 2 imports
+    import subprocess32 as subprocess
+    from urlparse import urlparse
+else:
+    # Python 3 imports
+    import subprocess
+    from urllib.parse import urlparse
 
 
 def mkdir_p(path):
@@ -24,6 +36,51 @@ def mkdir_p(path):
             pass
         else:
             raise
+
+
+# Patch around old versions of subprocess
+PIPE = subprocess.PIPE
+STDOUT = subprocess.STDOUT
+TimeoutExpired = subprocess.TimeoutExpired
+CompletedProcess = namedtuple('CompletedProcess', ('args', 'returncode',
+                                                   'stdout', 'stderr'))
+
+
+def run_process(*popenargs, **kwargs):
+    """
+    A straight copy-paste of subprocess.run() from the CPython source to
+    support Python versions earlier than 3.5.
+    """
+
+    # Can't put these directly in function signature because PEP-3102 is
+    # not a thing in Python 2
+    input = kwargs.pop('input', None)
+    timeout = kwargs.pop('timeout', None)
+    check = kwargs.pop('check', False)
+
+    if input is not None:
+        if 'stdin' in kwargs:
+            raise ValueError('stdin and input arguments may not both be used.')
+        kwargs['stdin'] = subprocess.PIPE
+
+    with subprocess.Popen(*popenargs, **kwargs) as process:
+        try:
+            stdout, stderr = process.communicate(input, timeout=timeout)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            stdout, stderr = process.communicate()
+            raise subprocess.TimeoutExpired(process.args, timeout,
+                                            output=stdout, stderr=stderr)
+        except: # noqa
+            process.kill()
+            process.wait()
+            raise
+        retcode = process.poll()
+        if check and retcode:
+            raise subprocess.CalledProcessError(retcode, process.args,
+                                                output=stdout, stderr=stderr)
+
+    return CompletedProcess(process.args, retcode, stdout, stderr)
 
 
 def sanitize_path(path, path_lib=os.path, join=True):

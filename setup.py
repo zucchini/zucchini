@@ -3,6 +3,7 @@
 
 """The setup script."""
 
+import sys
 from setuptools import setup, find_packages
 
 with open('README.rst') as readme_file:
@@ -10,6 +11,10 @@ with open('README.rst') as readme_file:
 
 with open('HISTORY.rst') as history_file:
     history = history_file.read()
+
+python2_requirements = [
+    'subprocess32==3.2.7'
+]
 
 requirements = [
     'click==6.7',
@@ -19,6 +24,9 @@ requirements = [
     'smmap2==2.0.3',
     'requests==2.18.4',
 ]
+
+if sys.version_info[0] < 3:
+    requirements += python2_requirements
 
 setup_requirements = [
     # TODO(zucchini): put setup requirements (distutils extensions, etc.) here
