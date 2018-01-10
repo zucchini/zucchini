@@ -25,6 +25,19 @@ Zucchini is an automatic grader tool for use in grading programming assignments.
 * Documentation: https://zucchini.readthedocs.io.
 
 
+Getting Started with Development
+--------------------------------
+
+After cloning this repo and installing virtualenv, run
+
+::
+
+   $ virtualenv -p python3 venv
+   $ . venv/bin/activate
+   $ pip install -r requirements.txt
+   $ pip install -r requirements_dev.txt
+   $ zucc --help
+
 Features
 --------
 
