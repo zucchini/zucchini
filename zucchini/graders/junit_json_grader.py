@@ -14,7 +14,7 @@ Patrick (thanks Patrick!)
 """
 
 
-class JUnitTest(Part):
+class JUnitJSONTest(Part):
     __slots__ = ('cls', 'name')
 
     def __init__(self, test):
@@ -25,7 +25,13 @@ class JUnitTest(Part):
         return '{}.{}'.format(self.cls.rsplit('.', 1)[-1], self.name)
 
 
-class JUnitGrader(GraderInterface):
+class JUnitJSONGrader(GraderInterface):
+    """
+    Run a grader jar file and parse the gradelog.json log file the
+    creates. This is something Mr. Patrick made just for Zucchini, and
+    graders will need to be written to produce this log file.
+    """
+
     DEFAULT_TIMEOUT = 5
     CLASS_REGEX = re.compile(r'\[engine:.*?\]/\[class:(?P<cls>.*?)\]')
 
@@ -41,7 +47,7 @@ class JUnitGrader(GraderInterface):
         return ['sudo apt-get install openjdk-8-jre-headless']
 
     def part_from_config_dict(self, config_dict):
-        return JUnitTest.from_config_dict(config_dict)
+        return JUnitJSONTest.from_config_dict(config_dict)
 
     def grade(self, submission, path, parts):
         try:
