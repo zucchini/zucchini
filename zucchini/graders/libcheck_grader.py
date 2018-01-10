@@ -24,9 +24,6 @@ class LibcheckTest(Part):
     def __init__(self, name):
         self.name = name
 
-    def list_prerequisites(self):
-        return ['sudo apt-get install build-essential check valgrind']
-
     def description(self):
         return self.name
 
@@ -126,6 +123,9 @@ class LibcheckGrader(ThreadedGrader):
             self.timeout = self.DEFAULT_TIMEOUT
         else:
             self.timeout = timeout
+
+    def list_prerequisites(self):
+        return ['sudo apt-get install build-essential check valgrind']
 
     def grade_part(self, part, path, submission):
         return part.grade(path, self)
