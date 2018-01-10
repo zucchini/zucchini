@@ -1,12 +1,9 @@
 import os
-import re
 import json
-import shlex
-import tempfile
 from fractions import Fraction
 
 from ..submission import BrokenSubmissionError
-from ..utils import run_process, PIPE, STDOUT, TimeoutExpired, ConfigDictMixin
+from ..utils import run_process, PIPE, STDOUT, TimeoutExpired
 from ..grades import PartGrade
 from . import GraderInterface, Part
 
@@ -24,6 +21,7 @@ class JUnitTest(Part):
 
     def description(self):
         return self.name
+
 
 class JUnitGrader(GraderInterface):
     DEFAULT_TIMEOUT = 5
@@ -67,7 +65,7 @@ class JUnitGrader(GraderInterface):
         with open(gradelog_path) as gradelog_file:
             gradelog = json.load(gradelog_file)
 
-        result = {}
+        results = {}
 
         for result in gradelog:
             name = result['displayName']
@@ -75,4 +73,4 @@ class JUnitGrader(GraderInterface):
             log = result['failDescription']
             results[name] = PartGrade(score=score, log=log)
 
-        return [result[part.name] for name in parts]
+        return [result[part.name] for part in parts]
