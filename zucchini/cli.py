@@ -272,12 +272,15 @@ def print_grades(grades, grader_name):
     """Display grades, an iterable of Grade instances, in a pager."""
     grades = sorted(grades,
                     key=lambda grade: grade.student_name())
+    # Length of longest name
+    max_name_len = max(len(grade.student_name()) for grade in grades)
 
     grade_report = '\n'.join(
-        '{}\t{}\t{}'.format(grade.student_name(), grade.score()
-                            if grade.graded() else '(ungraded)',
-                            grade.breakdown(grader_name)
-                            if grade.graded() else '')
+        '{:<{max_name_len}}\t{}\t{}'.format(
+            grade.student_name(),
+            grade.score() if grade.graded() else '(ungraded)',
+            grade.breakdown(grader_name) if grade.graded() else '',
+            max_name_len=max_name_len)
         for grade in grades)
     click.echo_via_pager('grade report:\n\n' + grade_report)
 
