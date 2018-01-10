@@ -109,11 +109,13 @@ class CanvasSubmissionAttachment(namedtuple('CanvasSubmission',
 
 
 class CanvasSubmission(namedtuple('CanvasSubmission',
-                       ('api_', 'id', 'late', 'user_id', 'attachments',
+                       ('api_', 'id', 'late', 'user_id', 'user', 'attachments',
                         'submitted_at'))):
     """Hold assignment info"""
     __slots__ = ()
-    _sub_entities = {'attachments': CanvasSubmissionAttachment}
+    _defaults = {'attachments': []}
+    _sub_entities = {'user': CanvasUser}
+    _sub_entity_lists = {'attachments': CanvasSubmissionAttachment}
 
     def __str__(self):
         attachments = ', '.join(attachment.display_name
@@ -122,13 +124,12 @@ class CanvasSubmission(namedtuple('CanvasSubmission',
                .format(self.id, '' if self.late else 'not ', self.user,
                        attachments)
 
-    @property
-    def user(self):
-        return self.api_.get_user(self.user_id)
-
     def time(self):
-        """Return the submission time as an aware datetime object."""
-        return datetime_from_string(self.submitted_at)
+        """Return the submission time as a naive datetime object."""
+        if self.submitted_at is None:
+            return self.submitted_at
+        else:
+            return datetime_from_string(self.submitted_at)
 
     def download(self, directory):
         """
@@ -169,11 +170,33 @@ class CanvasAPI(object):
 
     def _to_entity(self, entity_json, entity_class):
         """Convert a JSON object to an instance of the provided entity class"""
-        args = {field: entity_json[field] for field in entity_class._fields
-                if field != 'api_'}
+
+        if hasattr(entity_class, '_defaults'):
+            defaults = entity_class._defaults
+        else:
+            defaults = {}
+
+        args = {}
+        for field in entity_class._fields:
+            # Ignore the special api_ field used to give the instance a
+            # back-reference to this class
+            if field == 'api_':
+                continue
+
+            if field in entity_json:
+                args[field] = entity_json[field]
+            elif field in defaults:
+                args[field] = defaults[field]
+            else:
+                raise CanvasMalformedResponseError(
+                    'response is missing required field {}'.format(field))
 
         if hasattr(entity_class, '_sub_entities'):
             for field, class_ in entity_class._sub_entities.items():
+                args[field] = self._to_entity(args[field], class_)
+
+        if hasattr(entity_class, '_sub_entity_lists'):
+            for field, class_ in entity_class._sub_entity_lists.items():
                 args[field] = [self._to_entity(entity, class_)
                                for entity in args[field]]
 
@@ -318,7 +341,7 @@ class CanvasAPI(object):
         given course for the given assignment.
         """
 
-        return self._gets('courses/{}/assignments/{}/submissions'
+        return self._gets('courses/{}/assignments/{}/submissions?include=user'
                           .format(course_id, assignment_id), CanvasSubmission)
 
     def list_section_submissions(self, section_id, assignment_id):
@@ -327,7 +350,7 @@ class CanvasAPI(object):
         given section for the given assignment.
         """
 
-        return self._gets('sections/{}/assignments/{}/submissions'
+        return self._gets('sections/{}/assignments/{}/submissions?include=user'
                           .format(section_id, assignment_id), CanvasSubmission)
 
     def get_submission(self, course_id, assignment_id, user_id):
@@ -335,7 +358,8 @@ class CanvasAPI(object):
         Return a CanvasSubmission instance for the given user in the
         given assignment.
         """
-        return self._get('courses/{}/assignments/{}/submissions/{}'
+        return self._get(('courses/{}/assignments/{}/submissions/{}'
+                         '?include=user')
                          .format(course_id, assignment_id, user_id),
                          CanvasSubmission)
 

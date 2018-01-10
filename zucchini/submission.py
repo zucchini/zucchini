@@ -24,7 +24,7 @@ class Submission(ConfigDictMixin):
         self.graded = graded
         self.id = id
 
-        if isinstance(submission_time, datetime):
+        if submission_time is None or isinstance(submission_time, datetime):
             self.submission_time = submission_time
         else:
             self.submission_time = datetime_from_string(submission_time)
