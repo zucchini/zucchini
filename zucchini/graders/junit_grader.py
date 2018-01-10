@@ -1,4 +1,5 @@
 import os
+import re
 import json
 from fractions import Fraction
 
@@ -14,17 +15,19 @@ Patrick (thanks Patrick!)
 
 
 class JUnitTest(Part):
-    __slots__ = ('name')
+    __slots__ = ('cls', 'name')
 
-    def __init__(self, name):
-        self.name = name
+    def __init__(self, test):
+        self.test = test
+        self.cls, self.name = test.rsplit('.', 1)
 
     def description(self):
-        return self.name
+        return '{}.{}'.format(self.cls.rsplit('.', 1)[-1], self.name)
 
 
 class JUnitGrader(GraderInterface):
     DEFAULT_TIMEOUT = 5
+    CLASS_REGEX = re.compile(r'\[engine:.*?\]/\[class:(?P<cls>.*?)\]')
 
     def __init__(self, grader_jar, timeout=None):
         self.grader_jar = grader_jar
@@ -68,9 +71,10 @@ class JUnitGrader(GraderInterface):
         results = {}
 
         for result in gradelog:
+            cls = self.CLASS_REGEX.match(result['parentId']).group('cls')
             name = result['displayName']
             score = Fraction(result['status'] == 'PASS')
             log = result['failDescription']
-            results[name] = PartGrade(score=score, log=log)
+            results[(cls, name)] = PartGrade(score=score, log=log)
 
-        return [result[part.name] for part in parts]
+        return [results[(part.cls, part.name)] for part in parts]
