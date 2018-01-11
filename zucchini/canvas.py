@@ -101,9 +101,7 @@ class CanvasSubmissionAttachment(namedtuple('CanvasSubmission',
         Download this attachment with the name provided by the student
         to the directory provided.
         """
-        # XXX Make sure they didn't put characters in the filename
-        #     such that it's `../../../../../etc/passwd' or something.
-        #     I don't know if Canvas checks for this.
+        # Canvas sanitizes the input filename, it seems
         path = os.path.join(directory, self.filename)
         self.api_._download_file(self.url, path)
 
