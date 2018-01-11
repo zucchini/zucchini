@@ -5,6 +5,7 @@ import tarfile
 import posixpath
 import shutil
 import zipfile
+from collections import namedtuple
 from abc import ABCMeta, abstractmethod
 
 from .utils import mkdir_p, sanitize_path
@@ -179,12 +180,95 @@ def extract(archive, dest_dir):
                 shutil.copyfileobj(archived, extracted)
 
 
-def flatten(files_dir):
+ParsedCanvasSuffix = namedtuple('ParsedCanvasSuffix', ('unbroken_filename',
+                                                       'version', 'filename'))
+
+
+def canvas_parse_suffix(filename):
+    """
+    Extract the actual name and version of a filename afflicted by the
+    Canvas suffix scheme hand-crafted by UGA engineers. Returns a
+    ParsedCanvasSuffix tuple of the submitted filename, the version, and
+    the actual filename.
+    """
+
+    version = 0
+    unbroken_filename = filename
+
+    splat = filename.rsplit('.', 1)
+    if len(splat) == 2:
+        lhs, ext = splat
+        splat = lhs.rsplit('-', 1)
+        if len(splat) == 2:
+            basename, suffix = splat
+            try:
+                version_parsed = int(suffix)
+            except ValueError:
+                pass
+            else:
+                if version_parsed > 0:
+                    version = version_parsed
+                    unbroken_filename = '{}.{}'.format(basename, ext)
+
+    return ParsedCanvasSuffix(unbroken_filename, version, filename)
+
+
+def canvas_desuffix(files_dir):
+    """
+    Fix Canvas -1 -2 -3 suffixes as described in the flatten()
+    docstring. Take the most naive approach possible:
+    in spite of possible consequences, take the most recent file
+    version: take bob-3.txt over bob-2.txt, etc.
+    """
+
+    # First, parse all the suffixes in the filenames and sort them by
+    # version. This way, we will remove earlier versions before they've
+    # been replaced. (If we didn't do this, we might move bob-3.txt to
+    # bob.txt, and then later remove bob.txt -- the copy we want to keep!)
+    filenames = sorted((canvas_parse_suffix(file_)
+                        for file_ in os.listdir(files_dir)),
+                       key=lambda parsed: parsed.version)
+
+    # Do a first pass to put the 'newest' of each suffixed file in this
+    # dictionary
+    newest_versions = {}
+
+    for unbroken_filename, version, _ in filenames:
+        if newest_versions.get(unbroken_filename, -1) < version:
+            newest_versions[unbroken_filename] = version
+
+    # Now, rename newer versions and delete old ones
+    for unbroken_filename, version, original_filename in filenames:
+        current_path = os.path.join(files_dir, original_filename)
+
+        if newest_versions[unbroken_filename] == version:
+            if unbroken_filename != original_filename:
+                new_path = os.path.join(files_dir, unbroken_filename)
+                os.rename(current_path, new_path)
+        else:
+            # Remove pointless outdated file
+            os.remove(current_path)
+
+
+def flatten(files_dir, remove_canvas_suffixes=True):
     """
     Search the top-level files in `files_dir' for archives, and extract
     each one. Check for zipbombs.
+
+    If `remove_canvas_suffixes' is True (default True), remove the `-n'
+    suffixes from all files in the submission. For example, if a student
+    re-submits mycircuit.sim, Canvas will rename it to mycircuit-1.sim,
+    and after another re-submission, mycircuit-2.sim and so on. This
+    breaks a lot of things!
     """
 
+    # Remove -1 -2 -3 canvas suffixes before looking for archives so we
+    # don't mess up the file extension archive type auto-detection
+    # (e.g., it wouldn't understand a .tar-1.gz file).
+    if remove_canvas_suffixes:
+        canvas_desuffix(files_dir)
+
+    # Extract archives
     for file_ in os.listdir(files_dir):
         for extension, archive_cls in ARCHIVE_TYPES.items():
             if file_.lower().endswith(extension):

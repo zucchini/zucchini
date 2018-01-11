@@ -534,8 +534,12 @@ def canvas_api_grade(state, course_id, assignment_id, user_id, grade,
 
 @cli.command('flatten')
 @click.argument('dir-path')
+@click.option('--remove-canvas-suffixes/--keep-canvas-suffixes',
+              default=True,
+              help="Remove canvas resubmission suffixes (-1, -2, -3, etc.). "
+                   "Useful if you have filenames that end in -1, -2.")
 @pass_state
-def flatten_(self, dir_path):
+def flatten_(self, dir_path, remove_canvas_suffixes):
     """
     Flatten archives in a directory.
 
@@ -545,7 +549,7 @@ def flatten_(self, dir_path):
     from them if it exists. Checks for malicious archives like zipbombs
     and forged archive filenames.
     """
-    flatten(dir_path)
+    flatten(dir_path, remove_canvas_suffixes)
 
 
 if __name__ == "__main__":
