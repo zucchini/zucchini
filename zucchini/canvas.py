@@ -88,23 +88,23 @@ class CanvasUser(namedtuple('CanvasUser',
 
 
 class CanvasSubmissionAttachment(namedtuple('CanvasSubmission',
-                                 ('api_', 'id', 'display_name', 'url'))):
+                                 ('api_', 'id', 'filename', 'url'))):
     """Hold information about a submitted file"""
     __slots__ = ()
 
     def __str__(self):
         return 'id={}\t{}\t{}' \
-               .format(self.id, self.display_name, self.url)
+               .format(self.id, self.filename, self.url)
 
     def download(self, directory):
         """
         Download this attachment with the name provided by the student
         to the directory provided.
         """
-        # XXX Make sure they didn't put characters in the display_name
+        # XXX Make sure they didn't put characters in the filename
         #     such that it's `../../../../../etc/passwd' or something.
         #     I don't know if Canvas checks for this.
-        path = os.path.join(directory, self.display_name)
+        path = os.path.join(directory, self.filename)
         self.api_._download_file(self.url, path)
 
 
@@ -118,7 +118,7 @@ class CanvasSubmission(namedtuple('CanvasSubmission',
     _sub_entity_lists = {'attachments': CanvasSubmissionAttachment}
 
     def __str__(self):
-        attachments = ', '.join(attachment.display_name
+        attachments = ', '.join(attachment.filename
                                 for attachment in self.attachments)
         return 'id={}\t{}late\t{}\t{}' \
                .format(self.id, '' if self.late else 'not ', self.user,
