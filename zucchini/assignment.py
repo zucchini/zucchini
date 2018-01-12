@@ -20,7 +20,8 @@ ComponentPart = namedtuple('ComponentPart', ('weight', 'part'))
 
 class AssignmentComponent(ConfigDictMixin):
     def __init__(self, assignment, name, backend, weight, parts, files=None,
-                 grading_files=None, backend_options=None):
+                 optional_files=None, grading_files=None,
+                 backend_options=None):
         self.assignment = assignment
         self.name = name
 
@@ -40,6 +41,23 @@ class AssignmentComponent(ConfigDictMixin):
                 raise ValueError('List of files must be a list')
             else:
                 self.files = [sanitize_path(file_) for file_ in self.files]
+
+        self.optional_files = optional_files
+        if self.optional_files is not None:
+            if not isinstance(self.optional_files, list):
+                raise ValueError('List of optional files must be a list')
+            else:
+                self.optional_files = [sanitize_path(file_)
+                                       for file_ in self.optional_files]
+
+        # Check that there are no files marked as both optional and
+        # required
+        if None not in (self.files, self.optional_files):
+            common = set(self.files).intersection(self.optional_files)
+            if common:
+                raise ValueError(
+                    "file `{}' cannot be both an optional and required file!"
+                    .format(next(iter(common))))
 
         # TODO: Confirm that all of the files in the grading list exist
         self.grading_files = grading_files
@@ -78,6 +96,9 @@ class AssignmentComponent(ConfigDictMixin):
         try:
             # Copy the submission first and the grading later so that if a file
             # exists in both, the grading copy overwrites the submission copy
+            if self.optional_files:
+                submission.copy_files(self.optional_files, grading_directory,
+                                      allow_fail=True)
             if self.files:
                 submission.copy_files(self.files, grading_directory)
             if self.grading_files:

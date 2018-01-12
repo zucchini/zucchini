@@ -75,13 +75,15 @@ class Submission(ConfigDictMixin):
         self._write_meta_json()
 
     # XXX Support copying directories
-    def copy_files(self, files, path):  # (List[str], str) -> None
+    def copy_files(self, files, path, allow_fail=False):
+        # type: (List[str], str, bool) -> None
         files_dir = os.path.join(self.path, SUBMISSION_FILES_DIRECTORY)
 
         try:
             copy_globs(files, files_dir, path)
         except FileNotFoundError as err:
-            raise BrokenSubmissionError(str(err))
+            if not allow_fail:
+                raise BrokenSubmissionError(str(err))
 
     def write_grade(self, component_grades):  # (Dict[object, object]) -> None
         """
