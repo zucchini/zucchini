@@ -55,7 +55,7 @@ class LatePenalty(ConfigDictMixin):
         return submission.seconds_late is not None \
                and submission.seconds_late > self.after
 
-    def adjust_grade(self, submission, grade):
+    def adjust_grade(self, grade):
         if self.penalty_points:
             return max(0, grade - self.penalty)
         else:
@@ -67,9 +67,8 @@ class LatePenalizer(PenalizerInterface):
     Penalize students for late submissions.
 
     Configure it like this in the assignment config file. In this
-    example, after 8 hours late you get 50 points off your grade (a 75
-    would go to a 25), and if that's not true, then after 1 hour you get
-    25 points off your grade.
+    example, after 8 hours late you get 75 points off your grade (a 85
+    would go to a 10).
 
     penalties:
     - name: LATE
@@ -81,17 +80,17 @@ class LatePenalizer(PenalizerInterface):
         - after: 8h
           penalty: 50pts
 
-    That is, later penalties take precedence, and after finding a match,
-    penalties stop.
+    That is, penalties are applied in order, and they do not stop when
+    there is a match. They don't necessarily have to be in increasing
+    order of `after' values.
     """
 
     def __init__(self, penalties):
         self.penalties = [LatePenalty.from_config_dict(p) for p in penalties]
 
     def adjust_grade(self, submission, grade):
-        for penalty in reversed(self.penalties):
+        for penalty in self.penalties:
             if penalty.is_late(submission):
-                grade = penalty.adjust_grade(submission, grade)
-                break
+                grade = penalty.adjust_grade(grade)
 
         return grade
