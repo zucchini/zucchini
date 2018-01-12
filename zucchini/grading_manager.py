@@ -27,7 +27,7 @@ class Grade(object):
             self._grade = None
         else:
             self._grade = self._assignment.calculate_grade(
-                self._component_grades)
+                self._submission, self._component_grades)
 
     def __repr__(self):
         return '<Grade assignment={}, submission={}, component_grades={}, ' \
@@ -42,7 +42,8 @@ class Grade(object):
         """Grade the submission and calculate the grade."""
         self._component_grades = self._assignment.grade_submission(
                 self._submission)
-        self._grade = self._assignment.calculate_grade(self._component_grades)
+        self._grade = self._assignment.calculate_grade(self._submission,
+                                                       self._component_grades)
 
     def write_grade(self):
         """Write this grade to the submission metadata json."""
@@ -96,6 +97,18 @@ class Grade(object):
         != 1 is included.
         """
         deducted_parts = []
+
+        penalties = self._assignment.calculate_penalties(
+            self._submission,
+            self._assignment.calculate_raw_grade(self._component_grades))
+
+        for penalty, penalty_delta in zip(self._assignment.penalties,
+                                          penalties):
+            if penalty_delta != 0:
+                deducted_parts.append(
+                    '{}: {}{}'.format(penalty.name,
+                                      '+' if penalty_delta > 0 else '',
+                                      self._two_decimals(penalty_delta)))
 
         for component, component_grade in zip(self._assignment.components,
                                               self._component_grades):

@@ -108,7 +108,7 @@ class CanvasSubmissionAttachment(namedtuple('CanvasSubmission',
 
 class CanvasSubmission(namedtuple('CanvasSubmission',
                        ('api_', 'id', 'late', 'user_id', 'user', 'attachments',
-                        'submitted_at'))):
+                        'seconds_late'))):
     """Hold assignment info"""
     __slots__ = ()
     _defaults = {'attachments': []}
