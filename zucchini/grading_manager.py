@@ -5,8 +5,61 @@ from fractions import Fraction
 from .submission import Submission
 
 
-def grade_all(submission_name):
+def grade_all(submission):
     return True
+
+
+class FilterBrokenCondition(object):
+    """Filter for broken submissions"""
+    __slots__ = ('is_broken')
+
+    def __init__(self, is_broken):
+        self.is_broken = is_broken
+
+    def accepts(self, submission):
+        # XNOR (pronounced by Conte as "snore")
+        return submission.is_broken() == self.is_broken
+
+
+class FilterStudentCondition(object):
+    """Filter by student name"""
+    __slots__ = ('student_name')
+
+    def __init__(self, student_name):
+        self.student_name = student_name
+
+    def accepts(self, submission):
+        return submission.student_name == self.student_name
+
+
+class FilterCondition(object):
+    """Base class for a submission filter condition."""
+    __slots__ = ()
+
+    def accepts(self, submission):  # type: (Submission) -> bool
+        """Return true iff this submission matches the condition"""
+        pass
+
+
+class FilterBuilder(object):
+    """
+    Filter assignment submissions. Considers the logical OR of all
+    conditions added. If no conditions are added, will match all
+    submissions.
+    """
+
+    def __init__(self):
+        self.conditions = []
+
+    def __call__(self, submission):
+        return not self.conditions or \
+               any(cond.accepts(submission) for cond in self.conditions)
+
+    def add_student_name(self, student_name):
+        self.conditions.append(FilterStudentCondition(student_name))
+
+    def add_broken(self, is_broken):
+        self.conditions.append(FilterBrokenCondition(is_broken))
 
 
 class Grade(object):
@@ -215,14 +268,12 @@ class GradingManager(object):
         subdirectories = next(os.walk(self.submission_path))[1]
 
         for directory in subdirectories:
-            if not self.filter_fn(directory):
-                continue
-
             full_path = os.path.join(self.submission_path, directory)
 
             submission = Submission.load_from_dir(self.assignment, full_path)
-            self.submissions.append(submission)
-            # TODO: Handle broken submissions right here
+
+            if self.filter_fn(submission):
+                self.submissions.append(submission)
 
     def submission_count(self):
         """Return the number of submissions to grade."""

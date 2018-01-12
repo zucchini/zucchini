@@ -9,7 +9,7 @@ import shutil
 import click
 
 from .utils import mkdir_p, CANVAS_URL, CANVAS_TOKEN
-from .grading_manager import GradingManager
+from .grading_manager import GradingManager, FilterBuilder
 from .zucchini import ZucchiniState
 from .canvas import CanvasAPIError, CanvasNotFoundError, CanvasInternalError
 from .constants import APP_NAME, USER_CONFIG, DEFAULT_SUBMISSION_DIRECTORY, \
@@ -279,6 +279,16 @@ def load_canvas(state, section, max_archive_size):
             submission.initialize_metadata()
 
 
+def build_filter(student, broken):
+    """Build a GraderManager filter from command-line args parsed by click"""
+    filter_ = FilterBuilder()
+    if broken is not None:
+        filter_.add_broken(broken)
+    for s in student:
+        filter_.add_student_name(s)
+    return filter_
+
+
 def print_grades(grades, grader_name):
     """Display grades, an iterable of Grade instances, in a pager."""
     grades = sorted(grades,
@@ -306,18 +316,20 @@ def print_grades(grades, grader_name):
               type=click.Path(exists=True, file_okay=False, dir_okay=True,
                               writable=True, readable=True,
                               resolve_path=True))
+@click.option('-S', '--student', metavar='NAME', multiple=True,
+              help='Filter by student name')
+@click.option('-b/-B', '--broken/--not-broken', default=None,
+              help='Filter for broken submissions')
 @pass_state
-def grade(state, from_dir):
+def grade(state, from_dir, student, broken):
     """Grade submissions."""
-
-    # TODO: We need to validate the assignment object
+    filter_ = build_filter(student, broken)
 
     # At this point, the assignment object is loaded. We need a GradingManager
+    grading_manager = GradingManager(state.get_assignment(), from_dir, filter_)
 
-    # TODO: We need to set up the submission filtering function to pass to the
-    # grading manager
-
-    grading_manager = GradingManager(state.get_assignment(), from_dir)
+    if not grading_manager.submission_count():
+        raise click.ClickException('no submissions match the filter given!')
 
     click.echo('Grading submissions...')
 
@@ -339,10 +351,15 @@ def grade(state, from_dir):
               type=click.Path(exists=True, file_okay=False, dir_okay=True,
                               writable=True, readable=True,
                               resolve_path=True))
+@click.option('-S', '--student', metavar='NAME', multiple=True,
+              help='Filter by student name')
+@click.option('-b/-B', '--broken/--not-broken', default=None,
+              help='Filter for broken submissions')
 @pass_state
-def show_grades(state, from_dir):
+def show_grades(state, from_dir, student, broken):
     """Print the grade for all submissions."""
-    grading_manager = GradingManager(state.get_assignment(), from_dir)
+    filter_ = build_filter(student, broken)
+    grading_manager = GradingManager(state.get_assignment(), from_dir, filter_)
     print_grades(grading_manager.grades(), state.user_name)
 
 
