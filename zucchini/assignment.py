@@ -11,6 +11,7 @@ import yaml
 from .submission import BrokenSubmissionError
 from .grades import AssignmentComponentGrade
 from .graders import AVAILABLE_GRADERS
+from .penalizers import AVAILABLE_PENALIZERS
 from .constants import ASSIGNMENT_CONFIG_FILE, ASSIGNMENT_FILES_DIRECTORY
 from .utils import ConfigDictMixin, copy_globs, sanitize_path
 
@@ -20,13 +21,14 @@ ComponentPart = namedtuple('ComponentPart', ('weight', 'part'))
 
 class AssignmentComponent(ConfigDictMixin):
     def __init__(self, assignment, name, backend, weight, parts, files=None,
-                 grading_files=None, backend_options=None):
+                 optional_files=None, grading_files=None,
+                 backend_options=None):
         self.assignment = assignment
         self.name = name
 
         # Get the backend class
         if backend not in AVAILABLE_GRADERS:
-            raise ValueError("Invalid backend: %s" % backend)
+            raise ValueError("Invalid grading backend: %s" % backend)
 
         backend_class = AVAILABLE_GRADERS[backend]
 
@@ -40,6 +42,23 @@ class AssignmentComponent(ConfigDictMixin):
                 raise ValueError('List of files must be a list')
             else:
                 self.files = [sanitize_path(file_) for file_ in self.files]
+
+        self.optional_files = optional_files
+        if self.optional_files is not None:
+            if not isinstance(self.optional_files, list):
+                raise ValueError('List of optional files must be a list')
+            else:
+                self.optional_files = [sanitize_path(file_)
+                                       for file_ in self.optional_files]
+
+        # Check that there are no files marked as both optional and
+        # required
+        if None not in (self.files, self.optional_files):
+            common = set(self.files).intersection(self.optional_files)
+            if common:
+                raise ValueError(
+                    "file `{}' cannot be both an optional and required file!"
+                    .format(next(iter(common))))
 
         # TODO: Confirm that all of the files in the grading list exist
         self.grading_files = grading_files
@@ -78,6 +97,9 @@ class AssignmentComponent(ConfigDictMixin):
         try:
             # Copy the submission first and the grading later so that if a file
             # exists in both, the grading copy overwrites the submission copy
+            if self.optional_files:
+                submission.copy_files(self.optional_files, grading_directory,
+                                      allow_fail=True)
             if self.files:
                 submission.copy_files(self.files, grading_directory)
             if self.grading_files:
@@ -99,6 +121,27 @@ class AssignmentComponent(ConfigDictMixin):
     def calculate_grade(self, component_grade):
         # type: (AssignmentComponentGrade) -> fractions.Fraction
         return component_grade.calculate_grade(self.parts)
+
+
+class AssignmentPenalty(ConfigDictMixin):
+    """Penalize students for late submissions etc."""
+
+    def __init__(self, assignment, name, backend, backend_options=None):
+        self.assignment = assignment
+        self.name = name
+
+        # Get the backend class
+        if backend not in AVAILABLE_PENALIZERS:
+            raise ValueError("Invalid penalizer backend: %s" % backend)
+
+        backend_class = AVAILABLE_PENALIZERS[backend]
+
+        # We then initialize the grader
+        self.penalizer = backend_class.from_config_dict(backend_options or {})
+
+    def adjust_grade(self, submission, grade):
+        """Return `grade' as a Fraction adjusted for the given submission"""
+        return self.penalizer.adjust_grade(submission, grade)
 
 
 # This class contains the Assignment configuration for the local file
@@ -165,6 +208,13 @@ class Assignment(object):
         self.total_weight = sum(c.weight for c in self.components)
         self.interactive = any(c.is_interactive() for c in self.components)
 
+        self.penalties = []
+
+        for penalty_config in config.get('penalties', ()):
+            penalty = AssignmentPenalty.from_config_dict(penalty_config,
+                                                         assignment=self)
+            self.penalties.append(penalty)
+
         # TODO: Handle assignments with no components or with 0 total weight
 
     def is_interactive(self):
@@ -195,14 +245,37 @@ class Assignment(object):
         return grades
         # TODO: We probably want to log, too
 
-    def calculate_grade(self, component_grades):
-        # type: (List[AssignmentComponentGrade] -> fractions.Fraction
+    def calculate_penalties(self, submission, grade):
+        """Calculate all the penalty deltas. Useful for grade breakdowns."""
+
+        penalties = []
+
+        for penalty in self.penalties:
+            adjusted_grade = penalty.adjust_grade(submission, grade)
+            penalties.append(adjusted_grade - grade)
+            grade = adjusted_grade
+
+        return penalties
+
+    def calculate_raw_grade(self, component_grades):
         """
-        Calculate the final grade for a submission given the list of
-        AssignmentComponentGrades for the submission.
+        Calculate the score for this submission without penalties.
         """
+
         total_earned = sum(component.calculate_grade(grade) * component.weight
                            for grade, component
                            in zip(component_grades, self.components))
 
         return Fraction(total_earned, self.total_weight)
+
+    def calculate_grade(self, submission, component_grades):
+        # type: (List[AssignmentComponentGrade] -> fractions.Fraction
+        """
+        Calculate the final grade for a submission given the list of
+        AssignmentComponentGrades for the submission.
+        """
+        grade = self.calculate_raw_grade(component_grades)
+        for penalty in self.penalties:
+            grade = penalty.adjust_grade(submission, grade)
+
+        return grade

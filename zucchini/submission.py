@@ -1,11 +1,10 @@
 import os
 import json
-from datetime import datetime
 
 from .grades import AssignmentComponentGrade
 from .constants import SUBMISSION_META_FILE, SUBMISSION_FILES_DIRECTORY
-from .utils import ConfigDictMixin, datetime_from_string, \
-                   datetime_to_string, copy_globs, FileNotFoundError
+from .utils import ConfigDictMixin, datetime_to_string, copy_globs, \
+                   FileNotFoundError
 
 
 class BrokenSubmissionError(Exception):
@@ -17,17 +16,13 @@ class BrokenSubmissionError(Exception):
 
 class Submission(ConfigDictMixin):
     def __init__(self, student_name, assignment, path, graded, id=None,
-                 submission_time=None, component_grades=None):
+                 seconds_late=None, component_grades=None):
         self.student_name = student_name
         self.assignment = assignment
         self.path = path
         self.graded = graded
         self.id = id
-
-        if submission_time is None or isinstance(submission_time, datetime):
-            self.submission_time = submission_time
-        else:
-            self.submission_time = datetime_from_string(submission_time)
+        self.seconds_late = seconds_late
 
         if component_grades is None:
             self.component_grades = None
@@ -75,13 +70,15 @@ class Submission(ConfigDictMixin):
         self._write_meta_json()
 
     # XXX Support copying directories
-    def copy_files(self, files, path):  # (List[str], str) -> None
+    def copy_files(self, files, path, allow_fail=False):
+        # type: (List[str], str, bool) -> None
         files_dir = os.path.join(self.path, SUBMISSION_FILES_DIRECTORY)
 
         try:
             copy_globs(files, files_dir, path)
         except FileNotFoundError as err:
-            raise BrokenSubmissionError(str(err))
+            if not allow_fail:
+                raise BrokenSubmissionError(str(err))
 
     def write_grade(self, component_grades):  # (Dict[object, object]) -> None
         """
