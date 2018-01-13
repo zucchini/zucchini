@@ -5,11 +5,13 @@ import os
 import sys
 import csv
 import shutil
+from functools import update_wrapper
 
 import click
 
 from .utils import mkdir_p, CANVAS_URL, CANVAS_TOKEN
-from .grading_manager import GradingManager, FilterBuilder
+from .grading_manager import GradingManager
+from .filter import FilterBuilder
 from .zucchini import ZucchiniState
 from .canvas import CanvasAPIError, CanvasNotFoundError, CanvasInternalError
 from .constants import APP_NAME, USER_CONFIG, DEFAULT_SUBMISSION_DIRECTORY, \
@@ -48,6 +50,55 @@ def setup_handler():
 
     with click.open_file(config_path, 'w') as cfg_file:
         ZucchiniState.save_config(cfg_file, new_conf)
+
+
+def filter_options(canvas):
+    """
+    Decorator which adds common filtering options to a subcommand. If
+    canvas=True, use only options supported by the Canvas API.
+    """
+    filter_options = {
+        'student': click.option('-s', '--student', metavar='NAME',
+                                multiple=True, help='Filter by student name'),
+        'not_student': click.option('-S', '--not-student', metavar='NAME',
+                                    multiple=True,
+                                    help='Exclude student by name'),
+        'broken': click.option('-b/-B', '--broken/--not-broken', default=None,
+                               help='Filter for broken submissions'),
+    }
+    filter_add_methods = {'student': FilterBuilder.add_student_name,
+                          'not_student': FilterBuilder.add_not_student_name,
+                          'broken': FilterBuilder.add_broken}
+    if canvas:
+        filters = ('student', 'not_student')
+    else:
+        filters = ('student', 'not_student', 'broken')
+
+    def decorator(func):
+        def replacement(*args, **kwargs):
+            filter_builder = FilterBuilder.new_canvas() \
+                             if canvas else FilterBuilder.new_meta()
+            for filter_ in filters:
+                terms = kwargs.pop(filter_)
+                add_method = filter_add_methods[filter_]
+                if terms is not None:
+                    if isinstance(terms, (list, tuple)):
+                        for term in terms:
+                            add_method(filter_builder, term)
+                    else:
+                        add_method(filter_builder, terms)
+
+            kwargs['filter'] = filter_builder
+            func(*args, **kwargs)
+
+        for filter_ in reversed(filters):
+            replacement = filter_options[filter_](replacement)
+
+        # Without update_wrapper() here, click gets confused and puts
+        # a replacement subcommand in the help output
+        return update_wrapper(replacement, func)
+
+    return decorator
 
 
 @click.group()
@@ -157,12 +208,13 @@ def load_sakai(state):
 
 
 @load.command('canvas')
-@click.option('--section', '-s', type=lambda s: s.lower(), metavar='SECTION',
+@click.option('--section', '-e', type=lambda s: s.lower(), metavar='SECTION',
               help='section id, substring of section name, or "all"')
 @click.option('--max-archive-size', type=int, metavar='BYTES',
               help='maximum size of archive to extract')
+@filter_options(canvas=True)
 @pass_state
-def load_canvas(state, section, max_archive_size):
+def load_canvas(state, section, max_archive_size, filter):
     """Load student submissions from Canvas"""
 
     course_id = state.get_assignment().canvas_course_id
@@ -252,6 +304,9 @@ def load_canvas(state, section, max_archive_size):
     # call len(iterator) to know how to progress the progress bar
     with click.progressbar(list(submissions)) as bar:
         for canvas_submission in bar:
+            if not filter(canvas_submission):
+                continue
+
             student_name = canvas_submission.user.sortable_name
             base_dir = os.path.join(state.submission_dir, student_name)
             # Remove submission if it already exists
@@ -277,16 +332,6 @@ def load_canvas(state, section, max_archive_size):
                 seconds_late=canvas_submission.seconds_late,
                 error=error)
             submission.initialize_metadata()
-
-
-def build_filter(student, broken):
-    """Build a GraderManager filter from command-line args parsed by click"""
-    filter_ = FilterBuilder()
-    if broken is not None:
-        filter_.add_broken(broken)
-    for s in student:
-        filter_.add_student_name(s)
-    return filter_
 
 
 def print_grades(grades, grader_name):
@@ -316,17 +361,12 @@ def print_grades(grades, grader_name):
               type=click.Path(exists=True, file_okay=False, dir_okay=True,
                               writable=True, readable=True,
                               resolve_path=True))
-@click.option('-S', '--student', metavar='NAME', multiple=True,
-              help='Filter by student name')
-@click.option('-b/-B', '--broken/--not-broken', default=None,
-              help='Filter for broken submissions')
+@filter_options(canvas=False)
 @pass_state
-def grade(state, from_dir, student, broken):
+def grade(state, from_dir, filter):
     """Grade submissions."""
-    filter_ = build_filter(student, broken)
-
     # At this point, the assignment object is loaded. We need a GradingManager
-    grading_manager = GradingManager(state.get_assignment(), from_dir, filter_)
+    grading_manager = GradingManager(state.get_assignment(), from_dir, filter)
 
     if not grading_manager.submission_count():
         raise click.ClickException('no submissions match the filter given!')
@@ -351,15 +391,15 @@ def grade(state, from_dir, student, broken):
               type=click.Path(exists=True, file_okay=False, dir_okay=True,
                               writable=True, readable=True,
                               resolve_path=True))
-@click.option('-S', '--student', metavar='NAME', multiple=True,
-              help='Filter by student name')
-@click.option('-b/-B', '--broken/--not-broken', default=None,
-              help='Filter for broken submissions')
+@filter_options(canvas=False)
 @pass_state
-def show_grades(state, from_dir, student, broken):
+def show_grades(state, from_dir, filter):
     """Print the grade for all submissions."""
-    filter_ = build_filter(student, broken)
-    grading_manager = GradingManager(state.get_assignment(), from_dir, filter_)
+    grading_manager = GradingManager(state.get_assignment(), from_dir, filter)
+
+    if not grading_manager.submission_count():
+        raise click.ClickException('no submissions match the filter given!')
+
     print_grades(grading_manager.grades(), state.user_name)
 
 
@@ -369,11 +409,16 @@ def show_grades(state, from_dir, student, broken):
               type=click.Path(exists=True, file_okay=False, dir_okay=True,
                               writable=True, readable=True,
                               resolve_path=True))
+@filter_options(canvas=False)
 @pass_state
-def export(state, from_dir):
+def export(state, from_dir, filter):
     """Export grades for uploading."""
 
-    grading_manager = GradingManager(state.get_assignment(), from_dir)
+    grading_manager = GradingManager(state.get_assignment(), from_dir, filter)
+
+    if not grading_manager.submission_count():
+        raise click.ClickException('no submissions match the filter given!')
+
     state.grades = [grade for grade in grading_manager.grades()
                     if grade.grade_ready()]
 
