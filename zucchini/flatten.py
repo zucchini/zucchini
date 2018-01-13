@@ -99,9 +99,9 @@ class ZipArchive(Archive):
 
 
 # To protect against zipbombs, refuse to extract if archive contents are
-# larger than 10 MiB. This may need adjusting if students try to upload
+# larger than 64 MiB. This may need adjusting if students try to upload
 # 300 MiB pictures of Diddy for their gba games
-MAX_UNCOMPRESSED_SIZE_BYTES = 10 * 2**20
+MAX_UNCOMPRESSED_SIZE_BYTES = 64 * 2**20
 
 ARCHIVE_TYPES = {
     '.tgz': TarArchive,
