@@ -69,6 +69,16 @@ class Submission(ConfigDictMixin):
 
         self._write_meta_json()
 
+    def is_broken(self):
+        """
+        Return true if this assignment has been graded but at least one
+        component grade flagged a broken submisison.
+        """
+
+        return self.component_grades is not None \
+            and any(component.is_broken()
+                    for component in self.component_grades)
+
     # XXX Support copying directories
     def copy_files(self, files, path, allow_fail=False):
         # type: (List[str], str, bool) -> None
