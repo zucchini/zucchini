@@ -38,12 +38,15 @@ class JUnitXMLGrader(GraderInterface):
     CLASS_REGEX = re.compile(r'\[engine:.*?\]/\[class:(?P<cls>.*?)\]')
     DEFAULT_RESULT_MATCHER = 'TEST-*.xml'
 
-    def __init__(self, gradle_exec, gradle_task, timeout=None, xml_result_dir=None, result_matcher=None):
+    def __init__(self, gradle_exec, gradle_task, timeout=None,
+                 xml_result_dir=None, result_matcher=None):
         self.gradle_exec = gradle_exec
         self.gradle_task = gradle_task
         self.timeout = self.DEFAULT_TIMEOUT if timeout is None else timeout
-        self.xml_result_dir = self.DEFAULT_RESULT_DIR if xml_result_dir is None else xml_result_dir
-        self.result_matcher = self.DEFAULT_RESULT_MATCHER if result_matcher is None else result_matcher
+        self.xml_result_dir = self.DEFAULT_RESULT_DIR \
+            if xml_result_dir is None else xml_result_dir
+        self.result_matcher = self.DEFAULT_RESULT_MATCHER \
+            if result_matcher is None else result_matcher
 
     def list_prerequisites(self):
         return ['sudo apt-get install openjdk-8-jre-headless']
@@ -53,12 +56,15 @@ class JUnitXMLGrader(GraderInterface):
 
     def grade(self, submission, path, parts):
         try:
-            process = run_process([self.gradle_exec, self.gradle_task],
-                                  cwd=path,
-                                  timeout=self.timeout,
-                                  stdout=PIPE,
-                                  stderr=STDOUT,
-                                  shell=True)
+            # Don't bother keeping the result of running this process
+            # because we're not checking the exit code or output, so we
+            # don't need it.
+            run_process([self.gradle_exec, self.gradle_task],
+                        cwd=path,
+                        timeout=self.timeout,
+                        stdout=PIPE,
+                        stderr=STDOUT,
+                        shell=True)
         except TimeoutExpired:
             raise BrokenSubmissionError('timeout of {} seconds expired for '
                                         'grader'.format(self.timeout))
@@ -71,10 +77,12 @@ class JUnitXMLGrader(GraderInterface):
         #         .format(process.returncode),
         #         verbose=process.stdout.decode() if process.stdout else None)
 
-        # goes into xml_result_dir (relative path) and looks for files matching result_matcher
+        # goes into xml_result_dir (relative path) and looks for files matching
+        # result_matcher
         test_result_path = os.path.join(path, self.xml_result_dir)
         files = [f for f in listdir(test_result_path)
-                 if isfile(join(test_result_path, f)) and fnmatch.fnmatch(f, self.result_matcher)]
+                 if isfile(join(test_result_path, f))
+                 and fnmatch.fnmatch(f, self.result_matcher)]
 
         # processes each XML result file and sends results back
         results = {}
