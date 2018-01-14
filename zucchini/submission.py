@@ -62,7 +62,8 @@ class Submission(ConfigDictMixin):
 
         metadata_path = os.path.join(self.path, SUBMISSION_META_FILE)
         with open(metadata_path, 'w') as meta_file:
-            json.dump(meta, meta_file)
+            json.dump(meta, meta_file, sort_keys=True, indent=2,
+                      separators=(',', ': '))
 
     def initialize_metadata(self):
         """Create initial meta.json"""
