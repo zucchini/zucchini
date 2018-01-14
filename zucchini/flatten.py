@@ -17,6 +17,11 @@ from .utils import mkdir_p, sanitize_path
 # XXX No error handling
 
 
+class ArchiveError(Exception):
+    """Raised for corrupt archives"""
+    pass
+
+
 class Archive:
     """Handle an archive format for the extraction code"""
 
@@ -30,6 +35,10 @@ class Archive:
 
     def __exit__(self, exc_type, exc_value, traceback):
         self.close()
+
+    def path(self):
+        """Return the path to this archive"""
+        return self.path
 
     @abstractmethod
     def open(self):
@@ -64,38 +73,68 @@ class Archive:
 
 class TarArchive(Archive):
     def open(self):
-        self.archive = tarfile.open(self.path)
+        try:
+            self.archive = tarfile.open(self.path)
+        except tarfile.TarError as err:
+            raise ArchiveError(err)
 
     def close(self):
-        self.archive.close()
+        try:
+            self.archive.close()
+        except tarfile.TarError as err:
+            raise ArchiveError(err)
 
     def uncompressed_size(self):
-        return sum(member.size for member in self.archive.getmembers())
+        try:
+            return sum(member.size for member in self.archive.getmembers())
+        except tarfile.TarError as err:
+            raise ArchiveError(err)
 
     def names(self):
-        return [member.name for member in self.archive.getmembers()
-                if member.isfile()]
+        try:
+            return [member.name for member in self.archive.getmembers()
+                    if member.isfile()]
+        except tarfile.TarError as err:
+            raise ArchiveError(err)
 
     def file(self, name):
-        return self.archive.extractfile(name)
+        try:
+            return self.archive.extractfile(name)
+        except tarfile.TarError as err:
+            raise ArchiveError(err)
 
 
 class ZipArchive(Archive):
     def open(self):
-        self.archive = zipfile.ZipFile(self.path)
+        try:
+            self.archive = zipfile.ZipFile(self.path)
+        except zipfile.BadZipfile as err:
+            raise ArchiveError(err)
 
     def close(self):
-        self.archive.close()
+        try:
+            self.archive.close()
+        except zipfile.BadZipfile as err:
+            raise ArchiveError(err)
 
     def uncompressed_size(self):
-        return sum(info.file_size for info in self.archive.infolist())
+        try:
+            return sum(info.file_size for info in self.archive.infolist())
+        except zipfile.BadZipfile as err:
+            raise ArchiveError(err)
 
     def names(self):
-        return [info.filename for info in self.archive.infolist()
-                if info.filename and info.filename[-1] != '/']
+        try:
+            return [info.filename for info in self.archive.infolist()
+                    if info.filename and info.filename[-1] != '/']
+        except zipfile.BadZipfile as err:
+            raise ArchiveError(err)
 
     def file(self, name):
-        return self.archive.open(name)
+        try:
+            return self.archive.open(name)
+        except zipfile.BadZipfile as err:
+            raise ArchiveError(err)
 
 
 # To protect against zipbombs, refuse to extract if archive contents are
@@ -114,19 +153,29 @@ ARCHIVE_TYPES = {
 }
 
 
-def extract(archive, dest_dir):
+def extract(archive, dest_dir, max_archive_size=None):
     """
     Extract Archive to X, flattening it as needed
     """
 
+    if max_archive_size is None:
+        max_archive_size = MAX_UNCOMPRESSED_SIZE_BYTES
+
     with archive:
-        uncompressed_size = archive.uncompressed_size()
-        if uncompressed_size > MAX_UNCOMPRESSED_SIZE_BYTES:
-            raise ValueError('Archive uncompressed size of {} bytes '
-                             'exceeds maximum of {} bytes. Refusing to '
-                             'extract!'
-                             .format(uncompressed_size,
-                                     MAX_UNCOMPRESSED_SIZE_BYTES))
+        # Don't do zipbomb detection if the user switches it off by
+        # passing a max size <= 0
+        if max_archive_size > 0:
+            uncompressed_size = archive.uncompressed_size()
+            if uncompressed_size > max_archive_size:
+                # In case this error bubbles its way up to students,
+                # don't reveal the setup of their filesystem
+                safe_archive_name = os.path.basename(archive.path())
+                raise ArchiveError("Archive `{}' has uncompressed size of {} "
+                                   "bytes which exceeds maximum of {} bytes. "
+                                   "Refusing to extract!"
+                                   .format(safe_archive_name,
+                                           uncompressed_size,
+                                           max_archive_size))
 
         names = {}
 
@@ -179,7 +228,7 @@ def extract(archive, dest_dir):
                 shutil.copyfileobj(archived, extracted)
 
 
-def flatten(files_dir):
+def flatten(files_dir, max_archive_size=None):
     """
     Search the top-level files in `files_dir' for archives, and extract
     each one. Check for zipbombs.
@@ -188,5 +237,10 @@ def flatten(files_dir):
     for file_ in os.listdir(files_dir):
         for extension, archive_cls in ARCHIVE_TYPES.items():
             if file_.lower().endswith(extension):
-                extract(archive_cls(os.path.join(files_dir, file_)), files_dir)
+                archive_path = os.path.join(files_dir, file_)
+                extract(archive_cls(archive_path), files_dir, max_archive_size)
+                # There's not much use wasting disk space by keeping
+                # the archive around now that we've extracted it, so
+                # delete it.
+                os.remove(archive_path)
                 break

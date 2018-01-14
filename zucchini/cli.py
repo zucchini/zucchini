@@ -15,7 +15,7 @@ from .canvas import CanvasAPIError, CanvasNotFoundError, CanvasInternalError
 from .constants import APP_NAME, USER_CONFIG, DEFAULT_SUBMISSION_DIRECTORY, \
                        SUBMISSION_FILES_DIRECTORY
 from .submission import Submission
-from .flatten import flatten
+from .flatten import flatten, ArchiveError
 
 pass_state = click.make_pass_decorator(ZucchiniState)
 
@@ -159,8 +159,10 @@ def load_sakai(state):
 @load.command('canvas')
 @click.option('--section', '-s', type=lambda s: s.lower(), metavar='SECTION',
               help='section id, substring of section name, or "all"')
+@click.option('--max-archive-size', type=int, metavar='BYTES',
+              help='maximum size of archive to extract')
 @pass_state
-def load_canvas(state, section=None):
+def load_canvas(state, section, max_archive_size):
     """Load student submissions from Canvas"""
 
     course_id = state.get_assignment().canvas_course_id
@@ -257,14 +259,23 @@ def load_canvas(state, section=None):
 
             files_dir = os.path.join(base_dir, SUBMISSION_FILES_DIRECTORY)
             mkdir_p(files_dir)
-            canvas_submission.download(files_dir)
-            flatten(files_dir)
+
+            if canvas_submission.no_submission():
+                error = 'No submission!'
+            else:
+                error = None
+                canvas_submission.download(files_dir)
+                try:
+                    flatten(files_dir, max_archive_size=max_archive_size)
+                except ArchiveError as err:
+                    error = str(err)
 
             # Create initial meta.json in submission dir
             submission = Submission(
                 student_name, state.get_assignment(), base_dir, graded=False,
                 id=canvas_submission.user_id,
-                seconds_late=canvas_submission.seconds_late)
+                seconds_late=canvas_submission.seconds_late,
+                error=error)
             submission.initialize_metadata()
 
 
@@ -278,8 +289,12 @@ def print_grades(grades, grader_name):
     grade_report = '\n'.join(
         '{:<{max_name_len}}\t{}\t{}'.format(
             grade.student_name(),
-            grade.score() if grade.graded() else '(ungraded)',
-            grade.breakdown(grader_name) if grade.graded() else '',
+            # If the assignment is ungradable, show a 0 instead of
+            # "(ungraded)"
+            grade.score() if not grade.gradable() or grade.graded()
+            else '(ungraded)',
+            grade.breakdown(grader_name)
+            if not grade.gradable() or grade.graded() else '',
             max_name_len=max_name_len)
         for grade in grades)
     click.echo_via_pager('grade report:\n\n' + grade_report)
@@ -342,8 +357,8 @@ def export(state, from_dir):
     """Export grades for uploading."""
 
     grading_manager = GradingManager(state.get_assignment(), from_dir)
-    state.grades = list(grade for grade in grading_manager.grades()
-                        if grade.graded())
+    state.grades = [grade for grade in grading_manager.grades()
+                    if grade.grade_ready()]
 
 
 @export.command('csv')
@@ -534,8 +549,10 @@ def canvas_api_grade(state, course_id, assignment_id, user_id, grade,
 
 @cli.command('flatten')
 @click.argument('dir-path')
+@click.option('--max-archive-size', type=int, metavar='BYTES',
+              help='maximum size of archive to extract')
 @pass_state
-def flatten_(self, dir_path):
+def flatten_(self, dir_path, max_archive_size):
     """
     Flatten archives in a directory.
 
@@ -545,7 +562,7 @@ def flatten_(self, dir_path):
     from them if it exists. Checks for malicious archives like zipbombs
     and forged archive filenames.
     """
-    flatten(dir_path)
+    flatten(dir_path, max_archive_size=max_archive_size)
 
 
 if __name__ == "__main__":
