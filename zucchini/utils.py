@@ -147,7 +147,7 @@ def copy_globs(globs, src_dir, dest_dir):
         dirname = os.path.dirname(relative_path)
 
         mkdir_p(os.path.join(dest_dir, dirname))
-        shutil.copyfile(file_to_copy, os.path.join(dest_dir, relative_path))
+        shutil.copy(file_to_copy, os.path.join(dest_dir, relative_path))
 
 
 # Same as the Canvas date format
