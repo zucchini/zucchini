@@ -1,5 +1,6 @@
 import os
 import re
+import shlex
 import fnmatch
 from fractions import Fraction
 import xml.etree.ElementTree
@@ -40,8 +41,7 @@ class JUnitXMLGrader(GraderInterface):
 
     def __init__(self, gradle_exec, gradle_task, timeout=None,
                  xml_result_dir=None, result_matcher=None):
-        self.gradle_exec = gradle_exec
-        self.gradle_task = gradle_task
+        self.gradle_cmd = shlex.split(gradle_exec) + [gradle_task]
         self.timeout = self.DEFAULT_TIMEOUT if timeout is None else timeout
         self.xml_result_dir = self.DEFAULT_RESULT_DIR \
             if xml_result_dir is None else xml_result_dir
@@ -55,16 +55,14 @@ class JUnitXMLGrader(GraderInterface):
         return JUnitXMLTest.from_config_dict(config_dict)
 
     def grade(self, submission, path, parts):
+        gradle_cmd = self.gradle_cmd
+
+        for part in parts:
+            gradle_cmd += ['--tests', part.test]
+
         try:
-            # Don't bother keeping the result of running this process
-            # because we're not checking the exit code or output, so we
-            # don't need it.
-            run_process([self.gradle_exec, self.gradle_task],
-                        cwd=path,
-                        timeout=self.timeout,
-                        stdout=PIPE,
-                        stderr=STDOUT,
-                        shell=True)
+            process = run_process(gradle_cmd, cwd=path, timeout=self.timeout,
+                                  stdout=PIPE, stderr=STDOUT)
         except TimeoutExpired:
             raise BrokenSubmissionError('timeout of {} seconds expired for '
                                         'grader'.format(self.timeout))
@@ -77,9 +75,16 @@ class JUnitXMLGrader(GraderInterface):
         #         .format(process.returncode),
         #         verbose=process.stdout.decode() if process.stdout else None)
 
+        test_result_path = os.path.join(path, self.xml_result_dir)
+
+        if not os.path.exists(test_result_path):
+            # XXX Is BrokenSubmissionError the right exception to use here?
+            raise BrokenSubmissionError('could not find test results dir',
+                                        verbose=process.stdout.decode()
+                                        if process.stdout else None)
+
         # goes into xml_result_dir (relative path) and looks for files matching
         # result_matcher
-        test_result_path = os.path.join(path, self.xml_result_dir)
         files = [f for f in listdir(test_result_path)
                  if isfile(join(test_result_path, f))
                  and fnmatch.fnmatch(f, self.result_matcher)]
