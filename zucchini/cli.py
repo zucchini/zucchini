@@ -9,7 +9,7 @@ from functools import update_wrapper
 
 import click
 
-from .utils import mkdir_p, CANVAS_URL, CANVAS_TOKEN
+from .utils import mkdir_p, CANVAS_URL, CANVAS_TOKEN, queue, run_thread
 from .grading_manager import GradingManager
 from .filter import FilterBuilder
 from .zucchini import ZucchiniState
@@ -373,15 +373,44 @@ def grade(state, from_dir, filter):
 
     click.echo('Grading submissions...')
 
-    if grading_manager.is_interactive():
-        grades = grading_manager.grade()
+    if grading_manager.has_interactive():
+        if grading_manager.has_noninteractive():
+            # Since we have both interactive an non-interactive
+            # components, we want to let the user grade the interactive
+            # components while the non-interactive components are
+            # running.
+            grade_queue = queue.Queue()
+            thread = run_thread(grading_manager.grade, (False,), grade_queue)
+
+            click.echo('First, grading interactive components...')
+            grades = list(grading_manager.grade(interactive=True))
+            click.echo('Finishing off grading noninteractive components...')
+
+            with click.progressbar(length=grading_manager.submission_count()) \
+                    as bar:
+                for i in bar:
+                    noninter_grade = grade_queue.get()
+                    if isinstance(noninter_grade, Exception):
+                        raise noninter_grade
+                    grades[i].update(noninter_grade)
+
+            # Should have exited by now, but just in case
+            thread.join()
+        else:
+            # If all the components are interactive, just grade them
+            # here in the main thread
+            grades = grading_manager.grade()
     else:
-        # Show a progress bar iff all components are non-interactive.
-        # This way, we know prompts won't mess up our progress bar.
+        # If all components are noninteractive, just do the progress bar
+        # in the main thread here.
         with click.progressbar(grading_manager.grade(),
                                grading_manager.submission_count()) as bar:
             grades = list(bar)
 
+    # Need to do this now to handle non-interactive and interactive
+    # running in parallel earlier
+    for grade in grades:
+        grade.write_grade()
     print_grades(grades, state.user_name)
 
 

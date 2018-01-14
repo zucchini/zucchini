@@ -2,13 +2,8 @@ import threading
 from multiprocessing import cpu_count
 from abc import ABCMeta, abstractmethod
 
-try:
-    import queue
-except ImportError:
-    # Python 2
-    import Queue as queue
-
 from . import GraderInterface
+from ..utils import queue
 
 
 """

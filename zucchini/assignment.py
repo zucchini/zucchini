@@ -207,6 +207,8 @@ class Assignment(object):
 
         self.total_weight = sum(c.weight for c in self.components)
         self.interactive = any(c.is_interactive() for c in self.components)
+        self.noninteractive = any(not c.is_interactive()
+                                  for c in self.components)
 
         self.penalties = []
 
@@ -217,12 +219,19 @@ class Assignment(object):
 
         # TODO: Handle assignments with no components or with 0 total weight
 
-    def is_interactive(self):
+    def has_interactive(self):
         """
         Return True if and only if grading this assignment will produce
         command-line prompts.
         """
         return self.interactive
+
+    def has_noninteractive(self):
+        """
+        Return True if and only if grading this assignment contains at
+        least one noninteractive grader.
+        """
+        return self.noninteractive
 
     def copy_files(self, files, path):  # (List[str], str) -> None
         """Copy the grader files in the files list to the new path"""
@@ -231,16 +240,21 @@ class Assignment(object):
         # XXX Replace FileNotFoundError raised with a better exception
         copy_globs(files, grading_files_dir, path)
 
-    def grade_submission(self, submission):
-        # type: (Submission) -> List[AssignmentComponentGrade]
+    def grade_submission(self, submission, interactive=None):
+        # type: (Submission, bool) -> List[AssignmentComponentGrade]
         """
         Grade each assignment component of submission, returning an
         AssignmentComponentGrade for each component.
+        If interactive is None (the default), grade all components; if
+        True, grade only interactive components, and if False, grade
+        only noninteractive components.
         """
 
         # The grading data for each part (individual test) of each
         # component (test suite) of this assignment
         grades = [component.grade_submission(submission)
+                  if interactive is None
+                  or interactive == component.is_interactive() else None
                   for component in self.components]
         return grades
         # TODO: We probably want to log, too

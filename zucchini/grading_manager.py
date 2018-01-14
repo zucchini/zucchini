@@ -23,16 +23,12 @@ class Grade(object):
         self._assignment = assignment
         self._submission = submission
         self._component_grades = self._submission.component_grades
-        if self._component_grades is None:
-            self._grade = None
-        else:
-            self._grade = self._assignment.calculate_grade(
-                self._submission, self._component_grades)
+        self._grade = None
 
     def __repr__(self):
         return '<Grade assignment={}, submission={}, component_grades={}, ' \
                'grade={}>'.format(self._assignment, self._submission,
-                                  self._component_grades, self._grade)
+                                  self._component_grades, self._get_grade())
 
     def gradable(self):
         """Return True if this submission is actually gradeable"""
@@ -46,12 +42,37 @@ class Grade(object):
         """Return True when this submission has a grade ready."""
         return not self.gradable() or self.graded()
 
-    def grade(self):
-        """Grade the submission and calculate the grade."""
+    def update(self, grade):
+        """
+        Copy the non-None component grades of grade into this Grade.
+        """
+        for i, component_grade in enumerate(grade._component_grades):
+            if component_grade is not None:
+                self._component_grades[i] = component_grade
+
+    def grade(self, interactive=None):
+        """
+        Grade the submission and calculate the grade.
+        If interactive is None (the default), grade all components; if
+        True, grade only interactive components, and if False, grade
+        only noninteractive components.
+        """
         self._component_grades = self._assignment.grade_submission(
-                self._submission)
-        self._grade = self._assignment.calculate_grade(self._submission,
-                                                       self._component_grades)
+                self._submission, interactive=interactive)
+
+    def _get_grade(self):
+        """
+        Calculate the grade for this submission, or return it if already
+        calculated.
+        """
+        if self._grade is not None:
+            return self._grade
+        elif self._component_grades is None:
+            return None
+        else:
+            self._grade = self._assignment.calculate_grade(
+                self._submission, self._component_grades)
+            return self._grade
 
     def write_grade(self):
         """Write this grade to the submission metadata json."""
@@ -97,10 +118,11 @@ class Grade(object):
 
     def score(self):
         """Return the grade as an integer out of 100."""
-        if self._grade is None:
+        grade = self._get_grade()
+        if grade is None:
             return 0
         else:
-            return self._to_integer(self._grade)
+            return self._to_integer(grade)
 
     def _breakdown_deductions(self):
         deducted_parts = []
@@ -201,12 +223,19 @@ class GradingManager(object):
 
         self.load_submissions()
 
-    def is_interactive(self):
+    def has_interactive(self):
         """
         Return True if and only if grading will produce command-line
         prompts.
         """
-        return self.assignment.is_interactive()
+        return self.assignment.has_interactive()
+
+    def has_noninteractive(self):
+        """
+        Return True if and only if grading will produce command-line
+        prompts.
+        """
+        return self.assignment.has_noninteractive()
 
     def load_submissions(self):
         self.submissions = []
@@ -226,14 +255,17 @@ class GradingManager(object):
         """Return the number of submissions to grade."""
         return len(self.submissions)
 
-    def grade(self):
-        """Grade all submissions, returning an iterable of Grade instances."""
+    def grade(self, interactive=None):
+        """
+        Grade all submissions, returning an iterable of Grade instances.
+        If interactive is None (the default), grade all components; if
+        True, grade only interactive components, and if False, grade
+        only noninteractive components.
+        """
 
         for submission in self.submissions:
             grade = Grade(self.assignment, submission)
-            grade.grade()
-            grade.write_grade()
-
+            grade.grade(interactive)
             yield grade
 
     def grades(self):
