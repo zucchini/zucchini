@@ -34,9 +34,17 @@ class Grade(object):
                'grade={}>'.format(self._assignment, self._submission,
                                   self._component_grades, self._grade)
 
+    def gradable(self):
+        """Return True if this submission is actually gradeable"""
+        return self._submission.error is None
+
     def graded(self):
         """Return True if this submission has been graded, False otherwise."""
         return self._submission.graded
+
+    def grade_ready(self):
+        """Return True when this submission has a grade ready."""
+        return not self.gradable() or self.graded()
 
     def grade(self):
         """Grade the submission and calculate the grade."""
@@ -89,13 +97,12 @@ class Grade(object):
 
     def score(self):
         """Return the grade as an integer out of 100."""
-        return self._to_integer(self._grade)
+        if self._grade is None:
+            return 0
+        else:
+            return self._to_integer(self._grade)
 
-    def breakdown(self, grader_name):
-        """
-        Generate a grade breakdown for this grade. Each part whose score
-        != 1 is included.
-        """
+    def _breakdown_deductions(self):
         deducted_parts = []
 
         penalties = self._assignment.calculate_penalties(
@@ -157,7 +164,19 @@ class Grade(object):
                             '+' if part_grade.score > 1 else '',
                             delta, deductions))
 
-        breakdown = ', '.join(deducted_parts)
+        return deducted_parts
+
+    def breakdown(self, grader_name):
+        """
+        Generate a grade breakdown for this grade. Each part whose score
+        != 1 is included.
+        """
+
+        if self.gradable():
+            breakdown = ', '.join(self._breakdown_deductions())
+        else:
+            breakdown = 'error: ' + self._submission.error
+
         return '{} -{}'.format(breakdown or 'Perfect!', grader_name)
 
 

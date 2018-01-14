@@ -108,7 +108,7 @@ class CanvasSubmissionAttachment(namedtuple('CanvasSubmission',
 
 class CanvasSubmission(namedtuple('CanvasSubmission',
                        ('api_', 'id', 'late', 'user_id', 'user', 'attachments',
-                        'seconds_late'))):
+                        'seconds_late', 'attempt'))):
     """Hold assignment info"""
     __slots__ = ()
     _defaults = {'attachments': []}
@@ -121,6 +121,10 @@ class CanvasSubmission(namedtuple('CanvasSubmission',
         return 'id={}\t{}late\t{}\t{}' \
                .format(self.id, '' if self.late else 'not ', self.user,
                        attachments)
+
+    def no_submission(self):
+        """Return True iff the student did not submit."""
+        return self.attempt is None
 
     def time(self):
         """Return the submission time as a naive datetime object."""

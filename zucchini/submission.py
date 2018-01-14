@@ -16,13 +16,19 @@ class BrokenSubmissionError(Exception):
 
 class Submission(ConfigDictMixin):
     def __init__(self, student_name, assignment, path, graded, id=None,
-                 seconds_late=None, component_grades=None):
+                 seconds_late=None, error=None, component_grades=None):
         self.student_name = student_name
         self.assignment = assignment
         self.path = path
         self.graded = graded
         self.id = id
         self.seconds_late = seconds_late
+
+        if component_grades is not None and error is not None:
+            raise ValueError('either specify component_grades or error, '
+                             'but not both')
+
+        self.error = error
 
         if component_grades is None:
             self.component_grades = None
@@ -69,6 +75,16 @@ class Submission(ConfigDictMixin):
 
         self._write_meta_json()
 
+    def is_broken(self):
+        """
+        Return true if this assignment has been graded but at least one
+        component grade flagged a broken submisison.
+        """
+
+        return self.error is not None or self.component_grades is not None \
+            and any(component.is_broken()
+                    for component in self.component_grades)
+
     # XXX Support copying directories
     def copy_files(self, files, path, allow_fail=False):
         # type: (List[str], str, bool) -> None
@@ -87,5 +103,6 @@ class Submission(ConfigDictMixin):
         """
 
         self.graded = True
+        self.error = None
         self.component_grades = component_grades
         self._write_meta_json()
