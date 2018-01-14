@@ -5,6 +5,7 @@ import re
 import inspect
 import glob
 import shutil
+import threading
 from datetime import datetime
 from collections import namedtuple
 
@@ -20,10 +21,12 @@ if sys.version_info[0] < 3:
                                   'platforms')
 
     # Python 2 imports
+    import Queue as queue  # noqa
     import subprocess32 as subprocess
     from urlparse import urlparse
 else:
     # Python 3 imports
+    import queue  # noqa
     import subprocess
     from urllib.parse import urlparse
 
@@ -36,6 +39,24 @@ def mkdir_p(path):
             pass
         else:
             raise
+
+
+def run_thread(func, args, result_queue):
+    """
+    Run a thread which runs func(args), putting each yielded result in
+    queue. Return the thread.
+    """
+
+    def thread():
+        try:
+            for result in func(*args):
+                result_queue.put(result)
+        except Exception as err:
+            result_queue.put(err)
+
+    thread = threading.Thread(target=thread)
+    thread.start()
+    return thread
 
 
 # Patch around old versions of subprocess
