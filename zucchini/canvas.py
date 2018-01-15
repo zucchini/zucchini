@@ -234,9 +234,6 @@ class CanvasAPI(object):
     def _put(self, name, json):
         self._request(self._url(name), method='put', json=json)
 
-    def _post(self, name, json):
-        self._request(self._url(name), method='post', json=json)
-
     def _get_json(self, name):
         """
         Make a request to a Canvas API endpoint and return the JSON.
@@ -390,74 +387,76 @@ class CanvasAPI(object):
         self._put('courses/{}/assignments/{}/submissions/{}'
                   .format(course_id, assignment_id, user_id), json)
 
-    def add_submission_comment(self, course_id, assignment_id, user_id, comment, file_path, file_mime_type):
+    def add_submission_comment(self, course_id, assignment_id, user_id, comment, files):
         """
-        Adds a comment with a file to a submission
+        Adds a comment with optional file(s) attached to a submission
 
-        File uploading is a very involved 3 part process, detailed here
-        https://canvas.instructure.com/doc/api/file.file_uploads.html
-
-        Info on uploading a file for comments
+        Info on uploading a file for comments. Warning! it's a very involved process
         https://canvas.instructure.com/doc/api/submission_comments.html
+
+        :param course_id: int canvas course id
+        :param assignment_id: int canvas assignment id
+        :param user_id: int canvas user_id
+        :param comment: string comment that will be added to submission
+        :param files: (optional) List of (paths to files, file mime type) tuples that will be attached to comment
+        :return:
+
+        wow wouldn't it be great if you could auto detect the mime type? yeah that would be great
+        but windows doesn't have the binary needed for python-magic to work
         """
 
         session = requests.Session()
         session.headers = {'Authorization': 'Bearer %s' % self.token}
 
-        # Step 1: tell canvas about file upload (to a specific comment)
-        file_info = os.stat(file_path)
-        part_1_dict = {
-            'name': 'gradelog.txt'
-        }
+        file_ids = []
 
-        part_1_resp = session.post(
-            self._url('courses/{}/assignments/{}/submissions/{}/comments/files'.format(course_id, assignment_id, user_id)),
-            data=part_1_dict
-        )
+        for file in files:
 
-        # blow up if request failed
-        part_1_resp.raise_for_status()
+            # Step 1: tell canvas about file upload
+            file_path, mime_type = file
+            part_1_dict = {
+                'name': os.path.basename(file_path),
+                'size': os.stat(file_path).st_size,
+                'content_type': mime_type
+            }
 
-        # Step 2: Upload the file data to the URL given in the previous response
+            part_1_resp = session.post(
+                self._url('courses/%s/assignments/%s/submissions/%s/comments/files' %
+                          (course_id, assignment_id, user_id)),
+                json=part_1_dict
+            )
 
-        # construct form
-        # with open(file_path, 'rb') as f:
-        #     file_contents = f.read()
-        # upload_params = list(part_1_resp.json()['upload_params'].items())
-        # upload_params.append(('file', file_contents))
-        #
-        # part_2_resp = requests.request(
-        #     'post',
-        #     part_1_resp.json()['upload_url'],
-        #     files=upload_params,
-        #     stream=False
-        # )
+            part_1_resp.raise_for_status()
 
-        r = part_1_resp.json()
-        payload = list(r['upload_params'].items())  # Note this is now a list of tuples
+            # Step 2: Upload the file data to the URL given in the previous response
 
-        with open(file_path, 'rb') as f:
-            file_content = f.read()
-        payload.append((u'file', file_content))  # Append file at the end of list of tuples
-        r = requests.post(r['upload_url'], files=payload)
+            # construct form
+            with open(file_path, 'rb') as f:
+                file_contents = f.read()
+            upload_params = list(part_1_resp.json()['upload_params'].items())
+            upload_params.append(('file', file_contents))
 
-        # FUCK CANVAS AHHHHHHHH
+            part_2_resp = requests.post(
+                part_1_resp.json()['upload_url'],
+                files=upload_params
+            )
+
+            part_2_resp.raise_for_status()
+
+            file_ids.append(part_2_resp.json()['id'])
+
 
         # make the comment
         part_3_req = {
             'comment': {
-                'text_comment': "Submission graded using autograder. Results attached.".format(),
-                'file_ids':[r.json()['id']]
+                'text_comment': comment,
+                'file_ids':file_ids
             }
         }
         part_3_resp = session.put(
-            self._url('courses/{}/assignments/{}/submissions/{}'.format(course_id, assignment_id, user_id)),
+            self._url('courses/%s/assignments/%s/submissions/%s' % (course_id, assignment_id, user_id)),
             json=part_3_req
         )
 
         part_3_resp.raise_for_status()
-
-        print(part_3_resp)
-
-
 
