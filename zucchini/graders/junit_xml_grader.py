@@ -76,7 +76,8 @@ class JUnitXMLGrader(GraderInterface):
 
         try:
             process = run_process(gradle_cmd, cwd=path, timeout=self.timeout,
-                                  stdout=PIPE, stderr=STDOUT, shell=self.use_shell)
+                                  stdout=PIPE, stderr=STDOUT,
+                                  shell=self.use_shell)
         except TimeoutExpired:
             raise BrokenSubmissionError('timeout of {} seconds expired for '
                                         'grader'.format(self.timeout))
