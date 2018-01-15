@@ -10,7 +10,7 @@ from os.path import isfile, join
 from ..submission import BrokenSubmissionError
 from ..utils import run_process, PIPE, STDOUT, TimeoutExpired
 from ..grades import PartGrade
-from . import GraderInterface, Part
+from . import GraderInterface, Part, InvalidGraderConfigError
 
 """
 Grade a homework with JUnit tests using Apache Ant formatted XML files
@@ -39,8 +39,21 @@ class JUnitXMLGrader(GraderInterface):
     CLASS_REGEX = re.compile(r'\[engine:.*?\]/\[class:(?P<cls>.*?)\]')
     DEFAULT_RESULT_MATCHER = 'TEST-*.xml'
 
-    def __init__(self, gradle_exec, gradle_task, timeout=None,
-                 xml_result_dir=None, result_matcher=None):
+    def __init__(self, gradle_task, windows_gradle_exec=None,
+                 posix_gradle_exec=None, timeout=None, xml_result_dir=None,
+                 result_matcher=None):
+        if os.name == 'nt':
+            if windows_gradle_exec is None:
+                raise InvalidGraderConfigError(
+                    'running on windows without windows-gradle-exec set!')
+            gradle_exec = windows_gradle_exec
+        else:
+            # Assume that if it's not windows, it's POSIX
+            if posix_gradle_exec is None:
+                raise InvalidGraderConfigError(
+                    'running on posix without posix-gradle-exec set!')
+            gradle_exec = posix_gradle_exec
+
         self.gradle_cmd = shlex.split(gradle_exec) + [gradle_task]
         self.timeout = self.DEFAULT_TIMEOUT if timeout is None else timeout
         self.xml_result_dir = self.DEFAULT_RESULT_DIR \
