@@ -354,6 +354,9 @@ def print_grades(grades, grader_name):
         for grade in grades)
     click.echo_via_pager('grade report:\n\n' + grade_report)
 
+    for grade in grades:
+        grade.gradelog()
+
 
 @cli.command()
 @click.option('-f', '--from-dir', default=DEFAULT_SUBMISSION_DIRECTORY,
