@@ -4,6 +4,8 @@ import os
 import re
 import requests
 import shutil
+import stat
+import json
 from collections import namedtuple
 
 from .utils import datetime_from_string
@@ -232,6 +234,9 @@ class CanvasAPI(object):
     def _put(self, name, json):
         self._request(self._url(name), method='put', json=json)
 
+    def _post(self, name, json):
+        self._request(self._url(name), method='post', json=json)
+
     def _get_json(self, name):
         """
         Make a request to a Canvas API endpoint and return the JSON.
@@ -384,3 +389,75 @@ class CanvasAPI(object):
 
         self._put('courses/{}/assignments/{}/submissions/{}'
                   .format(course_id, assignment_id, user_id), json)
+
+    def add_submission_comment(self, course_id, assignment_id, user_id, comment, file_path, file_mime_type):
+        """
+        Adds a comment with a file to a submission
+
+        File uploading is a very involved 3 part process, detailed here
+        https://canvas.instructure.com/doc/api/file.file_uploads.html
+
+        Info on uploading a file for comments
+        https://canvas.instructure.com/doc/api/submission_comments.html
+        """
+
+        session = requests.Session()
+        session.headers = {'Authorization': 'Bearer %s' % self.token}
+
+        # Step 1: tell canvas about file upload (to a specific comment)
+        file_info = os.stat(file_path)
+        part_1_dict = {
+            'name': 'gradelog.txt'
+        }
+
+        part_1_resp = session.post(
+            self._url('courses/{}/assignments/{}/submissions/{}/comments/files'.format(course_id, assignment_id, user_id)),
+            data=part_1_dict
+        )
+
+        # blow up if request failed
+        part_1_resp.raise_for_status()
+
+        # Step 2: Upload the file data to the URL given in the previous response
+
+        # construct form
+        # with open(file_path, 'rb') as f:
+        #     file_contents = f.read()
+        # upload_params = list(part_1_resp.json()['upload_params'].items())
+        # upload_params.append(('file', file_contents))
+        #
+        # part_2_resp = requests.request(
+        #     'post',
+        #     part_1_resp.json()['upload_url'],
+        #     files=upload_params,
+        #     stream=False
+        # )
+
+        r = part_1_resp.json()
+        payload = list(r['upload_params'].items())  # Note this is now a list of tuples
+
+        with open(file_path, 'rb') as f:
+            file_content = f.read()
+        payload.append((u'file', file_content))  # Append file at the end of list of tuples
+        r = requests.post(r['upload_url'], files=payload)
+
+        # FUCK CANVAS AHHHHHHHH
+
+        # make the comment
+        part_3_req = {
+            'comment': {
+                'text_comment': "Submission graded using autograder. Results attached.".format(),
+                'file_ids':[r.json()['id']]
+            }
+        }
+        part_3_resp = session.put(
+            self._url('courses/{}/assignments/{}/submissions/{}'.format(course_id, assignment_id, user_id)),
+            json=part_3_req
+        )
+
+        part_3_resp.raise_for_status()
+
+        print(part_3_resp)
+
+
+
