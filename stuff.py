@@ -71,9 +71,8 @@ grades = grading_manager.grade()
 # grades2 = state.grades
 grades = sorted(grades, key=lambda grade: grade.student_name())
 for grade in grades:
-    grade.gradelog()
     gradelog_path = os.path.join(grade._submission.path, SUBMISSION_GRADELOG_FILE)
-    api.add_submission_comment(course_id, assignment_id, grade._submission.id, "stuff", gradelog_path, "text/plain")
+    api.add_submission_comment(course_id, assignment_id, grade._submission.id, "stuff", [(gradelog_path, 'text/plain')])
 
 print("x")
 elapsed_time = time.time() - start_time

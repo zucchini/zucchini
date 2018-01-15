@@ -15,7 +15,7 @@ from .filter import FilterBuilder
 from .zucchini import ZucchiniState
 from .canvas import CanvasAPIError, CanvasNotFoundError, CanvasInternalError
 from .constants import APP_NAME, USER_CONFIG, DEFAULT_SUBMISSION_DIRECTORY, \
-                       SUBMISSION_FILES_DIRECTORY
+                       SUBMISSION_FILES_DIRECTORY, SUBMISSION_GRADELOG_FILE
 from .submission import Submission
 from .flatten import flatten, ArchiveError
 
@@ -143,7 +143,13 @@ def cli(ctx, assignment):
         raise SystemExit()  # TODO: Use better exception
         # TODO: The way we handle this here makes it impossible to have a setup
         # or reset command. We kinda need one.
-
+@cli.command()
+@pass_state
+def setup(state):
+    """Runs setup again"""
+    click.echo("running setup again")
+    setup_handler()
+    click.echo("setup has finished")
 
 @cli.command()
 @pass_state
@@ -354,9 +360,6 @@ def print_grades(grades, grader_name):
         for grade in grades)
     click.echo_via_pager('grade report:\n\n' + grade_report)
 
-    for grade in grades:
-        grade.gradelog()
-
 
 @cli.command()
 @click.option('-f', '--from-dir', default=DEFAULT_SUBMISSION_DIRECTORY,
@@ -499,8 +502,12 @@ def export_canvas(state):
             if grade.student_id() is not None:
                 breakdown = grade.breakdown(state.user_name)
                 api.set_submission_grade(course_id, assignment_id,
-                                         grade.student_id(), grade.score(),
-                                         comment=breakdown)
+                                         grade.student_id(), grade.score())
+                gradelog_path = os.path.join(
+                    grade._submission.path, SUBMISSION_GRADELOG_FILE)
+                api.add_submission_comment(course_id, assignment_id,
+                                           grade.student_id(), breakdown,
+                                           [(gradelog_path, 'text/plain')])
 
 
 @cli.group()
