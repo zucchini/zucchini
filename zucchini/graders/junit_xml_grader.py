@@ -34,7 +34,7 @@ class JUnitXMLGrader(GraderInterface):
     successful and failing tests.
     """
 
-    DEFAULT_TIMEOUT = 10
+    DEFAULT_TIMEOUT = 20
     DEFAULT_RESULT_DIR = 'build/test-results/test'
     CLASS_REGEX = re.compile(r'\[engine:.*?\]/\[class:(?P<cls>.*?)\]')
     DEFAULT_RESULT_MATCHER = 'TEST-*.xml'
@@ -60,6 +60,7 @@ class JUnitXMLGrader(GraderInterface):
             if xml_result_dir is None else xml_result_dir
         self.result_matcher = self.DEFAULT_RESULT_MATCHER \
             if result_matcher is None else result_matcher
+        self.use_shell = os.name == 'nt'
 
     def list_prerequisites(self):
         return ['sudo apt-get install openjdk-8-jre-headless']
@@ -75,7 +76,7 @@ class JUnitXMLGrader(GraderInterface):
 
         try:
             process = run_process(gradle_cmd, cwd=path, timeout=self.timeout,
-                                  stdout=PIPE, stderr=STDOUT)
+                                  stdout=PIPE, stderr=STDOUT, shell=self.use_shell)
         except TimeoutExpired:
             raise BrokenSubmissionError('timeout of {} seconds expired for '
                                         'grader'.format(self.timeout))
