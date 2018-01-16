@@ -143,6 +143,8 @@ def cli(ctx, assignment):
         raise SystemExit()  # TODO: Use better exception
         # TODO: The way we handle this here makes it impossible to have a setup
         # or reset command. We kinda need one.
+
+
 @cli.command()
 @pass_state
 def setup(state):
@@ -154,6 +156,7 @@ def setup(state):
     click.echo("Token: %s" % state.canvas_token)
     setup_handler()
     click.echo("setup has finished")
+
 
 @cli.command()
 @pass_state

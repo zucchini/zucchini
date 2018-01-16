@@ -212,7 +212,8 @@ class Grade(object):
         Writes gradelog file to submission directory
         """
 
-        gradelog_path = os.path.join(self._submission.path, SUBMISSION_GRADELOG_FILE)
+        gradelog_path = os.path.join(
+            self._submission.path, SUBMISSION_GRADELOG_FILE)
 
         with open(gradelog_path, 'w') as f:
 
@@ -223,69 +224,82 @@ class Grade(object):
                 self._submission.student_name,
                 "%d:%02d:%02d" % (h, m, s)))
 
-            assignment_total_total_score = Fraction(0, 1)
-            assignment_total_out_of_score = Fraction(0, 1)
+            assignment_total = Fraction(0, 1)
+            assignment_out_of = Fraction(0, 1)
 
             for component, component_grade in zip(self._assignment.components,
                                                   self._component_grades):
                 if component_grade.is_broken():
-                    percentage_of_total = Fraction(component.weight, self._assignment.total_weight)
+                    percentage_of_total = Fraction(
+                        component.weight, self._assignment.total_weight)
                     component_points = self._left_pad(percentage_of_total)
                     earned_score = self._left_pad(Fraction(0, 1))
-                    assignment_total_out_of_score += percentage_of_total
+                    assignment_out_of += percentage_of_total
                     f.write("(%s / %s) [FAIL] TOTAL for %s: %s\n\n" % (
-                        earned_score, component_points, component.name, component_grade.error))
+                        earned_score, component_points, component.name,
+                        component_grade.error))
                 else:
-                    component_total_total_score = Fraction(0, 1)
-                    component_total_out_of_score = Fraction(0, 1)
+                    component_total = Fraction(0, 1)
+                    component_out_of = Fraction(0, 1)
+
                     for part, part_grade in zip(component.parts,
                                                 component_grade.part_grades):
                         # calculate scores (deal with case where weight is 0)
                         if 0 not in (component.weight, part.weight,
-                                 component.total_part_weight,
-                                 self._assignment.total_weight):
+                                     component.total_part_weight,
+                                     self._assignment.total_weight):
 
                             # out of score for this part
-                            out_of_score = Fraction(component.weight, self._assignment.total_weight) * \
-                                           Fraction(part.weight, component.total_part_weight)
-                            component_total_out_of_score += out_of_score
+                            out_of_score = \
+                                Fraction(component.weight,
+                                         self._assignment.total_weight) * \
+                                Fraction(part.weight,
+                                         component.total_part_weight)
+                            component_out_of += out_of_score
 
                             # total score for this part
                             total_score = out_of_score * part_grade.score
-                            component_total_total_score += total_score
+                            component_total += total_score
                         else:
-                            total_score = Fraction(0,1)
-                            out_of_score = Fraction(0,1)
+                            total_score = Fraction(0, 1)
+                            out_of_score = Fraction(0, 1)
 
                         # gets short name for class
                         dot_idx = part.part.cls.rfind(".")
-                        short_class_name = part.part.cls if dot_idx == -1 else part.part.cls[dot_idx+1:]
+                        short_class_name = part.part.cls \
+                            if dot_idx == -1 else part.part.cls[dot_idx+1:]
 
                         # print part score
                         if part_grade.score == 1:
                             f.write("(%s / %s) [PASS] %s: %s.%s\n" % (
-                                self._left_pad(total_score), self._left_pad(out_of_score),
-                                component.name, short_class_name, part.part.name))
+                                self._left_pad(total_score),
+                                self._left_pad(out_of_score),
+                                component.name, short_class_name,
+                                part.part.name))
                         else:
                             f.write("(%s / %s) [FAIL] %s: %s.%s - %s\n" % (
-                                self._left_pad(total_score), self._left_pad(out_of_score),
-                                component.name, short_class_name, part.part.name, part_grade.log))
+                                self._left_pad(total_score),
+                                self._left_pad(out_of_score),
+                                component.name, short_class_name,
+                                part.part.name, part_grade.log))
+
+                    component_pass = component_total == component_out_of
 
                     # print totals for assignment component
                     f.write("(%s / %s) [%s] TOTAL for %s\n\n" % (
-                        self._left_pad(component_total_total_score),
-                        self._left_pad(component_total_out_of_score),
-                        "PASS" if component_total_total_score == component_total_out_of_score else "FAIL",
+                        self._left_pad(component_total),
+                        self._left_pad(component_out_of),
+                        "PASS" if component_pass else "FAIL",
                         component.name))
 
-                    assignment_total_out_of_score += component_total_out_of_score
-                    assignment_total_total_score += component_total_total_score
+                    assignment_out_of += component_out_of
+                    assignment_total += component_total
 
             # print totals for complete assignment
             f.write("(%s / %s) [%s] TOTAL for %s (without penalties)\n" % (
-                self._left_pad(assignment_total_total_score),
-                self._left_pad(assignment_total_out_of_score),
-                "PASS" if assignment_total_out_of_score == assignment_total_total_score else "FAIL",
+                self._left_pad(assignment_total),
+                self._left_pad(assignment_out_of),
+                "PASS" if assignment_out_of == assignment_total else "FAIL",
                 self._assignment.name))
 
             # print penalties (like being late)
@@ -302,7 +316,8 @@ class Grade(object):
                         penalty.name
                     ))
 
-            f.write("\n-----------------------\n| %6.2f%% FINAL SCORE |\n-----------------------" % (self._grade * 100))
+            f.write("\n-----------------------\n| %6.2f%% FINAL SCORE "
+                    "|\n-----------------------" % (self._grade * 100))
 
 
 class GradingManager(object):
