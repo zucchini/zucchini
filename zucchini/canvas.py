@@ -4,8 +4,6 @@ import os
 import re
 import requests
 import shutil
-import stat
-import json
 from collections import namedtuple
 
 from .utils import datetime_from_string
@@ -387,22 +385,26 @@ class CanvasAPI(object):
         self._put('courses/{}/assignments/{}/submissions/{}'
                   .format(course_id, assignment_id, user_id), json)
 
-    def add_submission_comment(self, course_id, assignment_id, user_id, comment, files):
+    def add_submission_comment(self, course_id, assignment_id, user_id,
+                               comment, files):
         """
         Adds a comment with optional file(s) attached to a submission
 
-        Info on uploading a file for comments. Warning! it's a very involved process
+        Info on uploading a file for comments. Warning! it's a very
+        involved process
         https://canvas.instructure.com/doc/api/submission_comments.html
 
         :param course_id: int canvas course id
         :param assignment_id: int canvas assignment id
         :param user_id: int canvas user_id
         :param comment: string comment that will be added to submission
-        :param files: (optional) List of (paths to files, file mime type) tuples that will be attached to comment
+        :param files: (optional) List of (paths to files, file mime type)
+        tuples that will be attached to comment
         :return:
 
-        wow wouldn't it be great if you could auto detect the mime type? yeah that would be great
-        but windows doesn't have the binary needed for python-magic to work
+        wow wouldn't it be great if you could auto detect the mime type?
+        yeah that would be great but windows doesn't have the binary
+        needed for python-magic to work
         """
 
         session = requests.Session()
@@ -421,14 +423,15 @@ class CanvasAPI(object):
             }
 
             part_1_resp = session.post(
-                self._url('courses/%s/assignments/%s/submissions/%s/comments/files' %
-                          (course_id, assignment_id, user_id)),
+                self._url('courses/%s/assignments/%s/submissions/%s/comments/'
+                          'files' % (course_id, assignment_id, user_id)),
                 json=part_1_dict
             )
 
             part_1_resp.raise_for_status()
 
-            # Step 2: Upload the file data to the URL given in the previous response
+            # Step 2: Upload the file data to the URL given in the
+            # previous response
 
             # construct form
             with open(file_path, 'rb') as f:
@@ -445,18 +448,17 @@ class CanvasAPI(object):
 
             file_ids.append(part_2_resp.json()['id'])
 
-
         # make the comment
         part_3_req = {
             'comment': {
                 'text_comment': comment,
-                'file_ids':file_ids
+                'file_ids': file_ids
             }
         }
         part_3_resp = session.put(
-            self._url('courses/%s/assignments/%s/submissions/%s' % (course_id, assignment_id, user_id)),
+            self._url('courses/%s/assignments/%s/submissions/%s' %
+                      (course_id, assignment_id, user_id)),
             json=part_3_req
         )
 
         part_3_resp.raise_for_status()
-
