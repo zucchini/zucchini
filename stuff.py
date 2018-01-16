@@ -16,7 +16,7 @@ from zucchini.cli import print_grades
 
 # setup zucchini to connect to test instance
 state = ZucchiniState("Patrick Tam", "pjztam@gatech.edu", "zucc_config_test", "",
-                      "https://canvas.zucchini.services", "5216NOBj12Zd9a3VWjk5QMO2Mt5maLEoUK0J8lUNzcKybjjvSE4vQORSdSPa7UkM")
+                      "https://gatech.instructure.com", "ZdCrfddGFSDQuuib3eiXeYXfOIp8dppPvJrxGpk3OA8h8gbhqIwk5PvqDe2RQ5Be")
 state.submission_dir = DEFAULT_SUBMISSION_DIRECTORY
 
 # called this once to add my first farm REMOVE
@@ -44,25 +44,25 @@ assignment_id = state.get_assignment().canvas_assignment_id
 submissions = api.list_submissions(course_id, assignment_id)
 
 # grab submissions REMOVE TO REUSE
-for canvas_submission in list(submissions):
-    student_name = canvas_submission.user.sortable_name
-    base_dir = os.path.join(state.submission_dir, student_name)
-    # Remove submission if it already exists
-    shutil.rmtree(base_dir, ignore_errors=True)
-
-    files_dir = os.path.join(base_dir, SUBMISSION_FILES_DIRECTORY)
-    mkdir_p(files_dir)
-    canvas_submission.download(files_dir)
-    flatten(files_dir)
-
-    # Create initial meta.json in submission dir
-    submission = Submission(
-        student_name, state.get_assignment(), base_dir, graded=False,
-        id=canvas_submission.user_id,
-        seconds_late=canvas_submission.seconds_late)
-    submission.initialize_metadata()
-    print(".", end="")
-print("")
+# for canvas_submission in list(submissions):
+#     student_name = canvas_submission.user.sortable_name
+#     base_dir = os.path.join(state.submission_dir, student_name)
+#     # Remove submission if it already exists
+#     shutil.rmtree(base_dir, ignore_errors=True)
+#
+#     files_dir = os.path.join(base_dir, SUBMISSION_FILES_DIRECTORY)
+#     mkdir_p(files_dir)
+#     canvas_submission.download(files_dir)
+#     flatten(files_dir)
+#
+#     # Create initial meta.json in submission dir
+#     submission = Submission(
+#         student_name, state.get_assignment(), base_dir, graded=False,
+#         id=canvas_submission.user_id,
+#         seconds_late=canvas_submission.seconds_late)
+#     submission.initialize_metadata()
+#     print(".", end="")
+# print("")
 
 start_time = time.time()
 grading_manager = GradingManager(state.get_assignment(), DEFAULT_SUBMISSION_DIRECTORY)

@@ -148,6 +148,10 @@ def cli(ctx, assignment):
 def setup(state):
     """Runs setup again"""
     click.echo("running setup again")
+    click.echo("Name: %s" % state.user_name)
+    click.echo("Email: %s" % state.user_email)
+    click.echo("Canvas URL: %s" % state.canvas_url)
+    click.echo("Token: %s" % state.canvas_token)
     setup_handler()
     click.echo("setup has finished")
 
@@ -482,9 +486,9 @@ def export_csv(state, out_file=None):
             csvfile.close()
 
 
-@export.command('canvas')
+@export.command('canvas-grades')
 @pass_state
-def export_canvas(state):
+def export_canvas_grades(state):
     """Upload grades to Canvas."""
 
     api = state.canvas_api()
@@ -500,9 +504,29 @@ def export_canvas(state):
         for grade in bar:
             # Submissions not from canvas won't have an id set, so skip them
             if grade.student_id() is not None:
-                breakdown = grade.breakdown(state.user_name)
                 api.set_submission_grade(course_id, assignment_id,
                                          grade.student_id(), grade.score())
+
+
+@export.command('canvas-comments')
+@pass_state
+def export_canvas_comments(state):
+    """Add Canvas submission comments with gradelog and breakdown"""
+
+    api = state.canvas_api()
+    course_id = state.get_assignment().canvas_course_id
+    assignment_id = state.get_assignment().canvas_assignment_id
+
+    if None in (course_id, assignment_id):
+        raise click.ClickException('Need to configure canvas in assignment '
+                                   'config')
+
+    click.echo('Uploading submission comments to canvas...')
+    with click.progressbar(state.grades) as bar:
+        for grade in bar:
+            # Submissions not from canvas won't have an id set, so skip them
+            if grade.student_id() is not None:
+                breakdown = grade.breakdown(state.user_name)
                 gradelog_path = os.path.join(
                     grade._submission.path, SUBMISSION_GRADELOG_FILE)
                 api.add_submission_comment(course_id, assignment_id,
