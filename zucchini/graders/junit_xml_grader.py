@@ -4,6 +4,7 @@ import shlex
 import fnmatch
 from fractions import Fraction
 import xml.etree.ElementTree
+import copy
 from os import listdir
 from os.path import isfile, join
 
@@ -69,7 +70,7 @@ class JUnitXMLGrader(GraderInterface):
         return JUnitXMLTest.from_config_dict(config_dict)
 
     def grade(self, submission, path, parts):
-        gradle_cmd = self.gradle_cmd
+        gradle_cmd = copy.deepcopy(self.gradle_cmd)
 
         for part in parts:
             gradle_cmd += ['--tests', part.test]
