@@ -424,6 +424,7 @@ def grade(state, from_dir, filter):
     # running in parallel earlier
     for grade in grades:
         grade.write_grade()
+        grade.generate_gradelog()
     print_grades(grades, state.user_name)
 
 
