@@ -384,8 +384,6 @@ class GradingManager(object):
         for submission in self.submissions:
             grade = Grade(self.assignment, submission)
             grade.grade(interactive)
-            grade.write_grade()
-            grade.generate_gradelog()
 
             yield grade
 
