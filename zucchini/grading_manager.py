@@ -1,5 +1,6 @@
 import os
 import decimal
+import hashlib
 from fractions import Fraction
 
 from .submission import Submission
@@ -20,6 +21,10 @@ class Grade(object):
 
     # Round 0.5->1 when rounding fraction scores
     ROUNDING = decimal.ROUND_HALF_UP
+
+    # constants for gradelog files
+    ZUCCHINI_BEGIN_GRADELOG = 'ZUCCHINI_BEGIN_GRADELOG'
+    ZUCCHINI_END_GRADELOG = 'ZUCCHINI_END_GRADELOG'
 
     def __init__(self, assignment, submission):
         self._assignment = assignment
@@ -75,6 +80,16 @@ class Grade(object):
             self._grade = self._assignment.calculate_grade(
                 self._submission, self._component_grades)
             return self._grade
+
+    def get_gradelog_path(self):
+        return os.path.join(self._submission.path, SUBMISSION_GRADELOG_FILE)
+
+    def get_gradelog_hash(self):
+        with open(self.get_gradelog_path(), 'r') as f:
+            gradelog_data = f.read()
+            idx = gradelog_data.index(
+                self.ZUCCHINI_END_GRADELOG) + len(self.ZUCCHINI_END_GRADELOG)
+            return gradelog_data[idx:].strip()
 
     def write_grade(self):
         """Write this grade to the submission metadata json."""
@@ -220,7 +235,8 @@ class Grade(object):
             m, s = divmod(self._submission.seconds_late, 60)
             h, m = divmod(m, 60)
 
-            f.write("student_name: \"%s\", hours_late: %s\n\n" % (
+            f.write("%s\nstudent_name: \"%s\", hours_late: %s\n\n" % (
+                self.ZUCCHINI_BEGIN_GRADELOG,
                 self._submission.student_name,
                 "%d:%02d:%02d" % (h, m, s)))
 
@@ -312,7 +328,17 @@ class Grade(object):
                     ))
 
             f.write("\n-----------------------\n| %6.2f%% FINAL SCORE "
-                    "|\n-----------------------" % (self._grade * 100))
+                    "|\n-----------------------\n" % (self._get_grade() * 100))
+            f.write('%s\n' % self.ZUCCHINI_END_GRADELOG)
+
+        # write gradelog hash
+        with open(gradelog_path, 'r+') as f:
+            file_data = f.read()
+            begin_idx = file_data.index(self.ZUCCHINI_BEGIN_GRADELOG)
+            end_idx = file_data.index(self.ZUCCHINI_END_GRADELOG)
+            gradelog_data = file_data[begin_idx:end_idx]
+            gradelog_hash = hashlib.sha1(gradelog_data.encode()).hexdigest()
+            f.write("%s\n" % (gradelog_hash))
 
 
 class GradingManager(object):
