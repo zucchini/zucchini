@@ -12,10 +12,6 @@ with open('README.rst') as readme_file:
 with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
-python2_requirements = [
-    'subprocess32==3.2.7'
-]
-
 requirements = [
     'click==6.7',
     'gitdb2==2.0.3',
@@ -23,10 +19,8 @@ requirements = [
     'PyYAML==3.12',
     'smmap2==2.0.3',
     'requests==2.18.4',
+    'subprocess32==3.2.7;python_version<"3"',
 ]
-
-if sys.version_info[0] < 3:
-    requirements += python2_requirements
 
 setup_requirements = [
     # TODO(zucchini): put setup requirements (distutils extensions, etc.) here
@@ -44,7 +38,7 @@ setup(
     author="Zucchini Team",
     author_email='team@zucc.io',
     url='https://github.com/zucchini/zucchini',
-    packages=find_packages(include=['zucchini']),
+    packages=find_packages(include=['zucchini', 'zucchini.*']),
     entry_points={
         'console_scripts': [
             'zucc=zucchini.cli:cli'
