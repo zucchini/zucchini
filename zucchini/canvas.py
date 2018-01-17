@@ -408,7 +408,7 @@ class CanvasAPI(object):
         """
 
         session = requests.Session()
-        session.headers = {'Authorization': 'Bearer %s' % self.token}
+        session.headers = self._headers()
 
         file_ids = []
 
