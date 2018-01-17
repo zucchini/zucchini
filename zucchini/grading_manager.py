@@ -264,23 +264,18 @@ class Grade(object):
                             total_score = Fraction(0, 1)
                             out_of_score = Fraction(0, 1)
 
-                        # gets short name for class
-                        dot_idx = part.part.cls.rfind(".")
-                        short_class_name = part.part.cls \
-                            if dot_idx == -1 else part.part.cls[dot_idx+1:]
-
                         # print part score
                         if part_grade.score == 1:
                             f.write("(%s / %s) [PASS] %s: %s.%s\n" % (
                                 self._left_pad(total_score),
                                 self._left_pad(out_of_score),
-                                component.name, short_class_name,
+                                component.name, part.part.description(),
                                 part.part.name))
                         else:
                             f.write("(%s / %s) [FAIL] %s: %s.%s - %s\n" % (
                                 self._left_pad(total_score),
                                 self._left_pad(out_of_score),
-                                component.name, short_class_name,
+                                component.name, part.part.description(),
                                 part.part.name, part_grade.log))
 
                     component_pass = component_total == component_out_of
