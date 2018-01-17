@@ -4,7 +4,6 @@ import shlex
 import fnmatch
 from fractions import Fraction
 import xml.etree.ElementTree
-import copy
 from os import listdir
 from os.path import isfile, join
 

@@ -15,7 +15,7 @@ from .filter import FilterBuilder
 from .zucchini import ZucchiniState
 from .canvas import CanvasAPIError, CanvasNotFoundError, CanvasInternalError
 from .constants import APP_NAME, USER_CONFIG, DEFAULT_SUBMISSION_DIRECTORY, \
-                       SUBMISSION_FILES_DIRECTORY, SUBMISSION_GRADELOG_FILE
+                       SUBMISSION_FILES_DIRECTORY
 from .submission import Submission
 from .flatten import flatten, ArchiveError
 
@@ -530,12 +530,11 @@ def export_canvas_comments(state):
         for grade in bar:
             # Submissions not from canvas won't have an id set, so skip them
             if grade.student_id() is not None:
-                breakdown = grade.breakdown(state.user_name)
-                gradelog_path = os.path.join(
-                    grade._submission.path, SUBMISSION_GRADELOG_FILE)
-                api.add_submission_comment(course_id, assignment_id,
-                                           grade.student_id(), breakdown,
-                                           [(gradelog_path, 'text/plain')])
+                breakdown = grade.breakdown(state.user_name) + \
+                            "\n" + grade.get_gradelog_hash()
+                api.add_submission_comment(
+                    course_id, assignment_id, grade.student_id(),
+                    breakdown, [(grade.get_gradelog_path(), 'text/plain')])
 
 
 @cli.group()
