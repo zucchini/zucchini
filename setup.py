@@ -19,7 +19,7 @@ requirements = [
     'PyYAML==3.12',
     'smmap2==2.0.3',
     'requests==2.18.4',
-    'subprocess32==3.2.7;python_version<"3"',
+    'subprocess32==3.2.7;python_version<"3.0"',
 ]
 
 setup_requirements = [
