@@ -343,7 +343,8 @@ def load_canvas(state, section, max_archive_size, filter):
                 student_name, state.get_assignment(), base_dir, graded=False,
                 id=canvas_submission.user_id,
                 seconds_late=canvas_submission.seconds_late,
-                error=error)
+                error=error,
+                comments=[str(item) for item in canvas_submission.submission_comments])
             submission.initialize_metadata()
 
 
@@ -530,8 +531,7 @@ def export_canvas_comments(state):
         for grade in bar:
             # Submissions not from canvas won't have an id set, so skip them
             if grade.student_id() is not None:
-                breakdown = grade.breakdown(state.user_name) + \
-                            "\n" + grade.get_gradelog_hash()
+                breakdown = grade.breakdown(state.user_name)
                 api.add_submission_comment(
                     course_id, assignment_id, grade.student_id(),
                     breakdown, [(grade.get_gradelog_path(), 'text/plain')])

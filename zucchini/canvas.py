@@ -87,6 +87,15 @@ class CanvasUser(namedtuple('CanvasUser',
         return 'id={}\t{}'.format(self.id, self.name)
 
 
+class CanvasSubmissionComment(namedtuple('CanvasSubmissionComment',
+                                         ('api_', 'id', 'author_id', 'author_name', 'comment', 'created_at', 'edited_at'))):
+    """Hold SubmissionComment"""
+    __slots__ = ()
+
+    def __str__(self):
+        return 'id=%s\t%s\t%s\t%s' % (self.id, self.author_name, self.comment, self.created_at)
+
+
 class CanvasSubmissionAttachment(namedtuple('CanvasSubmission',
                                  ('api_', 'id', 'filename', 'url'))):
     """Hold information about a submitted file"""
@@ -108,12 +117,13 @@ class CanvasSubmissionAttachment(namedtuple('CanvasSubmission',
 
 class CanvasSubmission(namedtuple('CanvasSubmission',
                        ('api_', 'id', 'late', 'user_id', 'user', 'attachments',
-                        'seconds_late', 'attempt'))):
+                        'seconds_late', 'attempt', 'submission_comments'))):
     """Hold assignment info"""
     __slots__ = ()
-    _defaults = {'attachments': []}
+    _defaults = {'attachments': [], 'submission_comments': []}
     _sub_entities = {'user': CanvasUser}
     _sub_entity_lists = {'attachments': CanvasSubmissionAttachment}
+    _sub_entity_lists2 = {'submission_comments': CanvasSubmissionComment}
 
     def __str__(self):
         attachments = ', '.join(attachment.filename
@@ -199,6 +209,12 @@ class CanvasAPI(object):
 
         if hasattr(entity_class, '_sub_entity_lists'):
             for field, class_ in entity_class._sub_entity_lists.items():
+                args[field] = [self._to_entity(entity, class_)
+                               for entity in args[field]]
+
+        # TODO: remove code duplication
+        if hasattr(entity_class, '_sub_entity_lists2'):
+            for field, class_ in entity_class._sub_entity_lists2.items():
                 args[field] = [self._to_entity(entity, class_)
                                for entity in args[field]]
 
@@ -343,7 +359,8 @@ class CanvasAPI(object):
         given course for the given assignment.
         """
 
-        return self._gets('courses/{}/assignments/{}/submissions?include=user'
+        return self._gets('courses/{}/assignments/{}/submissions'
+                          '?include[]=user&include[]=submission_comments'
                           .format(course_id, assignment_id), CanvasSubmission)
 
     def list_section_submissions(self, section_id, assignment_id):
@@ -361,7 +378,7 @@ class CanvasAPI(object):
         given assignment.
         """
         return self._get(('courses/{}/assignments/{}/submissions/{}'
-                         '?include=user')
+                         '?include[]=user&include[]=submission_comments')
                          .format(course_id, assignment_id, user_id),
                          CanvasSubmission)
 

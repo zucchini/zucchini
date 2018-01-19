@@ -82,14 +82,33 @@ class Grade(object):
             return self._grade
 
     def get_gradelog_path(self):
+        """
+        Returns path to this grade's gradelog file
+        """
         return os.path.join(self._submission.path, SUBMISSION_GRADELOG_FILE)
 
-    def get_gradelog_hash(self):
+    def _get_gradelog_hash(self):
+        """
+        Gets this grade's gradelog file's hash
+        - opens gradelog file and searches for hash, returns it
+        """
         with open(self.get_gradelog_path(), 'r') as f:
             gradelog_data = f.read()
             idx = gradelog_data.index(
                 self.ZUCCHINI_END_GRADELOG) + len(self.ZUCCHINI_END_GRADELOG)
             return gradelog_data[idx:].strip()
+
+    def gradelog_comment_exists(self):
+        """
+        Checks if gradelog + breakdown for this grade has already been uploaded
+        - gets last submission comment
+        - checks to see if gradelog hash exists within that comment
+        """
+        # TODO: don't hardcode canvas logic
+        aaa = len(self._submission.comments) > 0
+        bbb = self._get_gradelog_hash()
+        ccc = bbb in self._submission.comments[-1]
+        return aaa and ccc
 
     def write_grade(self):
         """Write this grade to the submission metadata json."""
@@ -220,7 +239,7 @@ class Grade(object):
         else:
             breakdown = 'error: ' + self._submission.error
 
-        return '{} -{}'.format(breakdown or 'Perfect!', grader_name)
+        return '{} -{}\n{}'.format(breakdown or 'Perfect!', grader_name, self._get_gradelog_hash())
 
     def generate_gradelog(self):
         """
