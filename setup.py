@@ -19,6 +19,7 @@ requirements = [
     'PyYAML==3.12',
     'smmap2==2.0.3',
     'requests==2.18.4',
+    'boto3==1.5.19',
     'subprocess32==3.2.7;python_version<"3.0"',
 ]
 
