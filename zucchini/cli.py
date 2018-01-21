@@ -9,7 +9,9 @@ from functools import update_wrapper
 
 import click
 
-from .utils import mkdir_p, CANVAS_URL, CANVAS_TOKEN, queue, run_thread
+from .utils import mkdir_p, CANVAS_URL, CANVAS_TOKEN, \
+    AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_BUCKET_NAME, \
+    queue, run_thread
 from .grading_manager import GradingManager
 from .filter import FilterBuilder
 from .zucchini import ZucchiniState
@@ -47,6 +49,20 @@ def setup_handler():
     else:
         click.echo('Skipping canvas configuration...')
         new_conf['canvas_token'] = ''
+
+    # for amazon
+    new_conf['aws_access_key_id'] = click.prompt(
+        'AWS Access Key ID (press enter to skip AWS configuration)',
+        type=AWS_ACCESS_KEY_ID, default='')
+    if new_conf['aws_access_key_id']:
+        new_conf['aws_secret_access_key'] = click.prompt(
+            'Amazon Secret Access Key', type=AWS_SECRET_ACCESS_KEY)
+        new_conf['aws_s3_bucket_name'] = click.prompt(
+            'Amazon S3 Bucket Name', type=AWS_BUCKET_NAME)
+    else:
+        click.echo('Skipping canvas configuration...')
+        new_conf['aws_secret_access_key'] = ''
+        new_conf['aws_s3_bucket_name'] = ''
 
     with click.open_file(config_path, 'w') as cfg_file:
         ZucchiniState.save_config(cfg_file, new_conf)
@@ -154,6 +170,9 @@ def setup(state):
     click.echo("Email: %s" % state.user_email)
     click.echo("Canvas URL: %s" % state.canvas_url)
     click.echo("Token: %s" % state.canvas_token)
+    click.echo("AWS Access Key ID: %s" % state.aws_access_key_id)
+    click.echo("AWS Secret Access Key: %s" % state.aws_secret_access_key)
+    click.echo("S3 Bucket name: %s" % state.aws_s3_bucket_name)
     setup_handler()
     click.echo("setup has finished")
 
@@ -535,6 +554,31 @@ def export_canvas_comments(state):
                 api.add_submission_comment(
                     course_id, assignment_id, grade.student_id(),
                     breakdown, [(grade.get_gradelog_path(), 'text/plain')])
+
+@export.command('canvas-comments-s3')
+@pass_state
+def export_canvas_comments_s3(state):
+    """Add Canvas submission comments with gradelog and breakdown"""
+
+    api = state.canvas_api()
+    course_id = state.get_assignment().canvas_course_id
+    assignment_id = state.get_assignment().canvas_assignment_id
+
+    if None in (course_id, assignment_id):
+        raise click.ClickException('Need to configure canvas in assignment '
+                                   'config')
+
+    click.echo('Uploading submission comments to canvas...')
+    with click.progressbar(state.grades) as bar:
+        for grade in bar:
+            # Submissions not from canvas won't have an id set, so skip them
+            if grade.student_id() is not None:
+                file_url = state.get_amazon_api().upload_file_s3(grade.get_gradelog_path(), 'text/plain')
+                breakdown = grade.breakdown(state.user_name) + \
+                            "\n" + grade.get_gradelog_hash() + '\n' + file_url + '\n'
+                api.add_submission_comment(
+                    course_id, assignment_id, grade.student_id(),
+                    breakdown, None)
 
 
 @cli.group()
