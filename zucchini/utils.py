@@ -294,6 +294,39 @@ class CanvasURLType(click.ParamType):
 CANVAS_URL = CanvasURLType()
 
 
+class AwsAccessKeyIdType(click.ParamType):
+    name = 'AWS Access Key ID'
+
+    def convert(self, value, param, ctx):
+        # TODO: actual error handling for AWS Access Key ID
+        return value.strip()
+
+
+AWS_ACCESS_KEY_ID = AwsAccessKeyIdType()
+
+
+class AwsSecretAccessKeyType(click.ParamType):
+    name = 'AWS Secret Access Key'
+
+    def convert(self, value, param, ctx):
+        # TODO: actual error handling for AWS Secret Access Key
+        return value.strip()
+
+
+AWS_SECRET_ACCESS_KEY = AwsSecretAccessKeyType()
+
+
+class AwsBucketNameType(click.ParamType):
+    name = 'AWS Bucket Name'
+
+    def convert(self, value, param, ctx):
+        # TODO: actual error handling for AWS Bucket Name
+        return value.strip()
+
+
+AWS_BUCKET_NAME = AwsBucketNameType()
+
+
 class CanvasTokenType(click.ParamType):
     name = 'canvas token'
 

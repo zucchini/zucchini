@@ -10,6 +10,7 @@ import os
 import yaml
 
 from .canvas import CanvasAPI
+from .amazon import AmazonAPI
 from .utils import EmailParamType
 from .assignment import Assignment
 from .farms import FarmManager
@@ -23,7 +24,9 @@ class ZucchiniState(object):
     ]
 
     def __init__(self, user_name, user_email, config_directory,
-                 assignment_directory, canvas_url='', canvas_token=''):
+                 assignment_directory, canvas_url='', canvas_token='',
+                 aws_access_key_id='', aws_secret_access_key='',
+                 aws_s3_bucket_name=''):
         self.config_directory = config_directory
 
         self.user_name = user_name
@@ -39,6 +42,10 @@ class ZucchiniState(object):
 
         self.farm_manager = FarmManager(
             os.path.join(config_directory, FARM_DIRECTORY))
+
+        self.aws_access_key_id = aws_access_key_id
+        self.aws_secret_access_key = aws_secret_access_key
+        self.aws_s3_bucket_name = aws_s3_bucket_name
 
     def get_assignment(self):
         """
@@ -61,6 +68,23 @@ class ZucchiniState(object):
             raise ValueError('The Canvas API is not configured!')
 
         return CanvasAPI(self.canvas_url, self.canvas_token)
+
+    def get_amazon_api(self):
+        """
+        Return an AmazonAPI instance configured according to the user's global
+        configuration.
+        """
+
+        if not self.aws_access_key_id or \
+            not self.aws_secret_access_key or \
+                not self.aws_s3_bucket_name:
+                    raise ValueError(
+                        'The Amazon API is not configured')
+
+        return AmazonAPI(
+            self.aws_access_key_id,
+            self.aws_secret_access_key,
+            self.aws_s3_bucket_name)
 
     @staticmethod
     def save_config(cfg_file, cfg_dict):
