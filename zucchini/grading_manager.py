@@ -5,7 +5,7 @@ from fractions import Fraction
 
 from .submission import Submission
 
-from .constants import SUBMISSION_GRADELOG_FILE
+from .constants import SUBMISSION_GRADELOG_FILE, SUBMISSION_FILES_DIRECTORY
 
 
 def grade_all(submission):
@@ -25,6 +25,7 @@ class Grade(object):
     # constants for gradelog files
     ZUCCHINI_BEGIN_GRADELOG = 'ZUCCHINI_BEGIN_GRADELOG'
     ZUCCHINI_END_GRADELOG = 'ZUCCHINI_END_GRADELOG'
+    READ_BUFFER_SIZE = 65536
 
     def __init__(self, assignment, submission):
         self._assignment = assignment
@@ -222,6 +223,16 @@ class Grade(object):
 
         return '{} -{}'.format(breakdown or 'Perfect!', grader_name)
 
+    def _files_tuple_mapper(self, common_path, x):
+        file_path = x[0]
+        file_path_str = x[1]
+
+        start_idx = file_path_str.find(common_path) + len(common_path)
+        file_path_str_abbrv = file_path_str[start_idx:]
+
+        file_hash = x[3]
+        return (file_path, file_path_str, file_path_str_abbrv, file_hash)
+
     def generate_gradelog(self):
         """
         Writes gradelog file to submission directory
@@ -235,9 +246,13 @@ class Grade(object):
             m, s = divmod(self._submission.seconds_late, 60)
             h, m = divmod(m, 60)
 
-            f.write("%s\nstudent_name: \"%s\", hours_late: %s\n\n" % (
+            # this used to be student's name, but that might be FERPA
+            gradelog_path_byte_encoded \
+                = str(self.get_gradelog_path()).encode('utf-8')
+            f.write("%s\n\n%s\nstudent_name: \"%s\", hours_late: %s\n\n" % (
                 self.ZUCCHINI_BEGIN_GRADELOG,
-                self._submission.student_name,
+                self._assignment.name,
+                hashlib.sha3_224(gradelog_path_byte_encoded).hexdigest()[0:31],
                 "%d:%02d:%02d" % (h, m, s)))
 
             assignment_total = Fraction(0, 1)
@@ -282,17 +297,16 @@ class Grade(object):
 
                         # print part score
                         if part_grade.score == 1:
-                            f.write("(%s / %s) [PASS] %s: %s.%s\n" % (
+                            f.write("(%s / %s) [PASS] %s: %s\n" % (
                                 self._left_pad(total_score),
                                 self._left_pad(out_of_score),
-                                component.name, part.part.description(),
-                                part.part.name))
+                                component.name, part.part.description()))
                         else:
-                            f.write("(%s / %s) [FAIL] %s: %s.%s - %s\n" % (
+                            f.write("(%s / %s) [FAIL] %s: %s - %s\n" % (
                                 self._left_pad(total_score),
                                 self._left_pad(out_of_score),
                                 component.name, part.part.description(),
-                                part.part.name, part_grade.log))
+                                part_grade.log))
 
                     component_pass = component_total == component_out_of
 
@@ -328,7 +342,17 @@ class Grade(object):
                     ))
 
             f.write("\n-----------------------\n| %6.2f%% FINAL SCORE "
-                    "|\n-----------------------\n" % (self._get_grade() * 100))
+                    "|\n-----------------------\n\n" %
+                    (self._get_grade() * 100))
+
+            # write filenames and hashes
+            file_hashes, submission_hash = self.generate_submission_hash()
+            f.write("---- File Hashes ----\n")
+            # x is file_path and y is file_path_str, not used
+            for x, y, file_path_str_abbrev, file_hash in file_hashes:
+                f.write("(sha1: %s) %s\n" % (file_hash, file_path_str_abbrev))
+            f.write("\n---- Submission Hash ----\n(sha1: %s)\n\n"
+                    % submission_hash)
             f.write('%s\n' % self.ZUCCHINI_END_GRADELOG)
 
         # write gradelog hash
@@ -339,6 +363,45 @@ class Grade(object):
             gradelog_data = file_data[begin_idx:end_idx]
             gradelog_hash = hashlib.sha1(gradelog_data.encode()).hexdigest()
             f.write("%s\n" % (gradelog_hash))
+
+    def generate_submission_hash(self):
+        files = []
+
+        # get all files in submission directory
+        submission_files_path = os.path.join(
+            self._submission.path, SUBMISSION_FILES_DIRECTORY)
+        for (dirpath, dirnames, filenames) in os.walk(submission_files_path):
+            for file_name in filenames:
+                file_path = os.path.join(dirpath, file_name)
+
+                # reads in file in chunks and gets hash
+                hasher = hashlib.sha1()
+                with open(file_path, 'rb') as f:
+                    file_chunk = f.read(self.READ_BUFFER_SIZE)
+                    if not file_chunk:
+                        break
+                    hasher.update(file_chunk)
+                file_hash = hasher.hexdigest()
+
+                files.append(
+                    (file_path, str(file_path), "abbreviated path", file_hash))
+
+        common_path = str(os.path.commonpath([x[0] for x in files]))
+
+        files2 = []
+        for x in files:
+            files2.append(self._files_tuple_mapper(common_path, x))
+
+        files2.sort(key=lambda x: x[2])
+        files = files2
+
+        # get submission hash (hash of all file hashes, in order)
+        submission_hasher = hashlib.sha1()
+        for file_path, file_path_str, file_path_str_abbrv, file_hash in files:
+            submission_hasher.update(file_hash.encode('ascii'))
+        submission_hash = submission_hasher.hexdigest()
+
+        return files, submission_hash
 
 
 class GradingManager(object):

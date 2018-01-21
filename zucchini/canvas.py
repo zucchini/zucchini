@@ -412,7 +412,7 @@ class CanvasAPI(object):
 
         file_ids = []
 
-        for file in files:
+        for file in files or []:
 
             # Step 1: tell canvas about file upload
             file_path, mime_type = file
