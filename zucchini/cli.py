@@ -555,6 +555,7 @@ def export_canvas_comments(state):
                     course_id, assignment_id, grade.student_id(),
                     breakdown, [(grade.get_gradelog_path(), 'text/plain')])
 
+
 @export.command('canvas-comments-s3')
 @pass_state
 def export_canvas_comments_s3(state):
@@ -573,9 +574,10 @@ def export_canvas_comments_s3(state):
         for grade in bar:
             # Submissions not from canvas won't have an id set, so skip them
             if grade.student_id() is not None:
-                file_url = state.get_amazon_api().upload_file_s3(grade.get_gradelog_path(), 'text/plain')
+                file_url = state.get_amazon_api().upload_file_s3(
+                    grade.get_gradelog_path(), 'text/plain')
                 breakdown = grade.breakdown(state.user_name) + \
-                            "\n" + grade.get_gradelog_hash() + '\n' + file_url + '\n'
+                    "\n" + grade.get_gradelog_hash() + '\n' + file_url + '\n'
                 api.add_submission_comment(
                     course_id, assignment_id, grade.student_id(),
                     breakdown, None)
