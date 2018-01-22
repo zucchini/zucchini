@@ -386,6 +386,9 @@ class Grade(object):
                 files.append(
                     (file_path, str(file_path), "abbreviated path", file_hash))
 
+        if len(files) < 1:
+            return [], hashlib.sha1(''.encode('utf-8')).hexdigest()
+
         common_path = str(os.path.commonpath([x[0] for x in files]))
 
         files2 = []
@@ -398,7 +401,7 @@ class Grade(object):
         # get submission hash (hash of all file hashes, in order)
         submission_hasher = hashlib.sha1()
         for file_path, file_path_str, file_path_str_abbrv, file_hash in files:
-            submission_hasher.update(file_hash.encode('ascii'))
+            submission_hasher.update(file_hash.encode('utf-8'))
         submission_hash = submission_hasher.hexdigest()
 
         return files, submission_hash
