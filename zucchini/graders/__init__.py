@@ -6,16 +6,19 @@ from .open_file_grader import OpenFileGrader
 from .libcheck_grader import LibcheckGrader
 from .junit_json_grader import JUnitJSONGrader
 from .junit_xml_grader import JUnitXMLGrader
+from .bitwise_json_grader import BitwiseJSONGrader
 
 __all__ = ['InvalidGraderConfigError', 'GraderInterface', 'Part',
            'ThreadedGrader', 'PromptGrader', 'OpenFileGrader',
-           'LibcheckGrader', 'JUnitJSONGrader', 'JUnitXMLGrader']
+           'LibcheckGrader', 'JUnitJSONGrader', 'JUnitXMLGrader',
+           'BitwiseJSONGrader']
 
 _GRADERS = (
     PromptGrader,
     OpenFileGrader,
     LibcheckGrader,
     JUnitJSONGrader,
-    JUnitXMLGrader
+    JUnitXMLGrader,
+    BitwiseJSONGrader,
 )
 AVAILABLE_GRADERS = {cls.__name__: cls for cls in _GRADERS}
