@@ -15,15 +15,23 @@ Grade a homework using the classic Java bitwise operators grader
 
 
 class BitwiseJSONMethod(Part):
-    __slots__ = ('method',)
+    __slots__ = ('class_name', 'method',)
 
-    def __init__(self, method):
+    def __init__(self, class_name, method):
+        self.class_name = class_name
         self.method = method
 
     def description(self):
-        return '{}()'.format(self.method)
+        return '{}.{}()'.format(self.class_name, self.method)
 
-    def grade(self, jsonResult):
+    def grade(self, jsonResults):
+        # If the method is missing from the results, they probably
+        # didn't implement it.
+        if self.method not in jsonResults:
+            return PartGrade(score=Fraction(0), log='method not found',
+                             deductions=('missing',))
+        else:
+            jsonResult = jsonResults[self.method]
 
         if jsonResult.get('errorMessage', None):
             return PartGrade(score=Fraction(0), log=jsonResult['errorMessage'])
@@ -61,8 +69,13 @@ class BitwiseJSONGrader(GraderInterface):
     def list_prerequisites(self):
         return ['sudo apt-get install openjdk-8-jre-headless']
 
+    def class_name(self):
+        """Return the class name of this file"""
+        return self.source_file.rsplit('.', maxsplit=1)[0]
+
     def part_from_config_dict(self, config_dict):
-        return BitwiseJSONMethod.from_config_dict(config_dict)
+        return BitwiseJSONMethod.from_config_dict(
+            config_dict, class_name=self.class_name())
 
     def grade(self, submission, path, parts):
         gradelog_fp, gradelog_path = tempfile.mkstemp(prefix='log-',
@@ -91,4 +104,4 @@ class BitwiseJSONGrader(GraderInterface):
         if gradelog.get('errorMessage', None):
             raise BrokenSubmissionError(gradelog['errorMessage'])
 
-        return [part.grade(gradelog['results'][part.method]) for part in parts]
+        return [part.grade(gradelog['results']) for part in parts]
