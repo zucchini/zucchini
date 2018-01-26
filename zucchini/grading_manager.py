@@ -242,7 +242,6 @@ class Grade(object):
             self._submission.path, SUBMISSION_GRADELOG_FILE)
 
         with open(gradelog_path, 'w') as f:
-
             m, s = divmod(self._submission.seconds_late, 60)
             h, m = divmod(m, 60)
 
@@ -252,7 +251,7 @@ class Grade(object):
             f.write("%s\n\n%s\nstudent_name: \"%s\", hours_late: %s\n\n" % (
                 self.ZUCCHINI_BEGIN_GRADELOG,
                 self._assignment.name,
-                hashlib.sha3_224(gradelog_path_byte_encoded).hexdigest()[0:31],
+                hashlib.sha224(gradelog_path_byte_encoded).hexdigest()[0:31],
                 "%d:%02d:%02d" % (h, m, s)))
 
             assignment_total = Fraction(0, 1)
