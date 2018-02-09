@@ -203,7 +203,7 @@ def extract(archive, dest_dir, max_archive_size=None):
         # Try to find a prefix
         while prefix:
             for component in names.values():
-                if len(prefix) > len(component) \
+                if len(prefix) >= len(component) \
                         or component[:len(prefix)] != prefix:
                     break
             else:
