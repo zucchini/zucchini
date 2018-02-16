@@ -20,6 +20,7 @@ from .constants import APP_NAME, USER_CONFIG, DEFAULT_SUBMISSION_DIRECTORY, \
                        SUBMISSION_FILES_DIRECTORY
 from .submission import Submission
 from .flatten import flatten, ArchiveError
+from .loaders import GradescopeLoader
 
 pass_state = click.make_pass_decorator(ZucchiniState)
 
@@ -237,6 +238,32 @@ def load(state, to_dir):
 def load_sakai(state):
     """Load student submissions from Sakai"""
     raise NotImplementedError
+
+
+@load.command('gradescope')
+@click.argument('export-zipfile',
+                type=click.Path(file_okay=True, dir_okay=True, readable=True,
+                                resolve_path=True))
+@pass_state
+def load_gradescope(state, export_zipfile):
+    """Load student submissions from Gradescope"""
+    with GradescopeLoader(export_zipfile) as loader:
+        with click.progressbar(list(loader.submissions.items())) as bar:
+            for submission_id, student_name in bar:
+                base_dir = os.path.join(state.submission_dir, student_name)
+                # Remove submission if it already exists
+                shutil.rmtree(base_dir, ignore_errors=True)
+
+                files_dir = os.path.join(base_dir, SUBMISSION_FILES_DIRECTORY)
+                mkdir_p(files_dir)
+
+                loader.extract_files(submission_id, files_dir)
+
+                # Create initial meta.json in submission dir
+                submission = Submission(
+                    student_name, state.get_assignment(), base_dir,
+                    graded=False, id=submission_id)
+                submission.initialize_metadata()
 
 
 @load.command('canvas')
