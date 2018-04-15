@@ -529,7 +529,7 @@ def grade(state, from_dir, filter):
         else:
             # If all the components are interactive, just grade them
             # here in the main thread
-            grades = grading_manager.grade()
+            grades = list(grading_manager.grade())
     else:
         # If all components are noninteractive, just do the progress bar
         # in the main thread here.
