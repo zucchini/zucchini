@@ -242,17 +242,21 @@ class Grade(object):
             self._submission.path, SUBMISSION_GRADELOG_FILE)
 
         with open(gradelog_path, 'w') as f:
-            m, s = divmod(self._submission.seconds_late, 60)
-            h, m = divmod(m, 60)
-
             # this used to be student's name, but that might be FERPA
             gradelog_path_byte_encoded \
                 = str(self.get_gradelog_path()).encode('utf-8')
-            f.write("%s\n\n%s\nstudent_name: \"%s\", hours_late: %s\n\n" % (
+            f.write("%s\n\n%s\nstudent_name: \"%s\"" % (
                 self.ZUCCHINI_BEGIN_GRADELOG,
                 self._assignment.name,
-                hashlib.sha224(gradelog_path_byte_encoded).hexdigest()[0:31],
-                "%d:%02d:%02d" % (h, m, s)))
+                hashlib.sha224(gradelog_path_byte_encoded).hexdigest()[0:31]))
+
+            if self._submission.seconds_late is not None:
+                m, s = divmod(self._submission.seconds_late, 60)
+                h, m = divmod(m, 60)
+
+                f.write(", hours_late: %s" % "%d:%02d:%02d" % (h, m, s))
+
+            f.write("\n\n")
 
             assignment_total = Fraction(0, 1)
             assignment_out_of = Fraction(0, 1)
