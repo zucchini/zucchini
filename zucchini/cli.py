@@ -20,7 +20,7 @@ from .constants import APP_NAME, USER_CONFIG, DEFAULT_SUBMISSION_DIRECTORY, \
                        SUBMISSION_FILES_DIRECTORY
 from .submission import Submission
 from .flatten import flatten, ArchiveError
-from .loaders import GradescopeLoader
+from .loaders import CanvasArchiveLoader, GradescopeLoader
 
 pass_state = click.make_pass_decorator(ZucchiniState)
 
@@ -236,7 +236,7 @@ def load(state, to_dir):
 @load.command('sakai')
 @pass_state
 def load_sakai(state):
-    """Load student submissions from Sakai"""
+    """Load submissions from Sakai"""
     raise NotImplementedError
 
 
@@ -246,7 +246,7 @@ def load_sakai(state):
                                 resolve_path=True))
 @pass_state
 def load_gradescope(state, export_zipfile):
-    """Load student submissions from Gradescope"""
+    """Load submissions from Gradescope"""
     with GradescopeLoader(export_zipfile) as loader:
         with click.progressbar(list(loader.submissions.items())) as bar:
             for submission_id, student_name in bar:
@@ -266,35 +266,10 @@ def load_gradescope(state, export_zipfile):
                 submission.initialize_metadata()
 
 
-@load.command('canvas')
-@click.option('--section', '-e', type=lambda s: s.lower(), metavar='SECTION',
-              help='section id, substring of section name, or "all"')
-@click.option('--max-archive-size', type=int, metavar='BYTES',
-              help='maximum size of archive to extract')
-@filter_options(canvas=True)
-@pass_state
-def load_canvas(state, section, max_archive_size, filter):
-    """Load student submissions from Canvas"""
-
-    course_id = state.get_assignment().canvas_course_id
-    if course_id is None:
-        raise click.ClickException('Need to configure canvas in assignment '
-                                   'config')
-
-    api = state.canvas_api()
-    try:
-        sections = tuple(api.list_sections(course_id))
-    except CanvasNotFoundError:
-        raise click.ClickException('Canvas reports no course with id {}'
-                                   .format(course_id))
-    except CanvasInternalError:
-        raise click.ClickException('Canvas reported an internal error (5xx '
-                                   'status code). Try again later?')
-    except CanvasAPIError as err:
-        raise click.ClickException(str(err))
-
-    if not sections:
-        raise click.ClickException('No sections, so no students! Bailing out')
+def choose_section(sections, section=None):
+    """
+    Prompt and return a CanvasSection object or None
+    """
 
     section_chosen = None
 
@@ -348,7 +323,54 @@ def load_canvas(state, section, max_archive_size, filter):
         section = click.prompt('Choose a section (name or id)',
                                default='all', type=lambda s: s.lower())
 
+    return section_chosen
+
+
+def canvas_setup(state, section):
+    """
+    Check configuration for the Canvas API.
+
+    Return a tuple of (CanvasAPI instance, course id, assignment id,
+    CanvasSection instance or None).
+    """
+
+    course_id = state.get_assignment().canvas_course_id
+    if course_id is None:
+        raise click.ClickException('Need to configure canvas in assignment '
+                                   'config')
+    api = state.canvas_api()
+    try:
+        sections = tuple(api.list_sections(course_id))
+    except CanvasNotFoundError:
+        raise click.ClickException('Canvas reports no course with id {}'
+                                   .format(course_id))
+    except CanvasInternalError:
+        raise click.ClickException('Canvas reported an internal error (5xx '
+                                   'status code). Try again later?')
+    except CanvasAPIError as err:
+        raise click.ClickException(str(err))
+
+    if not sections:
+        raise click.ClickException('No sections, so no students! Bailing out')
+
+    section_chosen = choose_section(sections, section)
     assignment_id = state.get_assignment().canvas_assignment_id
+
+    return (api, course_id, assignment_id, section_chosen)
+
+
+@load.command('canvas')
+@click.option('--section', '-e', type=lambda s: s.lower(), metavar='SECTION',
+              help='section id, substring of section name, or "all"')
+@click.option('--max-archive-size', type=int, metavar='BYTES',
+              help='maximum size of archive to extract')
+@filter_options(canvas=True)
+@pass_state
+def load_canvas(state, section, max_archive_size, filter):
+    """Load submissions from Canvas"""
+
+    api, course_id, assignment_id, section_chosen = \
+        canvas_setup(state, section)
 
     # If they specified "all", use all submissions in the course,
     # otherwise use just those from one section
@@ -391,6 +413,55 @@ def load_canvas(state, section, max_archive_size, filter):
                 seconds_late=canvas_submission.seconds_late,
                 error=error)
             submission.initialize_metadata()
+
+
+@load.command('canvas-archive')
+@click.argument('bulk-zipfile',
+                type=click.Path(file_okay=True, dir_okay=True, readable=True,
+                                resolve_path=True))
+@click.option('--section', '-e', type=lambda s: s.lower(), metavar='SECTION',
+              help='section id, substring of section name, or "all"')
+@click.option('--max-archive-size', type=int, metavar='BYTES',
+              help='maximum size of archive to extract')
+@filter_options(canvas=True)
+@pass_state
+def load_canvas_archive(state, bulk_zipfile, section, max_archive_size,
+                        filter):
+    """
+    Load submissions from Canvas bulk download
+    """
+
+    api, course_id, assignment_id, section_chosen = \
+        canvas_setup(state, section)
+
+    # TODO: Implement extraction for all students
+    if section_chosen is None:
+        raise click.ClickException('Please specify a section to extract. '
+                                   'Extracting all is not implemented yet')
+    else:
+        students = list(
+            api.list_section_students(course_id, section_chosen.id))
+
+    click.echo('Extracting bulk Canvas submissions...')
+
+    with CanvasArchiveLoader(bulk_zipfile) as loader:
+        with click.progressbar(students) as bar:
+            for student in bar:
+                base_dir = os.path.join(state.submission_dir,
+                                        student.sortable_name)
+                # Remove submission if it already exists
+                shutil.rmtree(base_dir, ignore_errors=True)
+
+                files_dir = os.path.join(base_dir, SUBMISSION_FILES_DIRECTORY)
+                mkdir_p(files_dir)
+
+                loader.extract_files(student.id, files_dir)
+
+                # Create initial meta.json in submission dir
+                submission = Submission(
+                    student.sortable_name, state.get_assignment(), base_dir,
+                    graded=False, id=student.id)
+                submission.initialize_metadata()
 
 
 def print_grades(grades, grader_name):
