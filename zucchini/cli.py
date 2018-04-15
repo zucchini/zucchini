@@ -455,12 +455,20 @@ def load_canvas_archive(state, bulk_zipfile, section, max_archive_size,
                 files_dir = os.path.join(base_dir, SUBMISSION_FILES_DIRECTORY)
                 mkdir_p(files_dir)
 
-                loader.extract_files(student.id, files_dir)
+                if not loader.has_submission(student.id):
+                    error = 'No submission!'
+                else:
+                    error = None
+                    loader.extract_files(student.id, files_dir)
+                    try:
+                        flatten(files_dir, max_archive_size=max_archive_size)
+                    except ArchiveError as err:
+                        error = str(err)
 
                 # Create initial meta.json in submission dir
                 submission = Submission(
                     student.sortable_name, state.get_assignment(), base_dir,
-                    graded=False, id=student.id)
+                    graded=False, id=student.id, error=error)
                 submission.initialize_metadata()
 
 

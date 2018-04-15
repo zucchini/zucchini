@@ -24,6 +24,9 @@ class CanvasArchiveLoader(object):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.zipfile.close()
 
+    def has_submission(self, user_id):
+        return user_id in self.submissions
+
     def load(self):
         for filename in self.zipfile.namelist():
             match = self.FILENAME_REGEX.match(filename)
