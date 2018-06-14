@@ -1,5 +1,4 @@
 import json
-import tempfile
 from fractions import Fraction
 
 from ..submission import BrokenSubmissionError
