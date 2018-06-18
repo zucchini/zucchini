@@ -2,7 +2,7 @@ import json
 from fractions import Fraction
 
 from ..submission import BrokenSubmissionError
-from ..utils import run_process, PIPE, STDOUT, TimeoutExpired
+from ..utils import run_process, PIPE, TimeoutExpired
 from ..grades import PartGrade
 from . import GraderInterface, Part
 
@@ -67,8 +67,11 @@ class CircuitSimGrader(GraderInterface):
         cmdline = ['java', '-jar', self.grader_jar, '--zucchini',
                    self.test_class]
         try:
+            # Do not mix stderr into stdout because sometimes our friend
+            # Roi printStackTrace()s or System.err.println()s, and that
+            # will mess up JSON parsing
             process = run_process(cmdline, cwd=path, timeout=self.timeout,
-                                  stdout=PIPE, stderr=STDOUT, input='')
+                                  stdout=PIPE, stderr=PIPE, input='')
         except TimeoutExpired:
             raise BrokenSubmissionError('timeout of {} seconds expired for '
                                         'grader'.format(self.timeout))
@@ -77,7 +80,10 @@ class CircuitSimGrader(GraderInterface):
             raise BrokenSubmissionError(
                 'grader command exited with nonzero exit code {}'
                 .format(process.returncode),
-                verbose=process.stdout.decode() if process.stdout else None)
+                verbose='\n'.join(output_stream.decode()
+                                  for output_stream
+                                  in [process.stderr, process.stdout]
+                                  if output_stream))
 
         results = json.loads(process.stdout.decode())
 
