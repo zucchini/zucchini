@@ -5,7 +5,6 @@ from fractions import Fraction
 from collections import namedtuple
 
 import click
-import git
 import yaml
 
 from .submission import BrokenSubmissionError
