@@ -56,6 +56,12 @@ class Submission(ConfigDictMixin):
                                     metadata_path=metadata_path,
                                     files_path=files_path)
 
+    @classmethod
+    def load_from_raw_files(cls, assignment, files_path, student_name=''):
+        return Submission(student_name=student_name, assignment=assignment,
+                          metadata_path=None, files_path=files_path,
+                          graded=False)
+
     def _meta_json(self):
         """Return a json representation of this instance"""
 
@@ -93,7 +99,7 @@ class Submission(ConfigDictMixin):
     def copy_files(self, files, path, allow_fail=False):
         # type: (List[str], str, bool) -> None
         try:
-            copy_globs(files, self.files_dir, path)
+            copy_globs(files, self.files_path, path)
         except FileNotFoundError as err:
             if not allow_fail:
                 raise BrokenSubmissionError(str(err))
