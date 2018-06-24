@@ -4,6 +4,7 @@
 import os
 import sys
 import csv
+import json
 import shutil
 from functools import update_wrapper
 
@@ -12,7 +13,7 @@ import click
 from .utils import mkdir_p, CANVAS_URL, CANVAS_TOKEN, \
     AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_BUCKET_NAME, \
     queue, run_thread
-from .grading_manager import GradingManager
+from .grading_manager import Grade, GradingManager
 from .filter import FilterBuilder
 from .zucchini import ZucchiniState
 from .canvas import CanvasAPIError, CanvasNotFoundError, CanvasInternalError
@@ -476,7 +477,8 @@ def load_canvas_archive(state, bulk_zipfile, section, max_archive_size,
 @click.argument('submission-path',
                 type=click.Path(exists=True, file_okay=False, dir_okay=True,
                                 readable=True))
-def grade_submission(submission_path):
+@pass_state
+def grade_submission(state, submission_path):
     """
     Grade a single submission not `zucc load`ed.
 
@@ -486,7 +488,13 @@ def grade_submission(submission_path):
     somewhere else — just submission files, no meta.json or anything —
     use this, passing it the path to the submission files.
     """
-    pass
+
+    submission = Submission.load_from_raw_files(state.get_assignment(),
+                                                submission_path)
+    grade = Grade(state.get_assignment(), submission)
+    component_grades = grade.grade()
+    json.dump([component_grade.to_config_dict() for component_grade
+               in component_grades], sys.stdout)
 
 
 def print_grades(grades, grader_name):
