@@ -175,7 +175,8 @@ def copy_globs(globs, src_dir, dest_dir):
 _DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
 _DATETIME_REGEX = re.compile(r'(?P<year>\d{4})-(?P<month>\d{2})-(?P<day>\d{2})'
                              r'T(?P<hour>\d{2}):(?P<min>\d{2}):(?P<sec>\d{2})'
-                             r'(?P<offset>Z|(?P<tzsign>[+-])(?P<tzhours>\d{2})(:?(?P<tzmins>\d{2}))?)')
+                             r'(?P<offset>Z|(?P<tzsign>[+-])'
+                             r'(?P<tzhours>\d{2})(:?(?P<tzmins>\d{2}))?)')
 
 
 def datetime_from_string(date_str):
@@ -189,7 +190,9 @@ def datetime_from_string(date_str):
     match = _DATETIME_REGEX.match(date_str)
 
     if match is None:
-        raise ValueError('Invalid date format: {}'.format(date_str))
+        raise ValueError('Invalid date format: {}. Need ISO 8601 as generated '
+                         'by `date -Is\', like 1996-10-24T04:20:00-04:00'
+                         .format(date_str))
 
     components = [int(match.group(component)) for component in
                   ['year', 'month', 'day', 'hour', 'min', 'sec']]
