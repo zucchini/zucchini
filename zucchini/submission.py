@@ -15,11 +15,13 @@ class BrokenSubmissionError(Exception):
 
 
 class Submission(ConfigDictMixin):
-    def __init__(self, student_name, assignment, path, graded, id=None,
-                 seconds_late=None, error=None, component_grades=None):
+    def __init__(self, student_name, assignment, metadata_path, files_path,
+                 graded, id=None, seconds_late=None, error=None,
+                 component_grades=None):
         self.student_name = student_name
         self.assignment = assignment
-        self.path = path
+        self.metadata_path = metadata_path
+        self.files_path = files_path
         self.graded = graded
         self.id = id
         self.seconds_late = seconds_late
@@ -45,12 +47,20 @@ class Submission(ConfigDictMixin):
         """Load a Submission instance from a submission directory."""
 
         metadata_path = os.path.join(path, SUBMISSION_META_FILE)
+        files_path = os.path.join(path, SUBMISSION_FILES_DIRECTORY)
 
         with open(metadata_path) as meta_file:
             meta_json = json.load(meta_file)
 
         return cls.from_config_dict(meta_json, assignment=assignment,
-                                    path=path)
+                                    metadata_path=metadata_path,
+                                    files_path=files_path)
+
+    @classmethod
+    def load_from_raw_files(cls, assignment, files_path, student_name=''):
+        return Submission(student_name=student_name, assignment=assignment,
+                          metadata_path=None, files_path=files_path,
+                          graded=False)
 
     def _meta_json(self):
         """Return a json representation of this instance"""
@@ -66,8 +76,7 @@ class Submission(ConfigDictMixin):
 
         meta = self._meta_json()
 
-        metadata_path = os.path.join(self.path, SUBMISSION_META_FILE)
-        with open(metadata_path, 'w') as meta_file:
+        with open(self.metadata_path, 'w') as meta_file:
             json.dump(meta, meta_file, sort_keys=True, indent=2,
                       separators=(',', ': '))
 
@@ -89,10 +98,8 @@ class Submission(ConfigDictMixin):
     # XXX Support copying directories
     def copy_files(self, files, path, allow_fail=False):
         # type: (List[str], str, bool) -> None
-        files_dir = os.path.join(self.path, SUBMISSION_FILES_DIRECTORY)
-
         try:
-            copy_globs(files, files_dir, path)
+            copy_globs(files, self.files_path, path)
         except FileNotFoundError as err:
             if not allow_fail:
                 raise BrokenSubmissionError(str(err))

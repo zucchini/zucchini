@@ -33,7 +33,7 @@ test_requirements = [
 
 setup(
     name='zucchini',
-    version='0.1.2',
+    version='0.1.4',
     description="Zucchini is an automatic grader tool for use in grading programming assignments.",
     long_description=readme + '\n\n' + history,
     author="Zucchini Team",
@@ -59,7 +59,6 @@ setup(
         'Programming Language :: Python :: 2.6',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
     ],
