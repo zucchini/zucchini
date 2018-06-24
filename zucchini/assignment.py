@@ -149,12 +149,6 @@ class Assignment(object):
     def __init__(self, root):
         self.root = root
 
-        # Confirm the presence of a git repo here
-        try:
-            self.repo = git.Repo(self.root)
-        except git.exc.InvalidGitRepositoryError:
-            raise ValueError("This directory is not a valid git repository.")
-
         config_file_path = os.path.join(self.root, ASSIGNMENT_CONFIG_FILE)
 
         if not os.path.exists(config_file_path):
