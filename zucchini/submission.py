@@ -57,10 +57,20 @@ class Submission(ConfigDictMixin):
                                     files_path=files_path)
 
     @classmethod
-    def load_from_raw_files(cls, assignment, files_path, student_name=''):
-        return Submission(student_name=student_name, assignment=assignment,
+    def load_from_raw_files(cls, assignment, files_path):
+        return Submission(student_name='', assignment=assignment,
                           metadata_path=None, files_path=files_path,
                           graded=False)
+
+    @classmethod
+    def load_from_component_grades_json(cls, assignment, component_grades_fp,
+                                        seconds_late=None):
+        component_grades = json.load(component_grades_fp)
+
+        return Submission(student_name='', assignment=assignment,
+                          metadata_path=None, files_path=None, graded=True,
+                          seconds_late=seconds_late,
+                          component_grades=component_grades)
 
     def _meta_json(self):
         """Return a json representation of this instance"""

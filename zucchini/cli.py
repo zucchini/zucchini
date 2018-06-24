@@ -4,7 +4,6 @@
 import os
 import sys
 import csv
-import json
 import shutil
 from functools import update_wrapper
 
@@ -12,7 +11,7 @@ import click
 
 from .utils import mkdir_p, CANVAS_URL, CANVAS_TOKEN, \
     AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_BUCKET_NAME, \
-    queue, run_thread
+    queue, run_thread, current_iso8601
 from .grading_manager import Grade, GradingManager
 from .filter import FilterBuilder
 from .zucchini import ZucchiniState
@@ -21,6 +20,7 @@ from .constants import APP_NAME, USER_CONFIG, DEFAULT_SUBMISSION_DIRECTORY, \
                        SUBMISSION_FILES_DIRECTORY
 from .submission import Submission
 from .flatten import flatten, ArchiveError
+from .gradescope import GradescopeMetadata
 from .loaders import CanvasArchiveLoader, GradescopeLoader
 
 pass_state = click.make_pass_decorator(ZucchiniState)
@@ -492,9 +492,8 @@ def grade_submission(state, submission_path):
     submission = Submission.load_from_raw_files(state.get_assignment(),
                                                 submission_path)
     grade = Grade(state.get_assignment(), submission)
-    component_grades = grade.grade()
-    json.dump([component_grade.to_config_dict() for component_grade
-               in component_grades], sys.stdout)
+    grade.grade()
+    grade.dump_component_grades(sys.stdout)
 
 
 def print_grades(grades, grader_name):
@@ -851,6 +850,50 @@ def canvas_api_grade(state, course_id, assignment_id, user_id, grade,
 
     api = state.canvas_api()
     api.set_submission_grade(course_id, assignment_id, user_id, grade, comment)
+
+
+@cli.group('gradescope')
+def gradescope_():
+    """Handy scripts for Gradescope autograding."""
+    pass
+
+
+@gradescope_.command('bridge')
+@click.argument('metadata-path')
+@pass_state
+def gradescope_bridge(state, metadata_path):
+    """
+    Convert component grades to gradescope JSON.
+
+    Bridge the gap between component results provided obtained with
+    `zucc grade-submission' (plus Gradescope submission metadata) and a
+    Gradescope JSON result. Will read component grades JSON from stdin
+    and spit out Gradescope JSON on stdout.
+
+    \b
+    Usual usage:
+    zucc grade-submission /autograder/submission \\
+        | zucc gradescope bridge /autograder/submission_metadata.json \\
+        >/autograder/results/results.json
+    """
+
+    metadata = GradescopeMetadata.from_json_path(metadata_path)
+    assignment = state.get_assignment()
+    due_date = assignment.due_date
+
+    if due_date is None:
+        # Use the current ISO 8601 to decrease the likelihood they'll
+        # mess up the timezone and unfairly penalize students
+        raise ValueError("you need to set `due-date: {}' in assignment "
+                         "configuration".format(current_iso8601()))
+
+    seconds_late = \
+        max(int((metadata.created_at - due_date).total_seconds()), 0)
+
+    submission = Submission.load_from_component_grades_json(
+        assignment, seconds_late=seconds_late, component_grades_fp=sys.stdin)
+    grade = Grade(assignment, submission)
+    print(grade.score())
 
 
 @cli.command('flatten')

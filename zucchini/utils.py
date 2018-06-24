@@ -190,6 +190,10 @@ def datetime_to_string(datetime_obj):
     return datetime_obj.strftime(_DATETIME_FORMAT)
 
 
+def current_iso8601():
+    return arrow.now().replace(microsecond=0).isoformat()
+
+
 class ConfigDictMixin(object):
     @classmethod
     def _find_args(cls, exclude_args):
