@@ -1,6 +1,7 @@
 import os
 import decimal
 import hashlib
+import json
 from fractions import Fraction
 
 from .submission import Submission
@@ -68,8 +69,6 @@ class Grade(object):
         self._component_grades = self._assignment.grade_submission(
                 self._submission, interactive=interactive)
 
-        return self._component_grades
-
     def _get_grade(self):
         """
         Calculate the grade for this submission, or return it if already
@@ -93,6 +92,11 @@ class Grade(object):
             idx = gradelog_data.index(
                 self.ZUCCHINI_END_GRADELOG) + len(self.ZUCCHINI_END_GRADELOG)
             return gradelog_data[idx:].strip()
+
+    def dump_component_grades(self, fp):
+        """Dump component grades as JSON to file-like object fp"""
+        json.dump([component_grade.to_config_dict() for component_grade
+                   in self._component_grades], fp)
 
     def write_grade(self):
         """Write this grade to the submission metadata json."""
