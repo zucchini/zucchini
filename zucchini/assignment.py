@@ -5,7 +5,6 @@ from fractions import Fraction
 from collections import namedtuple
 
 import click
-import git
 import yaml
 
 from .submission import BrokenSubmissionError
@@ -148,12 +147,6 @@ class AssignmentPenalty(ConfigDictMixin):
 class Assignment(object):
     def __init__(self, root):
         self.root = root
-
-        # Confirm the presence of a git repo here
-        try:
-            self.repo = git.Repo(self.root)
-        except git.exc.InvalidGitRepositoryError:
-            raise ValueError("This directory is not a valid git repository.")
 
         config_file_path = os.path.join(self.root, ASSIGNMENT_CONFIG_FILE)
 

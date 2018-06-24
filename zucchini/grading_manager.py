@@ -68,6 +68,8 @@ class Grade(object):
         self._component_grades = self._assignment.grade_submission(
                 self._submission, interactive=interactive)
 
+        return self._component_grades
+
     def _get_grade(self):
         """
         Calculate the grade for this submission, or return it if already
