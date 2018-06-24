@@ -6,9 +6,10 @@ import inspect
 import glob
 import shutil
 import threading
-from datetime import datetime, timezone, timedelta
+from datetime import datetime
 from collections import namedtuple
 
+import arrow
 import click
 
 if sys.version_info[0] < 3:
@@ -173,10 +174,6 @@ def copy_globs(globs, src_dir, dest_dir):
 
 # Same as the Canvas date format
 _DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
-_DATETIME_REGEX = re.compile(r'(?P<year>\d{4})-(?P<month>\d{2})-(?P<day>\d{2})'
-                             r'T(?P<hour>\d{2}):(?P<min>\d{2}):(?P<sec>\d{2})'
-                             r'(?P<offset>Z|(?P<tzsign>[+-])'
-                             r'(?P<tzhours>\d{2})(:?(?P<tzmins>\d{2}))?)')
 
 
 def datetime_from_string(date_str):
@@ -185,32 +182,7 @@ def datetime_from_string(date_str):
     Canvas and in submission metadata files) to a datetime instance.
     """
 
-    # You may say: what? python doesn't handle ISO 8601 out of the
-    # box??? and I would say, yes, I am surprised too
-    match = _DATETIME_REGEX.match(date_str)
-
-    if match is None:
-        raise ValueError('Invalid date format: {}. Need ISO 8601 as generated '
-                         'by `date -Is\', like 1996-10-24T04:20:00-04:00'
-                         .format(date_str))
-
-    components = [int(match.group(component)) for component in
-                  ['year', 'month', 'day', 'hour', 'min', 'sec']]
-
-    # Hard part: parse the very end
-    if match.group('tzsign') is None:
-        # If the date says 'Z', aka UTC
-        tz = timezone.utc
-    else:
-        delta = timedelta(hours=int(match.group('tzhours')),
-                          minutes=int(match.group('tzmins') or '00'))
-
-        if match.group('tzsign') == '-':
-            delta = -delta
-
-        tz = timezone(delta)
-
-    return datetime(*components, tzinfo=tz).astimezone(timezone.utc)
+    return arrow.get(date_str).to('utc').datetime
 
 
 def datetime_to_string(datetime_obj):
