@@ -6,7 +6,6 @@ import inspect
 import glob
 import shutil
 import threading
-from datetime import datetime
 from collections import namedtuple
 
 import arrow
