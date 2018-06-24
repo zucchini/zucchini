@@ -472,6 +472,22 @@ def load_canvas_archive(state, bulk_zipfile, section, max_archive_size,
                 submission.initialize_metadata()
 
 
+@cli.command('grade-submission')
+@click.argument('submission-path',
+                type=click.Path(exists=True, file_okay=False, dir_okay=True,
+                                readable=True))
+def grade_submission(submission_path):
+    """
+    Grade a single submission not `zucc load`ed.
+
+    Do NOT use this to (re-)grade some submissions in submissions/
+    loaded by `zucc load ...`. Instead, use `zucc grade -s "Lin,
+    Michael"'. However, if you need to grade a single submission from
+    somewhere else — just submission files, no meta.json or anything —
+    use this, passing it the path to the submission files.
+    """
+    pass
+
 def print_grades(grades, grader_name):
     """Display grades, an iterable of Grade instances, in a pager."""
     grades = sorted(grades,
