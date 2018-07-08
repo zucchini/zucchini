@@ -8,7 +8,8 @@ import click
 import yaml
 
 from .submission import BrokenSubmissionError
-from .grades import AssignmentComponentGrade
+from .grades import AssignmentComponentGrade, CalculatedGrade, \
+                    CalculatedPenalty
 from .graders import AVAILABLE_GRADERS
 from .penalizers import AVAILABLE_PENALIZERS
 from .constants import ASSIGNMENT_CONFIG_FILE, ASSIGNMENT_FILES_DIRECTORY
@@ -16,7 +17,10 @@ from .utils import ConfigDictMixin, copy_globs, datetime_from_string, \
                    sanitize_path
 
 
-ComponentPart = namedtuple('ComponentPart', ('weight', 'part'))
+class ComponentPart(namedtuple('ComponentPart', ['weight', 'part'])):
+    def calculate_grade(self, component_points, total_part_weight, part_grade):
+        points = component_points * Fraction(self.weight, total_part_weight)
+        return part_grade.calculate_grade(points, self.part)
 
 
 class AssignmentComponent(ConfigDictMixin):
@@ -118,9 +122,12 @@ class AssignmentComponent(ConfigDictMixin):
 
         return AssignmentComponentGrade(part_grades)
 
-    def calculate_grade(self, component_grade):
+    def calculate_grade(self, total_weight, component_grade):
         # type: (AssignmentComponentGrade) -> fractions.Fraction
-        return component_grade.calculate_grade(self.parts)
+        points = Fraction(self.weight, total_weight)
+        return component_grade.calculate_grade(points, self.name,
+                                               self.total_part_weight,
+                                               self.parts)
 
 
 class AssignmentPenalty(ConfigDictMixin):
@@ -139,9 +146,12 @@ class AssignmentPenalty(ConfigDictMixin):
         # We then initialize the grader
         self.penalizer = backend_class.from_config_dict(backend_options or {})
 
-    def adjust_grade(self, submission, grade):
+    def calculate(self, submission, grade):
         """Return `grade' as a Fraction adjusted for the given submission"""
-        return self.penalizer.adjust_grade(submission, grade)
+
+        adjusted_grade = self.penalizer.adjust_grade(submission, grade)
+        return CalculatedPenalty(name=self.name,
+                                 points_delta=adjusted_grade - grade)
 
 
 # This class contains the Assignment configuration for the local file
@@ -258,37 +268,31 @@ class Assignment(object):
         return grades
         # TODO: We probably want to log, too
 
-    def calculate_penalties(self, submission, grade):
-        """Calculate all the penalty deltas. Useful for grade breakdowns."""
-
-        penalties = []
-
-        for penalty in self.penalties:
-            adjusted_grade = penalty.adjust_grade(submission, grade)
-            penalties.append(adjusted_grade - grade)
-            grade = adjusted_grade
-
-        return penalties
-
-    def calculate_raw_grade(self, component_grades):
-        """
-        Calculate the score for this submission without penalties.
-        """
-
-        total_earned = sum(component.calculate_grade(grade) * component.weight
-                           for grade, component
-                           in zip(component_grades, self.components))
-
-        return Fraction(total_earned, self.total_weight)
-
     def calculate_grade(self, submission, component_grades):
-        # type: (List[AssignmentComponentGrade] -> fractions.Fraction
         """
         Calculate the final grade for a submission given the list of
         AssignmentComponentGrades for the submission.
         """
-        grade = self.calculate_raw_grade(component_grades)
+
+        # First, calculate raw grade
+        grade = CalculatedGrade(name=self.name, grade=Fraction(1),
+                                raw_grade=Fraction(0), penalties=[],
+                                components=[])
+
+        for component, component_grade in zip(self.components,
+                                              component_grades):
+            calc_component_grade = component.calculate_grade(self.total_weight,
+                                                             component_grade)
+            grade.components.append(calc_component_grade)
+            grade.grade += calc_component_grade.points_delta
+
+        # Store grade pre-penalties
+        grade.raw_grade = grade.grade
+
+        # Now deduct for penalties
         for penalty in self.penalties:
-            grade = penalty.adjust_grade(submission, grade)
+            calc_penalty = penalty.calculate(submission, grade.grade)
+            grade.penalties.append(calc_penalty)
+            grade.grade += calc_penalty.delta
 
         return grade

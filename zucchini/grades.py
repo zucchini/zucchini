@@ -1,6 +1,6 @@
 from fractions import Fraction
 
-from .utils import ConfigDictMixin
+from .utils import ConfigDictMixin, Record
 
 """Store grades for components and parts."""
 
@@ -44,22 +44,38 @@ class AssignmentComponentGrade(ConfigDictMixin):
         """
         return self.error is not None
 
-    def calculate_grade(self, component_parts):
-        # type: (List[ComponentPart]) -> fractions.Fraction
+    def calculate_grade(self, points, name, total_part_weight,
+                        component_parts):
+        # type: (List[ComponentPart]) -> CalculatedComponentGrade
         """
         Using the list of ComponentPart instances provided (which
         contain the weight of components) and the part grades held in
-        this instance, calculate the percentage of this component
-        earned.
+        this instance, calculate the CalculatedComponentGrade tree for
+        this grade.
         """
+
+        grade = CalculatedComponentGrade(name=name,
+                                         points_delta=Fraction(0),
+                                         points_got=Fraction(0),
+                                         points_possible=Fraction(0),
+                                         grade=Fraction(1),
+                                         error=None,
+                                         parts=[])
+
         if self.is_broken():
-            return Fraction(0)
+            grade.points_got = Fraction(0)
+            grade.error = self.error
         else:
-            total_possible = sum(part.weight for part in component_parts)
-            total_earned = sum(grade.score * part.weight
-                               for grade, part
-                               in zip(self.part_grades, component_parts))
-            return Fraction(total_earned, total_possible)
+            for part, part_grade in zip(component_parts, self.part_grades):
+                calc_part_grade = part.calculate_grade(
+                    points, total_part_weight, part_grade)
+                grade.parts.append(calc_part_grade)
+                grade.points_got += calc_part_grade.points_got
+
+        grade.points_possible = points
+        grade.grade = Fraction(grade.points_got, grade.points_possible)
+
+        return grade
 
 
 class PartGrade(ConfigDictMixin):
@@ -94,3 +110,30 @@ class PartGrade(ConfigDictMixin):
         # Convert string to Fraction instance
         part_grade.score = Fraction(part_grade.score)
         return part_grade
+
+    def calculate_grade(self, points, part):
+        return CalculatedPartGrade(name=part.description(),
+                                   points_delta=self.score * points - points,
+                                   points_got=self.score * points,
+                                   points_possible=points,
+                                   grade=self.score,
+                                   deductions=self.deductions,
+                                   log=self.log)
+
+
+class CalculatedGrade(Record):
+    __slots__ = ['name', 'grade', 'raw_grade', 'penalties', 'components']
+
+
+class CalculatedPenalty(Record):
+    __slots__ = ['name', 'points_delta']
+
+
+class CalculatedComponentGrade(Record):
+    __slots__ = ['name', 'points_delta', 'points_got', 'points_possible',
+                 'grade', 'error', 'parts']
+
+
+class CalculatedPartGrade(Record):
+    __slots__ = ['name', 'points_delta', 'points_got', 'points_possible',
+                 'grade', 'deductions', 'log']

@@ -79,7 +79,7 @@ class Grade(object):
             return None
         else:
             self._grade = self._assignment.calculate_grade(
-                self._submission, self._component_grades)
+                self._submission, self._component_grades).grade
             return self._grade
 
     def get_gradelog_path(self):
@@ -153,67 +153,41 @@ class Grade(object):
         else:
             return self._to_integer(grade)
 
-    def _breakdown_deductions(self):
+    def _breakdown_deductions(self, grade):
         deducted_parts = []
 
-        penalties = self._assignment.calculate_penalties(
-            self._submission,
-            self._assignment.calculate_raw_grade(self._component_grades))
+        for penalty in grade.penalties:
+            if penalty.points_delta != 0:
+                sign = '+' if penalty.points_delta > 0 else ''
+                points = self._two_decimals(penalty.points_delta)
+                deducted_parts.append('{}: {}{}'.format(penalty.name, sign,
+                                                        points))
 
-        for penalty, penalty_delta in zip(self._assignment.penalties,
-                                          penalties):
-            if penalty_delta != 0:
-                deducted_parts.append(
-                    '{}: {}{}'.format(penalty.name,
-                                      '+' if penalty_delta > 0 else '',
-                                      self._two_decimals(penalty_delta)))
-
-        for component, component_grade in zip(self._assignment.components,
-                                              self._component_grades):
-            if component_grade.is_broken():
-                percentage_of_total = Fraction(component.weight,
-                                               self._assignment.total_weight)
-                component_points = self._two_decimals(percentage_of_total)
-                deducted_parts.append('{}: -{} ({})'.format(
-                    component.name, component_points, component_grade.error))
+        for component in grade.components:
+            if component.error is not None:
+                # Component-level error
+                points = self._two_decimals(component.points_delta)
+                deducted_parts.append('{}: {} ({})'.format(
+                    component.name, points, component.error))
             else:
-                for part, part_grade in zip(component.parts,
-                                            component_grade.part_grades):
+                for part in component.parts:
                     # To keep the breakdown easy to read, exclude parts
                     # which the student passed
-                    if part_grade.score == 1:
+                    if part.grade == 1:
                         continue
 
-                    # Sometimes we want to warn students about things
-                    # without penalizing them, so we'll set the weight of a
-                    # part to 0. Handle that case:
-                    if 0 in (component.weight, part.weight,
-                             component.total_part_weight,
-                             self._assignment.total_weight):
-                        # The code below will add a + if it's needed
-                        sign = '-' if part_grade.score < 1 else ''
-                        delta = '{}0'.format(sign)
-                    else:
-                        # Calculate the percentage of the final grade
-                        # lost/gained on this part. Basically, we want
-                        # deviations from a perfect score.
-                        percent_delta = component.weight * part.weight \
-                            * (part_grade.score - 1) \
-                            / component.total_part_weight \
-                            / self._assignment.total_weight
-                        delta = self._two_decimals(percent_delta)
+                    delta = self._two_decimals(part.points_delta)
 
-                    if part_grade.deductions:
+                    if part.deductions:
                         deductions = ' ({})'.format(
-                            ', '.join(part_grade.deductions))
+                            ', '.join(part.deductions))
                     else:
                         deductions = ''
 
+                    plus_sign = '+' if part.grade > 1 else ''
                     deducted_parts.append(
-                        '{}: {}{}{}'.format(
-                            part.part.description(),
-                            '+' if part_grade.score > 1 else '',
-                            delta, deductions))
+                        '{}: {}{}{}'.format(part.name, plus_sign,
+                                            delta, deductions))
 
         return deducted_parts
 
@@ -224,7 +198,10 @@ class Grade(object):
         """
 
         if self.gradable():
-            breakdown = ', '.join(self._breakdown_deductions())
+            deductions = self._breakdown_deductions(
+                self._assignment.calculate_grade(self._submission,
+                                                 self._component_grades))
+            breakdown = ', '.join(deductions)
         else:
             breakdown = 'error: ' + self._submission.error
 
@@ -245,6 +222,9 @@ class Grade(object):
         Writes gradelog file to submission directory
         """
 
+        grade = self._assignment.calculate_grade(self._submission,
+                                                 self._component_grades)
+
         gradelog_path = self.get_gradelog_path()
 
         with open(gradelog_path, 'w') as f:
@@ -264,95 +244,56 @@ class Grade(object):
 
             f.write("\n\n")
 
-            assignment_total = Fraction(0, 1)
-            assignment_out_of = Fraction(0, 1)
+            assignment_pass = True
 
-            for component, component_grade in zip(self._assignment.components,
-                                                  self._component_grades):
-                if component_grade.is_broken():
-                    percentage_of_total = Fraction(
-                        component.weight, self._assignment.total_weight)
-                    component_points = self._left_pad(percentage_of_total)
-                    earned_score = self._left_pad(Fraction(0, 1))
-                    assignment_out_of += percentage_of_total
+            for component in grade.components:
+                if component.error is not None:
+                    assignment_pass = False
                     f.write("(%s / %s) [FAIL] TOTAL for %s: %s\n\n" % (
-                        earned_score, component_points, component.name,
-                        component_grade.error))
+                        component.points_got, component.points_possible,
+                        component.name, component.error))
                 else:
-                    component_total = Fraction(0, 1)
-                    component_out_of = Fraction(0, 1)
+                    component_pass = True
 
-                    for part, part_grade in zip(component.parts,
-                                                component_grade.part_grades):
-                        # calculate scores (deal with case where weight is 0)
-                        if 0 not in (component.weight, part.weight,
-                                     component.total_part_weight,
-                                     self._assignment.total_weight):
-
-                            # out of score for this part
-                            out_of_score = \
-                                Fraction(component.weight,
-                                         self._assignment.total_weight) * \
-                                Fraction(part.weight,
-                                         component.total_part_weight)
-                            component_out_of += out_of_score
-
-                            # total score for this part
-                            total_score = out_of_score * part_grade.score
-                            component_total += total_score
-                        else:
-                            total_score = Fraction(0, 1)
-                            out_of_score = Fraction(0, 1)
-
-                        # print part score
-                        if part_grade.score == 1:
+                    for part in component.parts:
+                        if part.grade >= 1:
                             f.write("(%s / %s) [PASS] %s: %s\n" % (
-                                self._left_pad(total_score),
-                                self._left_pad(out_of_score),
-                                component.name, part.part.description()))
+                                self._left_pad(part.points_got),
+                                self._left_pad(part.points_possible),
+                                component.name, part.name))
                         else:
+                            component_pass = False
+                            assignment_pass = False
                             f.write("(%s / %s) [FAIL] %s: %s - %s\n" % (
-                                self._left_pad(total_score),
-                                self._left_pad(out_of_score),
-                                component.name, part.part.description(),
-                                part_grade.log))
-
-                    component_pass = component_total == component_out_of
+                                self._left_pad(part.points_got),
+                                self._left_pad(part.points_possible),
+                                component.name, part.name, part.log))
 
                     # print totals for assignment component
                     f.write("(%s / %s) [%s] TOTAL for %s\n\n" % (
-                        self._left_pad(component_total),
-                        self._left_pad(component_out_of),
+                        self._left_pad(component.points_got),
+                        self._left_pad(component.points_possible),
                         "PASS" if component_pass else "FAIL",
                         component.name))
 
-                    assignment_out_of += component_out_of
-                    assignment_total += component_total
-
             # print totals for complete assignment
             f.write("(%s / %s) [%s] TOTAL for %s (without penalties)\n" % (
-                self._left_pad(assignment_total),
-                self._left_pad(assignment_out_of),
-                "PASS" if assignment_out_of == assignment_total else "FAIL",
+                self._left_pad(grade.raw_grade),
+                self._left_pad(Fraction(1)),
+                "PASS" if assignment_pass else "FAIL",
                 self._assignment.name))
 
             # print penalties (like being late)
-            penalties = self._assignment.calculate_penalties(
-                self._submission,
-                self._assignment.calculate_raw_grade(self._component_grades))
-
-            # print out penalties
-            for penalty, penalty_delta in zip(self._assignment.penalties,
-                                              penalties):
-                if penalty_delta != 0:
+            for penalty in grade.penalties:
+                if penalty.points_delta != 0:
                     f.write("(%s) Penalty: %s\n" % (
-                        self._left_pad(penalty_delta),
+                        self._left_pad(penalty.points_delta),
                         penalty.name
                     ))
 
-            f.write("\n-----------------------\n| %6.2f%% FINAL SCORE "
+            f.write("\n-----------------------\n| %s%% FINAL SCORE "
                     "|\n-----------------------\n\n" %
-                    (self._get_grade() * 100))
+                    (self._left_pad(grade.grade)))
 
             # write filenames and hashes
             file_hashes, submission_hash = self.generate_submission_hash()
