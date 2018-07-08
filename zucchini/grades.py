@@ -122,18 +122,37 @@ class PartGrade(ConfigDictMixin):
 
 
 class CalculatedGrade(Record):
+    """
+    Hold the results of grading an assignment. Any numbers are a
+    Fraction instance representing actual over possible.
+    """
     __slots__ = ['name', 'grade', 'raw_grade', 'penalties', 'components']
 
 
 class CalculatedPenalty(Record):
+    """
+    Hold the result of applying (or not applying) a penalty. Any numbers
+    are a Fraction instance representing actual over possible.
+    """
     __slots__ = ['name', 'points_delta']
 
 
 class CalculatedComponentGrade(Record):
+    """
+    Hold the result of grading an assignment component. If error is not
+    None, it is an error message string explaining why the submission is
+    broken. Any numbers are a Fraction instance representing actual over
+    possible.
+    """
     __slots__ = ['name', 'points_delta', 'points_got', 'points_possible',
                  'grade', 'error', 'parts']
 
 
 class CalculatedPartGrade(Record):
+    """
+    Hold the result of grading a single part (test) of an assignment
+    component. Any numbers are a Fraction instance representing actual
+    over possible.
+    """
     __slots__ = ['name', 'points_delta', 'points_got', 'points_possible',
                  'grade', 'deductions', 'log']
