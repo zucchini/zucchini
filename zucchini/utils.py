@@ -271,6 +271,11 @@ class ConfigDictMixin(object):
 
 
 class Record(object):
+    """
+    A struct in Python, basically.
+    Constructor sets fields according to the fields in __slots__.
+    """
+
     def __init__(self, **kwargs):
         for arg, val in kwargs.items():
             if arg in self.__slots__:
