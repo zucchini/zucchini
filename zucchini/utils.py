@@ -270,6 +270,16 @@ class ConfigDictMixin(object):
         return cls(**kwargs)
 
 
+class Record(object):
+    def __init__(self, **kwargs):
+        for arg, val in kwargs.items():
+            if arg in self.__slots__:
+                setattr(self, arg, val)
+            else:
+                raise TypeError('invalid argument to {}: {}'
+                                .format(type(self), arg))
+
+
 class CanvasURLType(click.ParamType):
     name = 'http(s) url'
 
