@@ -5,8 +5,7 @@ import json
 from fractions import Fraction
 
 from .submission import Submission
-
-from .constants import SUBMISSION_GRADELOG_FILE, SUBMISSION_FILES_DIRECTORY
+from .constants import SUBMISSION_GRADELOG_FILE
 
 
 def grade_all(submission):
@@ -84,7 +83,9 @@ class Grade(object):
             return self._grade
 
     def get_gradelog_path(self):
-        return os.path.join(self._submission.path, SUBMISSION_GRADELOG_FILE)
+        # Put in the same directory as the metadata file
+        submission_dir = os.path.dirname(self._submission.metadata_path)
+        return os.path.join(submission_dir, SUBMISSION_GRADELOG_FILE)
 
     def get_gradelog_hash(self):
         with open(self.get_gradelog_path(), 'r') as f:
@@ -244,8 +245,7 @@ class Grade(object):
         Writes gradelog file to submission directory
         """
 
-        gradelog_path = os.path.join(
-            self._submission.path, SUBMISSION_GRADELOG_FILE)
+        gradelog_path = self.get_gradelog_path()
 
         with open(gradelog_path, 'w') as f:
             # this used to be student's name, but that might be FERPA
@@ -377,8 +377,7 @@ class Grade(object):
         files = []
 
         # get all files in submission directory
-        submission_files_path = os.path.join(
-            self._submission.path, SUBMISSION_FILES_DIRECTORY)
+        submission_files_path = self._submission.files_path
         for (dirpath, dirnames, filenames) in os.walk(submission_files_path):
             for file_name in filenames:
                 file_path = os.path.join(dirpath, file_name)
