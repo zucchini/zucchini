@@ -75,7 +75,7 @@ class Submission(ConfigDictMixin):
     def _meta_json(self):
         """Return a json representation of this instance"""
 
-        meta = self.to_config_dict('assignment', 'path')
+        meta = self.to_config_dict('assignment', 'metadata_path', 'files_path')
         if 'submission-time' in meta:
             meta['submission-time'] = datetime_to_string(self.submission_time)
 
