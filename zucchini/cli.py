@@ -20,7 +20,7 @@ from .constants import APP_NAME, USER_CONFIG, DEFAULT_SUBMISSION_DIRECTORY, \
                        SUBMISSION_FILES_DIRECTORY
 from .submission import Submission
 from .flatten import flatten, ArchiveError
-from .gradescope import GradescopeMetadata
+from .gradescope import GradescopeMetadata, GradescopeAutograderOutput
 from .loaders import CanvasArchiveLoader, GradescopeLoader
 
 pass_state = click.make_pass_decorator(ZucchiniState)
@@ -893,7 +893,9 @@ def gradescope_bridge(state, metadata_path):
     submission = Submission.load_from_component_grades_json(
         assignment, seconds_late=seconds_late, component_grades_fp=sys.stdin)
     grade = Grade(assignment, submission)
-    print(grade.score())
+
+    output = GradescopeAutograderOutput.from_grade(grade)
+    output.to_json_stream(sys.stdout)
 
 
 @cli.command('flatten')

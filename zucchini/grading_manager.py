@@ -79,7 +79,7 @@ class Grade(object):
             return None
         else:
             self._grade = self._assignment.calculate_grade(
-                self._submission, self._component_grades).grade
+                self._submission, self._component_grades)
             return self._grade
 
     def get_gradelog_path(self):
@@ -94,17 +94,23 @@ class Grade(object):
                 self.ZUCCHINI_END_GRADELOG) + len(self.ZUCCHINI_END_GRADELOG)
             return gradelog_data[idx:].strip()
 
+    def serialized_component_grades(self):
+        """
+        Return component grades serialized with to_config_dict(). Useful
+        for logging.
+        """
+        return [component_grade.to_config_dict()
+                for component_grade in self._component_grades]
+
     def dump_component_grades(self, fp):
         """Dump component grades as JSON to file-like object fp"""
-        json.dump([component_grade.to_config_dict() for component_grade
-                   in self._component_grades], fp)
+        json.dump(self.serialized_component_grades(), fp)
 
     def write_grade(self):
         """Write this grade to the submission metadata json."""
         # Need to put the components in the form used in the submission
         # meta.json
-        grades = [grade.to_config_dict() for grade in self._component_grades]
-        self._submission.write_grade(grades)
+        self._submission.write_grade(self.serialized_component_grades())
 
     def student_name(self):
         """Return the name of the student."""
@@ -113,6 +119,16 @@ class Grade(object):
     def student_id(self):
         """Return the id of the student, or None if unset."""
         return self._submission.id
+
+    @staticmethod
+    def to_float(frac):
+        """
+        Convert a fraction on [0,1] to a float to two decimal points.
+        Should be used for ballparking, NOT calculations.
+        """
+        # We want a number on [0,100], not [0,1]
+        out_of_100 = frac * 100
+        return float(out_of_100.numerator) / float(out_of_100.denominator)
 
     @staticmethod
     def _decimal_out_of_100(frac):
@@ -126,13 +142,13 @@ class Grade(object):
             / decimal.Decimal(out_of_100.denominator)
 
     @classmethod
-    def _to_integer(cls, frac):
+    def to_integer(cls, frac):
         """Round frac to an integer out of 100"""
         quotient = cls._decimal_out_of_100(frac)
         return int(quotient.to_integral_value(cls.ROUNDING))
 
     @classmethod
-    def _two_decimals(cls, frac):
+    def two_decimals(cls, frac):
         """
         Convert frac to a string holding the number of points out of 100
         to two decimal points.
@@ -145,13 +161,20 @@ class Grade(object):
     def _left_pad(cls, num):
         return "%*.2f" % (5, num * 100)
 
+    def computed_grade(self):
+        """
+        Return a ComputedGrade instance holding the tree of computed
+        grading data for this grade.
+        """
+        return self._get_grade()
+
     def score(self):
         """Return the grade as an integer out of 100."""
         grade = self._get_grade()
         if grade is None:
             return 0
         else:
-            return self._to_integer(grade)
+            return self.to_integer(grade.grade)
 
     def _breakdown_deductions(self, grade):
         deducted_parts = []
@@ -159,14 +182,14 @@ class Grade(object):
         for penalty in grade.penalties:
             if penalty.points_delta != 0:
                 sign = '+' if penalty.points_delta > 0 else ''
-                points = self._two_decimals(penalty.points_delta)
+                points = self.two_decimals(penalty.points_delta)
                 deducted_parts.append('{}: {}{}'.format(penalty.name, sign,
                                                         points))
 
         for component in grade.components:
             if component.error is not None:
                 # Component-level error
-                points = self._two_decimals(component.points_delta)
+                points = self.two_decimals(component.points_delta)
                 deducted_parts.append('{}: {} ({})'.format(
                     component.name, points, component.error))
             else:
@@ -176,7 +199,7 @@ class Grade(object):
                     if part.grade == 1:
                         continue
 
-                    delta = self._two_decimals(part.points_delta)
+                    delta = self.two_decimals(part.points_delta)
 
                     if part.deductions:
                         deductions = ' ({})'.format(
@@ -198,9 +221,7 @@ class Grade(object):
         """
 
         if self.gradable():
-            deductions = self._breakdown_deductions(
-                self._assignment.calculate_grade(self._submission,
-                                                 self._component_grades))
+            deductions = self._breakdown_deductions(self._get_grade())
             breakdown = ', '.join(deductions)
         else:
             breakdown = 'error: ' + self._submission.error
@@ -222,9 +243,7 @@ class Grade(object):
         Writes gradelog file to submission directory
         """
 
-        grade = self._assignment.calculate_grade(self._submission,
-                                                 self._component_grades)
-
+        grade = self._get_grade()
         gradelog_path = self.get_gradelog_path()
 
         with open(gradelog_path, 'w') as f:

@@ -195,6 +195,16 @@ def current_iso8601():
 
 
 class ConfigDictMixin(object):
+    @staticmethod
+    def _to_field(config_key):
+        """Convert a config key to a field name"""
+        return config_key.replace('-', '_')
+
+    @staticmethod
+    def _to_config(field_name):
+        """Convert a field name to a config key"""
+        return field_name.replace('_', '-')
+
     @classmethod
     def _find_args(cls, exclude_args):
         """
@@ -227,11 +237,11 @@ class ConfigDictMixin(object):
         result = {}
 
         for arg in required_args:
-            result[arg.replace('_', '-')] = getattr(self, arg)
+            result[self._to_config(arg)] = getattr(self, arg)
 
         for arg in optional_args:
             if hasattr(self, arg) and getattr(self, arg) is not None:
-                result[arg.replace('_', '-')] = getattr(self, arg)
+                result[self._to_config(arg)] = getattr(self, arg)
 
         return result
 
@@ -248,12 +258,16 @@ class ConfigDictMixin(object):
         Rejects options also found in extra_kwargs.
         """
 
+        # If already deserialized, just return
+        if isinstance(config_dict, cls):
+            return config_dict
+
         required_args, optional_args = cls._find_args(extra_kwargs)
 
         kwargs = {}
 
         for raw_key in config_dict:
-            key = raw_key.replace('-', '_')
+            key = cls._to_field(raw_key)
 
             if key not in required_args + optional_args:
                 raise ValueError("Unknown config key `{}'".format(raw_key))
@@ -262,12 +276,30 @@ class ConfigDictMixin(object):
 
         for key in required_args:
             if key not in kwargs:
-                raw_key = key.replace('_', '-')
+                raw_key = cls._to_config(key)
                 raise ValueError("Missing required config key `{}'"
                                  .format(raw_key))
 
         kwargs.update(extra_kwargs)
         return cls(**kwargs)
+
+
+class ConfigDictNoMangleMixin(object):
+    """
+    A mixin which does not mangle config keys by converting `-' in
+    config keys to `_' in field names (and vice versa) as
+    ConfigDictMixin does by default.
+    """
+
+    @staticmethod
+    def _to_field(config_key):
+        """Convert a config key to a field name"""
+        return config_key
+
+    @staticmethod
+    def _to_config(field_name):
+        """Convert a field name to a config key"""
+        return field_name
 
 
 class Record(object):
