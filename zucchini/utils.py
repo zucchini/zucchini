@@ -284,6 +284,11 @@ class Record(object):
                 raise TypeError('invalid argument to {}: {}'
                                 .format(type(self), arg))
 
+    def __repr__(self):
+        props = ', '.join('{}={}'.format(prop, str(getattr(self, prop)))
+                          for prop in self.__slots__ if hasattr(self, prop))
+        return '<{} {}>'.format(type(self).__name__, props)
+
 
 class CanvasURLType(click.ParamType):
     name = 'http(s) url'
