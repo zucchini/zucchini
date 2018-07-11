@@ -73,6 +73,7 @@ class AssignmentComponentGrade(ConfigDictMixin):
                 grade.points_got += calc_part_grade.points_got
 
         grade.points_possible = points
+        grade.points_delta = grade.points_got - grade.points_possible
         grade.grade = Fraction(grade.points_got, grade.points_possible)
 
         return grade
