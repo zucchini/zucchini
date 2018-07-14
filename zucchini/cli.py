@@ -902,15 +902,18 @@ def gradescope_bridge(state, metadata_path):
 @gradescope_.command('zip')
 @click.option('--out-path', '-o', metavar='ZIP_FILE', default='autograder.zip',
               help='path to zip file to generate')
+@click.option('--wheel-path', metavar='WHEEL_PATH', default=None,
+              help='path to wheel to install for zucchini itself.'
+                   'useful for development')
 @pass_state
-def gradescope_zip(state, out_path):
+def gradescope_zip(state, out_path, wheel_path):
     """
     Generate a gradescope autograder .zip.
 
     Creates an autograder zip file at ZIP_FILE for this zucchini
     assignment ready to upload to Gradescope.
     """
-    GradescopeAutograderZip().write_zip(out_path)
+    GradescopeAutograderZip(wheel_path=wheel_path).write_zip(out_path)
 
 
 @cli.command('flatten')
