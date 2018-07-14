@@ -20,7 +20,8 @@ from .constants import APP_NAME, USER_CONFIG, DEFAULT_SUBMISSION_DIRECTORY, \
                        SUBMISSION_FILES_DIRECTORY
 from .submission import Submission
 from .flatten import flatten, ArchiveError
-from .gradescope import GradescopeMetadata, GradescopeAutograderOutput
+from .gradescope import GradescopeMetadata, GradescopeAutograderOutput, \
+                        GradescopeAutograderZip
 from .loaders import CanvasArchiveLoader, GradescopeLoader
 
 pass_state = click.make_pass_decorator(ZucchiniState)
@@ -896,6 +897,20 @@ def gradescope_bridge(state, metadata_path):
 
     output = GradescopeAutograderOutput.from_grade(grade)
     output.to_json_stream(sys.stdout)
+
+
+@gradescope_.command('zip')
+@click.option('--out-path', '-o', metavar='ZIP_FILE', default='autograder.zip',
+              help='path to zip file to generate')
+@pass_state
+def gradescope_zip(state, out_path):
+    """
+    Generate a gradescope autograder .zip.
+
+    Creates an autograder zip file at ZIP_FILE for this zucchini
+    assignment ready to upload to Gradescope.
+    """
+    GradescopeAutograderZip().write_zip(out_path)
 
 
 @cli.command('flatten')
