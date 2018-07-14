@@ -2,8 +2,11 @@
 Utilities for gradescope autograding.
 """
 
+import os
 import json
+from zipfile import ZipFile, ZIP_DEFLATED
 
+from .constants import ASSIGNMENT_CONFIG_FILE, ASSIGNMENT_FILES_DIRECTORY
 from .utils import ConfigDictMixin, ConfigDictNoMangleMixin, \
                    datetime_from_string
 
@@ -100,3 +103,92 @@ class GradescopeAutograderOutput(ConfigDictNoMangleMixin, ConfigDictMixin):
 
     def to_json_stream(self, fp):
         json.dump(self.to_config_dict(), fp)
+
+
+SETUP_SH = r'''#!/bin/bash
+set -e
+
+apt update
+apt install -y python3 python3-pip
+pip3 install -g zucchini
+'''
+
+
+RUN_AUTOGRADER = r'''#!/bin/bash
+set -e
+set -o pipefail
+
+cd /autograder/source
+zucc grade-submission /autograder/submission \
+    | zucc gradescope bridge /autograder/submission_metadata.json \
+    > /autograder/results/results.json
+'''
+
+
+class GradescopeAutograderZip(object):
+    """
+    Generates a Gradesope autograder zip file from which Gradescope
+    generates a Docker image for grading.
+    """
+
+    def __init__(self, path='.'):
+        self.path = path
+
+    def _relative_path(self, abspath):
+        """
+        Convert an absolute path to an assignment file to a path
+        relative to self.path.
+        """
+        return os.path.relpath(abspath, self.path)
+
+    def _real_path(self, relpath):
+        """
+        Convert a relative path to an assignment file to an absolute
+        path.
+        """
+        return os.path.join(self.path, relpath)
+
+    def _write_file(self, file_path, zipfile):
+        """
+        Add a file to the generated zip file. file_path should be relative to
+        self.path.
+        """
+        real_path = self._real_path(file_path)
+        zipfile.write(real_path, file_path)
+
+    def _write_string(self, string, path, zipfile):
+        """
+        Add a file to the generated zip file. file_path should be relative to
+        self.path.
+        """
+        zipfile.writestr(path, string)
+
+    def _write_dir(self, dir_path, zipfile):
+        """
+        Recursively add a directory to the generated zip file. dir_path
+        should be relative to self.path.
+        """
+
+        real_path = self._real_path(dir_path)
+
+        for dirpath, _, filenames in os.walk(real_path):
+            for filename in filenames:
+                relpath = self._relative_path(os.path.join(dirpath, filename))
+                self._write_file(relpath, zipfile)
+
+    def write_zip(self, file):
+        """
+        Write the autograder .zip to file. If file is a file-like
+        object, write it there, otherwise it should be a string
+        designating the destination path.
+        """
+
+        with ZipFile(file, 'w', ZIP_DEFLATED) as zipfile:
+            self._write_file(ASSIGNMENT_CONFIG_FILE, zipfile)
+
+            grading_files = self._real_path(ASSIGNMENT_FILES_DIRECTORY)
+            if os.path.exists(grading_files):
+                self._write_dir(ASSIGNMENT_FILES_DIRECTORY, zipfile)
+
+            self._write_string(SETUP_SH, 'setup.sh', zipfile)
+            self._write_string(RUN_AUTOGRADER, 'run_autograder', zipfile)
