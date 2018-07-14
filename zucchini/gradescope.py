@@ -108,9 +108,9 @@ class GradescopeAutograderOutput(ConfigDictNoMangleMixin, ConfigDictMixin):
 SETUP_SH = r'''#!/bin/bash
 set -e
 
-apt update
-apt install -y python3 python3-pip
-pip3 install -g zucchini
+apt-get update
+apt-get install -y python3 python3-pip
+pip3 install zucchini
 '''
 
 
