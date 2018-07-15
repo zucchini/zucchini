@@ -9,7 +9,7 @@ from functools import update_wrapper
 
 import click
 
-from .utils import mkdir_p, CANVAS_URL, CANVAS_TOKEN, \
+from .utils import EmailParamType, mkdir_p, CANVAS_URL, CANVAS_TOKEN, \
     AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_BUCKET_NAME, \
     queue, run_thread, current_iso8601
 from .grading_manager import Grade, GradingManager
@@ -27,48 +27,68 @@ from .loaders import CanvasArchiveLoader, GradescopeLoader
 pass_state = click.make_pass_decorator(ZucchiniState)
 
 
-def setup_handler():
+def get_config_location():
     config_dir = click.get_app_dir(APP_NAME, force_posix=True, roaming=True)
     mkdir_p(config_dir)
-
     config_path = os.path.join(config_dir, USER_CONFIG)
+    return config_dir, config_path
+
+
+def load_config(zucchini_state):
+    config_dir, config_path = get_config_location()
+
+    try:
+        with click.open_file(config_path, 'r') as config_file:
+            zucchini_state.load_config_from_file(config_file, config_dir)
+    except:  # noqa
+        # TODO: Maybe better handling here, is it corrupt or nonexistent?
+        click.echo("Need to set up configuration before doing any other work.")
+        prompt_for_config(zucchini_state)
+
+
+def prompt_for_config(zucchini_state):
+    if not sys.stdin.isatty():
+        raise click.ClickException('Cannot setup configuration interactively '
+                                   'in a noninteractive session')
 
     click.echo("Zucchini will now set up your user configuration, overwriting "
                "any existing settings.")
 
     new_conf = {}
-    for required_field in ZucchiniState.REQUIRED_CONFIG_FIELDS:
-        new_conf[required_field[0]] = click.prompt(required_field[1],
-                                                   type=required_field[2])
+    new_conf['user-name'] = click.prompt('Your Name')
+    new_conf['user-email'] = click.prompt('Your Email', type=EmailParamType())
 
-    new_conf['canvas_url'] = click.prompt('Canvas URL (press enter to skip '
+    new_conf['canvas-url'] = click.prompt('Canvas URL (press enter to skip '
                                           'Canvas configuration)',
                                           type=CANVAS_URL, default='')
-    if new_conf['canvas_url']:
-        new_conf['canvas_token'] = click.prompt(
+    if new_conf['canvas-url']:
+        new_conf['canvas-token'] = click.prompt(
             'Canvas API token (To generate one, go to {}/profile/settings and '
             'choose "New Access Token")'
-            .format(new_conf['canvas_url']), type=CANVAS_TOKEN)
+            .format(new_conf['canvas-url']), type=CANVAS_TOKEN)
     else:
         click.echo('Skipping canvas configuration...')
-        new_conf['canvas_token'] = ''
+        new_conf['canvas-token'] = ''
 
     # for amazon
-    new_conf['aws_access_key_id'] = click.prompt(
+    new_conf['aws-access-key-id'] = click.prompt(
         'AWS Access Key ID (press enter to skip AWS configuration)',
         type=AWS_ACCESS_KEY_ID, default='')
-    if new_conf['aws_access_key_id']:
-        new_conf['aws_secret_access_key'] = click.prompt(
+    if new_conf['aws-access-key-id']:
+        new_conf['aws-secret-access-key'] = click.prompt(
             'Amazon Secret Access Key', type=AWS_SECRET_ACCESS_KEY)
-        new_conf['aws_s3_bucket_name'] = click.prompt(
+        new_conf['aws-s3-bucket-name'] = click.prompt(
             'Amazon S3 Bucket Name', type=AWS_BUCKET_NAME)
     else:
-        click.echo('Skipping canvas configuration...')
-        new_conf['aws_secret_access_key'] = ''
-        new_conf['aws_s3_bucket_name'] = ''
+        click.echo('Skipping AWS configuration...')
+        new_conf['aws-secret-access-key'] = ''
+        new_conf['aws-s3-bucket-name'] = ''
 
-    with click.open_file(config_path, 'w') as cfg_file:
-        ZucchiniState.save_config(cfg_file, new_conf)
+    config_dir, config_path = get_config_location()
+    zucchini_state.load_config_from_dict(new_conf, config_dir)
+
+    with click.open_file(config_path, 'w') as config_file:
+        zucchini_state.save_config_to_file(config_file)
 
 
 def filter_options(canvas):
@@ -120,6 +140,22 @@ def filter_options(canvas):
     return decorator
 
 
+def need_config(func):
+    """
+    Marks that this command requires configuration and should prompt for
+    it if necessary.
+    """
+
+    def replacement(*args, **kwargs):
+        zucchini_state = args[0]
+        load_config(zucchini_state)
+        func(*args, **kwargs)
+
+    # Without update_wrapper() here, click gets confused and puts
+    # a replacement subcommand in the help output
+    return update_wrapper(replacement, func)
+
+
 @click.group()
 @click.option('-a', '--assignment', default='.',
               help="Path of the directory containing the Zucchini assignment.",
@@ -142,46 +178,19 @@ def cli(ctx, assignment):
 
     documentation: https://zucchini.readthedocs.io/
     """
-
-    config_dir = click.get_app_dir(APP_NAME, force_posix=True, roaming=True)
-    mkdir_p(config_dir)
-
-    config_path = os.path.join(config_dir, USER_CONFIG)
-
-    try:
-        with click.open_file(config_path, 'r') as cfg_file:
-            ctx.obj = ZucchiniState.load_from_config(cfg_file, config_dir,
-                                                     assignment)
-    except:  # noqa
-        # TODO: Maybe better handling here, is it corrupt or nonexistent?
-        click.echo("We need to set up your configuration before doing any "
-                   "other work.")
-        setup_handler()
-        click.echo("Configuration set up successfully! Please retry your "
-                   "original command now.")
-        raise SystemExit()  # TODO: Use better exception
-        # TODO: The way we handle this here makes it impossible to have a setup
-        # or reset command. We kinda need one.
+    ctx.obj = ZucchiniState(assignment)
 
 
 @cli.command()
 @pass_state
 def setup(state):
     """Runs setup again"""
-    click.echo("running setup again")
-    click.echo("Name: %s" % state.user_name)
-    click.echo("Email: %s" % state.user_email)
-    click.echo("Canvas URL: %s" % state.canvas_url)
-    click.echo("Token: %s" % state.canvas_token)
-    click.echo("AWS Access Key ID: %s" % state.aws_access_key_id)
-    click.echo("AWS Secret Access Key: %s" % state.aws_secret_access_key)
-    click.echo("S3 Bucket name: %s" % state.aws_s3_bucket_name)
-    setup_handler()
-    click.echo("setup has finished")
+    prompt_for_config(state)
 
 
 @cli.command()
 @pass_state
+@need_config
 def update(state):
     """Update all farms."""
     # TODO: Add support for single-farm listing
@@ -193,6 +202,7 @@ def update(state):
 
 @cli.command('list')
 @pass_state
+@need_config
 def list_assignments(state):
     """Update all farms and list downloadable assignments."""
     # TODO: Add support for single-farm listing
@@ -215,6 +225,7 @@ def list_assignments(state):
                               writable=True, readable=True,
                               resolve_path=True))
 @pass_state
+@need_config
 def init(state, assignment_name, target):
     """Configure an assignment for grading."""
     state.farm_manager.clone_farm_assignment(assignment_name, target)
@@ -368,6 +379,7 @@ def canvas_setup(state, section):
               help='maximum size of archive to extract')
 @filter_options(canvas=True)
 @pass_state
+@need_config
 def load_canvas(state, section, max_archive_size, filter):
     """Load submissions from Canvas"""
 
@@ -427,6 +439,7 @@ def load_canvas(state, section, max_archive_size, filter):
               help='maximum size of archive to extract')
 @filter_options(canvas=True)
 @pass_state
+@need_config
 def load_canvas_archive(state, bulk_zipfile, section, max_archive_size,
                         filter):
     """
@@ -526,6 +539,7 @@ def print_grades(grades, grader_name):
                               resolve_path=True))
 @filter_options(canvas=False)
 @pass_state
+@need_config
 def grade(state, from_dir, filter):
     """Grade submissions."""
     # At this point, the assignment object is loaded. We need a GradingManager
@@ -586,6 +600,7 @@ def grade(state, from_dir, filter):
                               resolve_path=True))
 @filter_options(canvas=False)
 @pass_state
+@need_config
 def show_grades(state, from_dir, filter):
     """Print the grade for all submissions."""
     grading_manager = GradingManager(state.get_assignment(), from_dir, filter)
@@ -622,6 +637,7 @@ def export(state, from_dir, filter):
               type=click.Path(file_okay=True, dir_okay=False,
                               resolve_path=True))
 @pass_state
+@need_config
 def export_csv(state, out_file=None):
     """Export grades to an Excel CSV."""
 
@@ -642,6 +658,7 @@ def export_csv(state, out_file=None):
 
 @export.command('canvas-grades')
 @pass_state
+@need_config
 def export_canvas_grades(state):
     """Upload grades to Canvas."""
 
@@ -666,6 +683,7 @@ def export_canvas_grades(state):
 @click.option('--gradelog-upload', '-g', help='Where to upload Gradelog file',
               type=click.Choice(['none', 'canvas', 's3']))
 @pass_state
+@need_config
 def export_canvas_comments(state, gradelog_upload):
     """Add Canvas submission comments with gradelog and breakdown"""
     if gradelog_upload is None:
@@ -725,6 +743,7 @@ def farm():
 @click.argument('farm-url')
 @click.argument('farm-name')
 @pass_state
+@need_config
 def add_farm(state, farm_url, farm_name):
     state.farm_manager.add_farm(farm_url, farm_name)
     click.echo("Successfully added farm %s" % farm_name)
@@ -733,6 +752,7 @@ def add_farm(state, farm_url, farm_name):
 @farm.command('recache')
 @click.argument('farm-name')
 @pass_state
+@need_config
 def recache_farm(state, farm_name):
     state.farm_manager.recache_farm(farm_name)
     click.echo("Successfully recached farm %s" % farm_name)
@@ -740,6 +760,7 @@ def recache_farm(state, farm_name):
 
 @farm.command('list')
 @pass_state
+@need_config
 def list_farms(state):
     farms = state.farm_manager.list_farms()
     click.echo("\n".join(farms))
@@ -748,6 +769,7 @@ def list_farms(state):
 @farm.command('remove')
 @click.argument('farm-name')
 @pass_state
+@need_config
 def remove_farm(state, farm_name):
     state.farm_manager.remove_farm(farm_name)
     click.echo("Successfully removed farm %s" % farm_name)
@@ -761,6 +783,7 @@ def canvas_api():
 
 @canvas_api.command('courses')
 @pass_state
+@need_config
 def canvas_api_courses(state):
     """List Canvas courses"""
 
@@ -772,6 +795,7 @@ def canvas_api_courses(state):
 @canvas_api.command('assignments')
 @click.argument('course-id')
 @pass_state
+@need_config
 def canvas_api_assignments(state, course_id):
     """List assignments in a Canvas course"""
 
@@ -783,6 +807,7 @@ def canvas_api_assignments(state, course_id):
 @canvas_api.command('sections')
 @click.argument('course-id')
 @pass_state
+@need_config
 def canvas_api_sections(state, course_id):
     """List sections in a Canvas course"""
 
@@ -795,6 +820,7 @@ def canvas_api_sections(state, course_id):
 @click.argument('course-id')
 @click.argument('section-id')
 @pass_state
+@need_config
 def canvas_api_section_students(state, course_id, section_id):
     """List students in a Canvas section"""
 
@@ -807,6 +833,7 @@ def canvas_api_section_students(state, course_id, section_id):
 @click.argument('course-id')
 @click.argument('assignment-id')
 @pass_state
+@need_config
 def canvas_api_submissions(state, course_id, assignment_id):
     """List submissions for a Canvas assignment"""
 
@@ -821,6 +848,7 @@ def canvas_api_submissions(state, course_id, assignment_id):
 @click.argument('user-id')
 @click.argument('dest-directory')
 @pass_state
+@need_config
 def canvas_api_download(state, course_id, assignment_id, user_id,
                         dest_directory):
     """Download a submission"""
@@ -837,6 +865,7 @@ def canvas_api_download(state, course_id, assignment_id, user_id,
 @click.argument('grade')
 @click.option('--comment', help='Add TEXT as a new grading comment')
 @pass_state
+@need_config
 def canvas_api_grade(state, course_id, assignment_id, user_id, grade,
                      comment=None):
     """
