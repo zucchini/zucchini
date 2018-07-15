@@ -11,22 +11,18 @@ import yaml
 
 from .canvas import CanvasAPI
 from .amazon import AmazonAPI
-from .utils import EmailParamType
+from .utils import ConfigDictMixin
 from .assignment import Assignment
 from .farms import FarmManager
 from .constants import FARM_DIRECTORY
 
 
-class ZucchiniState(object):
-    REQUIRED_CONFIG_FIELDS = [
-        ("user_name", "Grader Name", str),
-        ("user_email", "Grader Email", EmailParamType())
-    ]
+class ZucchiniConfig(ConfigDictMixin):
+    """Holds user configuration from user.yml"""
 
-    def __init__(self, user_name, user_email, config_directory,
-                 assignment_directory, canvas_url='', canvas_token='',
-                 aws_access_key_id='', aws_secret_access_key='',
-                 aws_s3_bucket_name=''):
+    def __init__(self, config_directory, user_name, user_email, canvas_url='',
+                 canvas_token='', aws_access_key_id='',
+                 aws_secret_access_key='', aws_s3_bucket_name=''):
         self.config_directory = config_directory
 
         self.user_name = user_name
@@ -35,17 +31,20 @@ class ZucchiniState(object):
         self.canvas_url = canvas_url
         self.canvas_token = canvas_token
 
-        self.assignment_directory = assignment_directory
-        self._assignment = None
-
-        self.submission_dir = None
-
         self.farm_manager = FarmManager(
             os.path.join(config_directory, FARM_DIRECTORY))
 
         self.aws_access_key_id = aws_access_key_id
         self.aws_secret_access_key = aws_secret_access_key
         self.aws_s3_bucket_name = aws_s3_bucket_name
+
+
+class ZucchiniState(object):
+    def __init__(self, assignment_directory):
+        self.assignment_directory = assignment_directory
+        self.submission_dir = None
+        self._assignment = None
+        self._config = None
 
     def get_assignment(self):
         """
@@ -64,10 +63,11 @@ class ZucchiniState(object):
         configuration.
         """
 
-        if not self.canvas_url or not self.canvas_token:
+        if not self._config or not self._config.canvas_url or \
+                not self._config.canvas_token:
             raise ValueError('The Canvas API is not configured!')
 
-        return CanvasAPI(self.canvas_url, self.canvas_token)
+        return CanvasAPI(self._config.canvas_url, self._config.canvas_token)
 
     def get_amazon_api(self):
         """
@@ -75,32 +75,31 @@ class ZucchiniState(object):
         configuration.
         """
 
-        if not self.aws_access_key_id or \
-            not self.aws_secret_access_key or \
-                not self.aws_s3_bucket_name:
-                    raise ValueError(
-                        'The Amazon API is not configured')
+        if not self._config or \
+                not self._config.aws_access_key_id or \
+                not self._config.aws_secret_access_key or \
+                not self._config.aws_s3_bucket_name:
+            raise ValueError('The Amazon API is not configured')
 
         return AmazonAPI(
-            self.aws_access_key_id,
-            self.aws_secret_access_key,
-            self.aws_s3_bucket_name)
+            self._config.aws_access_key_id,
+            self._config.aws_secret_access_key,
+            self._config.aws_s3_bucket_name)
 
-    @classmethod
-    def save_config(cls, cfg_file, cfg_dict):
-        # Make sure all the necessary fields are included
-        for x in cls.REQUIRED_CONFIG_FIELDS:
-            if x[0] not in cfg_dict:
-                raise ValueError("Config field %s is not included in the "
-                                 "config that is being saved." % x[1])
+    @property
+    def user_name(self):
+        return self._config.user_name
 
-        yaml.safe_dump(cfg_dict, cfg_file, default_flow_style=False)
+    def save_config_to_file(self, config_file):
+        config_dict = self._config.to_config_dict('config_directory')
+        yaml.safe_dump(config_dict, config_file, default_flow_style=False)
 
-    @classmethod
-    def load_from_config(cls, config_file, config_directory, assignment_directory):
-        config = yaml.safe_load(config_file)
+    def load_config_from_dict(self, config_dict, config_directory):
+        """Load user configuation from a dictionary."""
+        self._config = ZucchiniConfig.from_config_dict(
+            config_dict, config_directory=config_directory)
 
-        config['config_directory'] = config_directory
-        config['assignment_directory'] = assignment_directory
-
-        return cls(**config)
+    def load_config_from_file(self, config_file, config_directory):
+        """Load user configuration from a file-like object as yaml."""
+        config_dict = yaml.safe_load(config_file)
+        self.load_config_from_dict(config_dict, config_directory)
