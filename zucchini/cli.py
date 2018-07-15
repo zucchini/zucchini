@@ -942,7 +942,9 @@ def gradescope_zip(state, out_path, wheel_path):
     Creates an autograder zip file at ZIP_FILE for this zucchini
     assignment ready to upload to Gradescope.
     """
-    GradescopeAutograderZip(wheel_path=wheel_path).write_zip(out_path)
+    autograder_zip = GradescopeAutograderZip(
+        path=state.assignment_directory, wheel_path=wheel_path)
+    autograder_zip.write_zip(out_path)
 
 
 @cli.command('flatten')
