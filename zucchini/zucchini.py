@@ -86,21 +86,21 @@ class ZucchiniState(object):
             self.aws_secret_access_key,
             self.aws_s3_bucket_name)
 
-    @staticmethod
-    def save_config(cfg_file, cfg_dict):
+    @classmethod
+    def save_config(cls, cfg_file, cfg_dict):
         # Make sure all the necessary fields are included
-        for x in ZucchiniState.REQUIRED_CONFIG_FIELDS:
+        for x in cls.REQUIRED_CONFIG_FIELDS:
             if x[0] not in cfg_dict:
                 raise ValueError("Config field %s is not included in the "
                                  "config that is being saved." % x[1])
 
         yaml.safe_dump(cfg_dict, cfg_file, default_flow_style=False)
 
-    @staticmethod
-    def load_from_config(config_file, config_directory, assignment_directory):
+    @classmethod
+    def load_from_config(cls, config_file, config_directory, assignment_directory):
         config = yaml.safe_load(config_file)
 
         config['config_directory'] = config_directory
         config['assignment_directory'] = assignment_directory
 
-        return ZucchiniState(**config)
+        return cls(**config)
