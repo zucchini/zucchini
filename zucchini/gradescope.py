@@ -119,7 +119,7 @@ set -e
 
 cd /autograder/source
 apt-get update
-apt-get install -y python3 python3-pip python3-wheel
+apt-get install -y python3 python3-pip python3-wheel {prereqs}
 pip3 install {pip_install_arg}
 '''
 
@@ -142,8 +142,9 @@ class GradescopeAutograderZip(object):
     generates a Docker image for grading.
     """
 
-    def __init__(self, path='.', wheel_path=None):
+    def __init__(self, path='.', prerequisites=None, wheel_path=None):
         self.path = path
+        self.prerequisites = prerequisites or []
         self.wheel_path = wheel_path
 
     def _relative_path(self, abspath):
@@ -215,5 +216,6 @@ class GradescopeAutograderZip(object):
                                  real_path=self.wheel_path)
                 pip_install_arg = wheel_filename
 
-            setup_sh = SETUP_SH.format(pip_install_arg=pip_install_arg)
+            setup_sh = SETUP_SH.format(pip_install_arg=pip_install_arg,
+                                       prereqs=' '.join(self.prerequisites))
             self._write_string(setup_sh, 'setup.sh', zipfile)

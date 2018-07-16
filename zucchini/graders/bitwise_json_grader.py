@@ -67,7 +67,7 @@ class BitwiseJSONGrader(GraderInterface):
             self.timeout = timeout
 
     def list_prerequisites(self):
-        return ['sudo apt-get install openjdk-8-jre-headless']
+        return ['openjdk-8-jre-headless']
 
     def class_name(self):
         """Return the class name of this file"""
