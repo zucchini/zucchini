@@ -38,6 +38,7 @@ class GradescopeAutograderTestOutput(ConfigDictNoMangleMixin, ConfigDictMixin):
     """
 
     def __init__(self, name=None, score=None, max_score=None, output=None):
+        self.name = name
         self.score = float(score) if score is not None else None
         self.max_score = float(max_score) if max_score is not None else None
         self.output = output
