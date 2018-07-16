@@ -85,19 +85,27 @@ class GradescopeAutograderOutput(ConfigDictNoMangleMixin, ConfigDictMixin):
 
         # Add actual test results
         for component in computed_grade.components:
-            for part in component.parts:
-                if part.deductions:
-                    deductions = 'Deductions: {}\n\n'.format(
-                        ', '.join(part.deductions))
-                else:
-                    deductions = ''
-
+            if component.error:
                 test = GradescopeAutograderTestOutput(
-                    name='{}: {}'.format(component.name, part.name),
-                    score=grade.to_float(part.points_got),
-                    max_score=grade.to_float(part.points_possible),
-                    output=deductions + part.log)
+                    name=component.name,
+                    score=grade.to_float(component.points_got),
+                    max_score=grade.to_float(component.points_possible),
+                    output=component.error)
                 tests.append(test)
+            else:
+                for part in component.parts:
+                    if part.deductions:
+                        deductions = 'Deductions: {}\n\n'.format(
+                            ', '.join(part.deductions))
+                    else:
+                        deductions = ''
+
+                    test = GradescopeAutograderTestOutput(
+                        name='{}: {}'.format(component.name, part.name),
+                        score=grade.to_float(part.points_got),
+                        max_score=grade.to_float(part.points_possible),
+                        output=deductions + part.log)
+                    tests.append(test)
 
         return cls(score=score, tests=tests, extra_data=extra_data)
 
