@@ -18,7 +18,6 @@ class GradescopeMetadata(object):
     """
 
     _ATTRS = {
-        'id': int,
         'created_at': datetime_from_string,
         'assignment_id': int,
     }
