@@ -71,7 +71,7 @@ class GradescopeAutograderOutput(ConfigDictNoMangleMixin, ConfigDictMixin):
         score = grade.score()
         tests = []
         # Store the component grades in the extra_data field
-        extra_data = grade.serialized_component_grades()
+        extra_data = {'component_grades': grade.serialized_component_grades()}
 
         computed_grade = grade.computed_grade()
 
