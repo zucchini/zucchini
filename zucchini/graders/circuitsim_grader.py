@@ -58,7 +58,8 @@ class CircuitSimGrader(GraderInterface):
             self.timeout = timeout
 
     def list_prerequisites(self):
-        return ['sudo apt-get install openjdk-8-jre-headless']
+        # CircuitSim needs JavaFX
+        return ['openjdk-8-jre', 'openjfx']
 
     def part_from_config_dict(self, config_dict):
         return CircuitSimTest.from_config_dict(config_dict)

@@ -95,6 +95,13 @@ class AssignmentComponent(ConfigDictMixin):
         """
         return self.grader.is_interactive()
 
+    def list_prerequisites(self):
+        """
+        Return a list of Ubuntu 16.04 packages required to run this
+        grader.
+        """
+        return self.grader.list_prerequisites()
+
     def grade_submission(self, submission):
         grading_directory = tempfile.mkdtemp(prefix='zucchini-component-')
 
@@ -219,6 +226,10 @@ class Assignment(object):
         self.noninteractive = any(not c.is_interactive()
                                   for c in self.components)
 
+        self.prerequisites = set()
+        for component in self.components:
+            self.prerequisites.update(component.list_prerequisites())
+
         self.penalties = []
 
         for penalty_config in config.get('penalties', ()):
@@ -227,6 +238,12 @@ class Assignment(object):
             self.penalties.append(penalty)
 
         # TODO: Handle assignments with no components or with 0 total weight
+
+    def list_prerequisites(self):
+        """
+        Return a list of Ubuntu 16.04 packages needed by this assignment.
+        """
+        return list(self.prerequisites)
 
     def has_interactive(self):
         """

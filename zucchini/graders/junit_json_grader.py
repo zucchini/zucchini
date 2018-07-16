@@ -44,7 +44,7 @@ class JUnitJSONGrader(GraderInterface):
             self.timeout = timeout
 
     def list_prerequisites(self):
-        return ['sudo apt-get install openjdk-8-jre-headless']
+        return ['openjdk-8-jre-headless']
 
     def part_from_config_dict(self, config_dict):
         return JUnitJSONTest.from_config_dict(config_dict)

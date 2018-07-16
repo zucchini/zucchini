@@ -943,7 +943,9 @@ def gradescope_zip(state, out_path, wheel_path):
     assignment ready to upload to Gradescope.
     """
     autograder_zip = GradescopeAutograderZip(
-        path=state.assignment_directory, wheel_path=wheel_path)
+        path=state.assignment_directory,
+        prerequisites=state.get_assignment().prerequisites,
+        wheel_path=wheel_path)
     autograder_zip.write_zip(out_path)
 
 

@@ -20,8 +20,8 @@ class GraderInterface(ConfigDictMixin):
 
     def list_prerequisites(self):  # type: () -> List[str]
         """
-        This function should return a list of commands required to
-        install this grader's prerequisites on an Ubuntu 16.04 machine.
+        This function should return a list of Ubuntu 16.04 packages
+        required to run this grader.
         """
         return []
 

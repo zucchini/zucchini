@@ -63,7 +63,7 @@ class JUnitXMLGrader(GraderInterface):
         self.use_shell = os.name == 'nt'
 
     def list_prerequisites(self):
-        return ['sudo apt-get install openjdk-8-jre-headless']
+        return ['openjdk-8-jre-headless']
 
     def part_from_config_dict(self, config_dict):
         return JUnitXMLTest.from_config_dict(config_dict)
