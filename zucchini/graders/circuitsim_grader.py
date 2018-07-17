@@ -61,6 +61,10 @@ class CircuitSimGrader(GraderInterface):
         # CircuitSim needs JavaFX
         return ['openjdk-8-jre', 'openjfx']
 
+    def needs_display(self):
+        # CircuitSim needs JavaFX which needs a display server
+        return True
+
     def part_from_config_dict(self, config_dict):
         return CircuitSimTest.from_config_dict(config_dict)
 
