@@ -944,7 +944,8 @@ def gradescope_zip(state, out_path, wheel_path):
     """
     autograder_zip = GradescopeAutograderZip(
         path=state.assignment_directory,
-        prerequisites=state.get_assignment().prerequisites,
+        prerequisites=state.get_assignment().list_prerequisites(),
+        needs_display=state.get_assignment().needs_display(),
         wheel_path=wheel_path)
     autograder_zip.write_zip(out_path)
 
