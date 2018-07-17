@@ -32,6 +32,16 @@ class GraderInterface(ConfigDictMixin):
         """
         return False
 
+    def needs_display(self):  # type: () -> bool
+        """
+        Return True if and only if this grader expects a graphical
+        environment, like $DISPLAY on GNU/Linux. Does not necessarily
+        imply is_interactive() is True since some graders are
+        noninteractive but still connect to a display server, like
+        CircuitSim graders (since CircuitSim needs JavaFX).
+        """
+        return False
+
     @abstractmethod
     def part_from_config_dict(self, config_dict):  # type: (dict) -> Part
         """

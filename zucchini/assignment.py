@@ -102,6 +102,13 @@ class AssignmentComponent(ConfigDictMixin):
         """
         return self.grader.list_prerequisites()
 
+    def needs_display(self):
+        """
+        Return True if and only if this grader expects a graphical
+        environment, like $DISPLAY on GNU/Linux.
+        """
+        return self.grader.needs_display()
+
     def grade_submission(self, submission):
         grading_directory = tempfile.mkdtemp(prefix='zucchini-component-')
 
@@ -225,6 +232,7 @@ class Assignment(object):
         self.interactive = any(c.is_interactive() for c in self.components)
         self.noninteractive = any(not c.is_interactive()
                                   for c in self.components)
+        self._needs_display = any(c.needs_display() for c in self.components)
 
         self.prerequisites = set()
         for component in self.components:
@@ -258,6 +266,13 @@ class Assignment(object):
         least one noninteractive grader.
         """
         return self.noninteractive
+
+    def needs_display(self):
+        """
+        Return True if and only if at least one component expects a
+        graphical environment, like $DISPLAY on GNU/Linux.
+        """
+        return self._needs_display
 
     def copy_files(self, files, path):  # (List[str], str) -> None
         """Copy the grader files in the files list to the new path"""
