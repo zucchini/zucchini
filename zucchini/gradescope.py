@@ -118,6 +118,8 @@ SETUP_SH = r'''#!/bin/bash
 set -e
 
 cd /autograder/source
+# Prevent apt from prompting for input and hanging the build
+export DEBIAN_FRONTEND=noninteractive
 apt-get update
 apt-get install -y python3 python3-pip python3-wheel {prereqs}
 pip3 install {pip_install_arg}
@@ -130,10 +132,72 @@ set -e
 set -o pipefail
 
 cd /autograder/source
-zucc grade-submission /autograder/submission \
+{grade_cmd_prefix}zucc grade-submission /autograder/submission \
     | zucc gradescope bridge /autograder/submission_metadata.json \
     > /autograder/results/results.json
 '''
+
+
+RUN_GRAPHICAL_SH = r'''#!/bin/bash
+
+cat >xorg.conf <<'EOF'
+# This xorg configuration file is meant to be used by xpra
+# to start a dummy X11 server.
+# For details, please see:
+# https://xpra.org/Xdummy.html
+
+Section "ServerFlags"
+  Option "DontVTSwitch" "true"
+  Option "AllowMouseOpenFail" "true"
+  Option "PciForceNone" "true"
+  Option "AutoEnableDevices" "false"
+  Option "AutoAddDevices" "false"
+EndSection
+
+Section "Device"
+  Identifier "dummy_videocard"
+  Driver "dummy"
+  Option "ConstantDPI" "true"
+  VideoRam 192000
+EndSection
+
+Section "Monitor"
+  Identifier "dummy_monitor"
+  HorizSync   5.0 - 1000.0
+  VertRefresh 5.0 - 200.0
+  Modeline "1024x768" 18.71 1024 1056 1120 1152 768 786 789 807
+EndSection
+
+Section "Screen"
+  Identifier "dummy_screen"
+  Device "dummy_videocard"
+  Monitor "dummy_monitor"
+  DefaultDepth 24
+  SubSection "Display"
+    Viewport 0 0
+    Depth 24
+    Modes "1024x768"
+    Virtual 1024 768
+  EndSubSection
+EndSection
+EOF
+
+/usr/lib/xorg/Xorg -noreset -logfile ./xorg.log -config ./xorg.conf :69 \
+    >/dev/null 2>&1 &
+
+xorg_pid=$!
+
+export DISPLAY=:69
+"$@"
+
+exitcode=$?
+
+kill "$xorg_pid" || {
+    printf 'did not kill Xorg!\n' >&2
+    exit 1
+}
+
+exit $exitcode'''
 
 
 class GradescopeAutograderZip(object):
@@ -142,10 +206,16 @@ class GradescopeAutograderZip(object):
     generates a Docker image for grading.
     """
 
-    def __init__(self, path='.', prerequisites=None, wheel_path=None):
+    def __init__(self, path='.', prerequisites=None, needs_display=False,
+                 wheel_path=None):
         self.path = path
         self.prerequisites = prerequisites or []
+        self.needs_display = needs_display
         self.wheel_path = wheel_path
+
+        # Need this for
+        if self.needs_display:
+            prerequisites.append('xserver-xorg-video-dummy')
 
     def _relative_path(self, abspath):
         """
@@ -205,7 +275,17 @@ class GradescopeAutograderZip(object):
             if os.path.exists(grading_files):
                 self._write_dir(ASSIGNMENT_FILES_DIRECTORY, zipfile)
 
-            self._write_string(RUN_AUTOGRADER, 'run_autograder', zipfile)
+            if self.needs_display:
+                self._write_string(RUN_GRAPHICAL_SH, 'run_graphical.sh',
+                                   zipfile)
+                grade_cmd_prefix = 'bash run_graphical.sh '
+            else:
+                grade_cmd_prefix = ''
+
+            run_autograder = RUN_AUTOGRADER.format(
+                grade_cmd_prefix=grade_cmd_prefix)
+            self._write_string(run_autograder, 'run_autograder', zipfile)
+
             if self.wheel_path is None:
                 pip_install_arg = 'zucchini'
             else:
