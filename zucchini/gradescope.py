@@ -6,6 +6,7 @@ import os
 import json
 from zipfile import ZipFile, ZIP_DEFLATED
 
+from . import __version__ as ZUCCHINI_VERSION
 from .grading_manager import Grade
 from .constants import ASSIGNMENT_CONFIG_FILE, ASSIGNMENT_FILES_DIRECTORY
 from .utils import ConfigDictMixin, ConfigDictNoMangleMixin, \
@@ -293,7 +294,7 @@ class GradescopeAutograderZip(object):
             self._write_string(run_autograder, 'run_autograder', zipfile)
 
             if self.wheel_path is None:
-                pip_install_arg = 'zucchini'
+                pip_install_arg = 'zucchini==' + ZUCCHINI_VERSION
             else:
                 # Can't just name it `zucchini.whl' or something because
                 # this upsets pip
