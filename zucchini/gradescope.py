@@ -6,6 +6,7 @@ import os
 import json
 from zipfile import ZipFile, ZIP_DEFLATED
 
+from .grading_manager import Grade
 from .constants import ASSIGNMENT_CONFIG_FILE, ASSIGNMENT_FILES_DIRECTORY
 from .utils import ConfigDictMixin, ConfigDictNoMangleMixin, \
                    datetime_from_string
@@ -39,8 +40,8 @@ class GradescopeAutograderTestOutput(ConfigDictNoMangleMixin, ConfigDictMixin):
 
     def __init__(self, name=None, score=None, max_score=None, output=None):
         self.name = name
-        self.score = float(score) if score is not None else None
-        self.max_score = float(max_score) if max_score is not None else None
+        self.score = score
+        self.max_score = max_score
         self.output = output
 
 
@@ -62,6 +63,11 @@ class GradescopeAutograderOutput(ConfigDictNoMangleMixin, ConfigDictMixin):
             dict_['tests'] = [test.to_config_dict() for test in dict_['tests']]
         return dict_
 
+    @staticmethod
+    def _two_decimals(frac):
+        """Convert a fraction to string with two decimal points"""
+        return '{:.02f}'.format(Grade.to_float(frac))
+
     @classmethod
     def from_grade(cls, grade):
         """
@@ -80,7 +86,7 @@ class GradescopeAutograderOutput(ConfigDictNoMangleMixin, ConfigDictMixin):
             if penalty.points_delta != 0:
                 test = GradescopeAutograderTestOutput(
                     name=penalty.name,
-                    score=grade.to_float(penalty.points_delta))
+                    score=cls._two_decimals(penalty.points_delta))
                 tests.append(test)
 
         # Add actual test results
@@ -88,8 +94,8 @@ class GradescopeAutograderOutput(ConfigDictNoMangleMixin, ConfigDictMixin):
             if component.error:
                 test = GradescopeAutograderTestOutput(
                     name=component.name,
-                    score=grade.to_float(component.points_got),
-                    max_score=grade.to_float(component.points_possible),
+                    score=cls._two_decimals(component.points_got),
+                    max_score=cls._two_decimals(component.points_possible),
                     output=component.error)
                 tests.append(test)
             else:
@@ -102,8 +108,8 @@ class GradescopeAutograderOutput(ConfigDictNoMangleMixin, ConfigDictMixin):
 
                     test = GradescopeAutograderTestOutput(
                         name='{}: {}'.format(component.name, part.name),
-                        score=grade.to_float(part.points_got),
-                        max_score=grade.to_float(part.points_possible),
+                        score=cls._two_decimals(part.points_got),
+                        max_score=cls._two_decimals(part.points_possible),
                         output=deductions + part.log)
                     tests.append(test)
 
