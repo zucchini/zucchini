@@ -932,8 +932,9 @@ def gradescope_bridge(state, metadata_path):
 @click.option('--out-path', '-o', metavar='ZIP_FILE', default='autograder.zip',
               help='path to zip file to generate')
 @click.option('--wheel-path', metavar='WHEEL_PATH', default=None,
-              help='path to wheel to install for zucchini itself.'
-                   'useful for development')
+              help='path to zucchini wheel to install into the image. '
+                   'useful for development. default behavior: install the '
+                   'same version of zucchini as this version from pypi')
 @pass_state
 def gradescope_zip(state, out_path, wheel_path):
     """
