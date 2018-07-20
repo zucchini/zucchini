@@ -4,10 +4,8 @@ Example Zucchini Workflow
 
 The following is a zucchini workflow that would be used for grading an
 assignment, Homework Zero, for a fictional class CS 1337 at Utopia Tech.
-We assume that Utopia Tech uses Sakai and that we have downloaded
-student submissions into the ~/Downloads/ directory as
-bulk_download.zip. We also assume that Docker is installed and that we
-have non-sudo access to the Docker daemon.
+We assume that Utopia Tech uses Canvas and that we have set the Canvas
+course and assignment IDs in ``zucchini.yml``.
 
 Let’s start by installing zucchini
 
@@ -51,7 +49,7 @@ in the ``submissions/`` directory.
 
 ::
 
-    zucc load sakai ~/Downloads/bulk_download.zip
+    zucc load canvas
 
 Then, we start the grading process. Running the grade command without a
 config file name will use by default config.yml file in the current
@@ -62,18 +60,10 @@ results in their folders as JSON files.
 
     zucc grade
 
-If ``zucc grade`` prints out that some submissions are broken, we can
-interactively step through and fix them with
+Now that we’re done grading, we want to export our grades to Canvas:
 
 ::
 
-    zucc grade --fix
-
-Now that we’re done grading, we want to export our grades in a CSV
-format to be entered on our Sakai site:
-
-::
-
-    zucc export csv grades.csv
+    zucc export canvas
 
 And we’re done!
