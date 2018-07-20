@@ -90,6 +90,10 @@ class ZucchiniState(object):
     def user_name(self):
         return self._config.user_name
 
+    @property
+    def farm_manager(self):
+        return self._config.farm_manager
+
     def save_config_to_file(self, config_file):
         config_dict = self._config.to_config_dict('config_directory')
         yaml.safe_dump(config_dict, config_file, default_flow_style=False)
