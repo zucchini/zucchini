@@ -25,6 +25,15 @@ Zucchini is an automatic grader tool for use in grading programming assignments.
 * Documentation: https://zucchini.readthedocs.io.
 
 
+Installation
+------------
+
+::
+
+   $ pip install --user zucchini
+   $ zucc --help
+
+
 Getting Started with Development
 --------------------------------
 
@@ -41,9 +50,28 @@ After cloning this repo and installing virtualenv, run
 Features
 --------
 
-* TODO
+* Simple configuration: update one YAML file and store your graders in
+  git repositories for all your TAs
+* Relative weighting: no more twiddling with weights to get them to add
+  up to 100
+* Many backends: grade different languages in the same assignment
+* Import submissions from Gradescope, Canvas Assignments, or Canvas
+  Quizzes
+* Post Canvas grades and gradelogs with one command
+* Gradescope integration: generate a Gradescope autograder tarball for
+  an assignment with one command
 
 Credits
 ---------
 
-* TODO
+* Austin Adams (@ausbin) for creating lc3grade, which eventually became
+  zucchini
+* Cem Gokmen (@skyman) for suggesting converting lc3grade into a
+  generalized autograder for more than just C and LC-3 homeworks, and
+  creating the initial structure of zucchini
+* Patrick Tam (@pjztam) for implementing a bunch of graders, gradelogs,
+  and gradelog upload
+* Kexin Zhang (@kexin-zhang) for exploring Canvas bulk submission
+  downloads and for creating the demo downloader, which changed our
+  lives
+* Travis Adams (@travis-adams) for nothing
