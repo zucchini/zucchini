@@ -50,14 +50,21 @@ After cloning this repo and installing virtualenv, run
 Features
 --------
 
+* Unified grading infrastructure: eliminates maintenance load of ad-hoc
+  per-assignment graders
+* Separates test results from computed grades: graders provide test
+  results which are stored on disk, and then zucchini calculates grade
+  based on the weight of each test. That is, graders do not perform
+  grade calculation; they only gather information about students' work
 * Simple configuration: update one YAML file and store your graders in
   git repositories for all your TAs
 * Relative weighting: no more twiddling with weights to get them to add
   up to 100
-* Many backends: grade different languages in the same assignment
 * Import submissions from Gradescope, Canvas Assignments, or Canvas
   Quizzes
-* Post Canvas grades and gradelogs with one command
+* No more copy-and-pasting grades and commments: automated upload of
+  Canvas grades and gradelogs
+* Flatten (extract) archived submissions
 * Gradescope integration: generate a Gradescope autograder tarball for
   an assignment with one command
 
