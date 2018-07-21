@@ -19,8 +19,8 @@ itself consists of a list of parts. Like this:
 .. graphviz::
 
    digraph {
-    size="8,8"
     dpi=200
+    ordering=out
 
     a  [shape=box, label="Assignment"]
     c1 [shape=box, label="Component"]
@@ -83,8 +83,8 @@ a CircuitSim circuit ``fsm.sim`` and a Java file ``BitVector.java``:
 .. graphviz::
 
    digraph {
-    size="8,8"
     dpi=200
+    ordering=out
 
     a  [shape=box, label="Homework 8"]
 
@@ -119,6 +119,71 @@ a CircuitSim circuit ``fsm.sim`` and a Java file ``BitVector.java``:
     c3 -> p9
    }
 
+^^^^^^^
+Weights
+^^^^^^^
+
+Zucchini weights components and parts relatively. That is, a component
+:math:`i` is worth :math:`\frac{\text{weight}_i}{\sum_k \text{weight}_k}` of the grade.
+
+So for the following assignment:
+
+.. graphviz::
+
+   digraph {
+    dpi=200
+    ordering=out
+
+    a  [shape=box, label="Homework 8"]
+    c1 [shape=box, label="fsm.sim (One-hot subcircuit)\nweight: 3"]
+    c2 [shape=box, label="fsm.sim (Reduced subcircuit)\nweight: 1"]
+    c3 [shape=box, label="BitVector.java\nweight: 2"]
+
+    a -> c1
+    a -> c2
+    a -> c3
+   }
+
+the rubric is actually:
+
+============================ =======
+Component                    Percent
+============================ =======
+fsm.sim (One-hot subcircuit) 50%
+fsm.sim (Reduced subcircuit) 16.67%
+BitVector.java               33.33%
+============================ =======
+
+Parts have the same relationship with their parent components. So a part
+:math:`j` of a component :math:`i` is worth
+:math:`\frac{\text{weight}_i}{\sum_k \text{weight}_k} \times
+\frac{\text{weight}_j}{\sum_l \text{weight}_l}` of the grade.
+
+Don't let the decimal points above mislead you: Zucchini calculates
+grades with rational numbers internally, so you you don't need to worry
+about floating point screwing up or perfect submissions getting a 99.99
+or anything like that (lc3grade had this problem).
+
+We added relative weighting because we didn't enjoy twiddling with
+weights until they summed to 100. If you do, you can make all the
+weights add up to 100:
+
+.. graphviz::
+
+   digraph {
+    dpi=200
+    ordering=out
+
+    a  [shape=box, label="Homework 8"]
+    c1 [shape=box, label="fsm.sim (One-hot subcircuit)\nweight: 50"]
+    c2 [shape=box, label="fsm.sim (Reduced subcircuit)\nweight: 16"]
+    c3 [shape=box, label="BitVector.java\nweight: 34"]
+
+    a -> c1
+    a -> c2
+    a -> c3
+   }
+
 ^^^^^^^^^^^^^^^^^^^^^^^^
 Assignment Configuration
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -144,14 +209,26 @@ The directory structure for an assignment ``my_assignment`` looks like::
 
 You need to create only ``zucchini.yml`` and optionally
 ``grading-files/``. Zucchini will generate ``submissions/``.
-``zucchini.yml`` looks like::
+``zucchini.yml`` looks like
+
+.. code-block:: yaml
 
    name: Homework X # required
-   author: Austin Adams # required
+   author: Michael Lin # required
    due-date: 2018-06-24T18:00:00-04:00
+   canvas:
+     course-id: 2607
+     assignment-id: 8685
+   penalties:
+   - name: LATE
+     backend: LatePenalizer
+     backend-options:
+       penalties:
+       - after: 1h
+         penalty: 25pts
    components: # required
    - name: Finite State Machine # required
-     weight: 1 # required
+     weight: 2 # required
      backend: CircuitSimGrader # required
      backend-options:
        grader-jar: hwX-tester.jar
@@ -164,6 +241,23 @@ You need to create only ``zucchini.yml`` and optionally
      - {test: enableConnected, weight: 1}
      - {test: outputA,         weight: 5}
      - {test: transition,      weight: 10}
+   - name: Fully reduced
+     weight: 1
+     backend: CommandGrader
+     backend-options:
+       command: "java -cp hwX-tester.jar com.ra4king.circuitsim.gui.CircuitSim fsm.sim"
+     files: [fsm.sim]
+     grading-files: [hwX-tester.jar]
+     parts:
+     - text: "banned gates?"
+       answer-type: bool
+       weight: 2
+     - text: "number of incorrect SOP expressions"
+       answer-type: int
+       answer-range: [0, 5]
+       weight: 3
+
+You can find a full list of graders at :py:mod:`zucchini.graders`.
 
 ^^^^^
 Farms
