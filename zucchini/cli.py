@@ -2,6 +2,7 @@
 
 """Command-line interface to zucchini."""
 import os
+import re
 import sys
 import csv
 import shutil
@@ -244,6 +245,56 @@ def load(state, to_dir):
     """Load student submissions."""
 
     state.submission_dir = to_dir
+
+
+@load.command('path')
+@click.argument('path',
+                type=click.Path(file_okay=True, dir_okay=True, readable=True,
+                                resolve_path=True))
+@click.option('-n', '--student-name', metavar='NAME', default=None,
+              help='Name of student. Will prompt if missing')
+@click.option('--max-archive-size', type=int, metavar='BYTES',
+              help='maximum size of archive to extract')
+@pass_state
+@need_config
+def load_path(state, path, student_name, max_archive_size):
+    """
+    Load a submission from a filesystem path.
+
+    If path is a directory, will use all files in the directory as the
+    submission files. If path is a file, will use only that file.
+    Flattens submission files (extracts archives) after copying.
+    """
+
+    if student_name is None:
+        # Try to guess the student's name based on the directory/file name
+        name_pieces = re.split(r'[-_\s,]+', os.path.basename(path))
+        name_guess = ' '.join(name.capitalize() for name in name_pieces)
+
+        student_name = click.prompt('Student name', default=name_guess)
+
+    base_dir = os.path.join(state.submission_dir, student_name)
+    mkdir_p(base_dir)
+    files_dir = os.path.join(base_dir, SUBMISSION_FILES_DIRECTORY)
+
+    if os.path.isdir(path):
+        # copytree() requires that the directory not exist
+        if os.path.exists(files_dir):
+            shutil.rmtree(files_dir)
+
+        shutil.copytree(path, files_dir)
+    else:
+        mkdir_p(files_dir)
+        destfile = os.path.join(files_dir, os.path.basename(path))
+        shutil.copy(path, destfile)
+
+    flatten(files_dir, max_archive_size=max_archive_size)
+
+    # Create initial meta.json in submission dir
+    submission = Submission.load_from_empty_dir(
+        state.get_assignment(), base_dir, student_name=student_name,
+        graded=False)
+    submission.initialize_metadata()
 
 
 @load.command('gradescope')
