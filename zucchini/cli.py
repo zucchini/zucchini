@@ -266,9 +266,9 @@ def load_gradescope(state, export_zipfile):
                 loader.extract_files(submission_id, files_dir)
 
                 # Create initial meta.json in submission dir
-                submission = Submission(
-                    student_name, state.get_assignment(), base_dir,
-                    graded=False, id=submission_id)
+                submission = Submission.load_from_empty_dir(
+                    state.get_assignment(), base_dir,
+                    student_name=student_name, graded=False, id=submission_id)
                 submission.initialize_metadata()
 
 
@@ -414,11 +414,10 @@ def load_canvas(state, section, max_archive_size, filter):
                     error = str(err)
 
             # Create initial meta.json in submission dir
-            submission = Submission(
-                student_name, state.get_assignment(), base_dir, graded=False,
-                id=canvas_submission.user_id,
-                seconds_late=canvas_submission.seconds_late,
-                error=error)
+            submission = Submission.load_from_empty_dir(
+                state.get_assignment(), base_dir, graded=False,
+                student_name=student_name, id=canvas_submission.user_id,
+                seconds_late=canvas_submission.seconds_late, error=error)
             submission.initialize_metadata()
 
 
@@ -474,9 +473,10 @@ def load_canvas_archive(state, bulk_zipfile, section, max_archive_size,
                         error = str(err)
 
                 # Create initial meta.json in submission dir
-                submission = Submission(
-                    student.sortable_name, state.get_assignment(), base_dir,
-                    graded=False, id=student.id, error=error)
+                submission = Submission.load_from_empty_dir(
+                    state.get_assignment(), base_dir,
+                    student_name=student.sortable_name, graded=False,
+                    id=student.id, error=error)
                 submission.initialize_metadata()
 
 
