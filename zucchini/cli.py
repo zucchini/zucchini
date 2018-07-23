@@ -246,13 +246,6 @@ def load(state, to_dir):
     state.submission_dir = to_dir
 
 
-@load.command('sakai')
-@pass_state
-def load_sakai(state):
-    """Load submissions from Sakai"""
-    raise NotImplementedError
-
-
 @load.command('gradescope')
 @click.argument('export-zipfile',
                 type=click.Path(file_okay=True, dir_okay=True, readable=True,
