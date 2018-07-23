@@ -42,12 +42,32 @@ class Submission(ConfigDictMixin):
         # TODO: Validate the path - make sure everything that's needed for the
         # assignment is available in the path
 
+    @staticmethod
+    def get_paths(path):
+        """
+        Calculate the metadata and files paths for a standard submission
+        from `zucc load'.
+        """
+        metadata_path = os.path.join(path, SUBMISSION_META_FILE)
+        files_path = os.path.join(path, SUBMISSION_FILES_DIRECTORY)
+
+        return metadata_path, files_path
+
+    @classmethod
+    def load_from_empty_dir(cls, assignment, path, **kwargs):
+        """
+        Load a Submission instance from an uninitialized submission directory.
+        """
+
+        metadata_path, files_path = cls.get_paths(path)
+        return cls(assignment=assignment, metadata_path=metadata_path,
+                   files_path=files_path, **kwargs)
+
     @classmethod
     def load_from_dir(cls, assignment, path):
         """Load a Submission instance from a submission directory."""
 
-        metadata_path = os.path.join(path, SUBMISSION_META_FILE)
-        files_path = os.path.join(path, SUBMISSION_FILES_DIRECTORY)
+        metadata_path, files_path = cls.get_paths(path)
 
         with open(metadata_path) as meta_file:
             meta_json = json.load(meta_file)
