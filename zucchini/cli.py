@@ -274,14 +274,15 @@ def load_path(state, path, student_name, max_archive_size):
         student_name = click.prompt('Student name', default=name_guess)
 
     base_dir = os.path.join(state.submission_dir, student_name)
+    # Remove submission if it already exists
+    shutil.rmtree(base_dir, ignore_errors=True)
+
     mkdir_p(base_dir)
+    # Wait to create files_dir because copytree() below expects the
+    # destination directory not to exist
     files_dir = os.path.join(base_dir, SUBMISSION_FILES_DIRECTORY)
 
     if os.path.isdir(path):
-        # copytree() requires that the directory not exist
-        if os.path.exists(files_dir):
-            shutil.rmtree(files_dir)
-
         shutil.copytree(path, files_dir)
     else:
         mkdir_p(files_dir)
