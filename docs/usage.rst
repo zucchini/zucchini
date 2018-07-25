@@ -54,7 +54,7 @@ We list the assignments on our farms to find the one we’re looking for:
 
     zucc list
 
-From the output of this, we find that our assignment is called ``junit\stacks-queues``.
+From the output of this, we find that our assignment is called ``junit/stacks-queues``.
 We use ``zucc init`` to make zucchini pull the assignment configuration into a new
 directory which will have the assignment's name. We use our farm’s name as well as the
 assignment’s name on the farm. Note that detailed information about this assignment,
