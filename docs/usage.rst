@@ -5,6 +5,106 @@ Usage
 Before following this guide, make sure you've installed zucchini as
 described in :doc:`installation`.
 
+---------------------
+Grading an Assignment
+---------------------
+
+The following section is written as a zucchini workflow that would be used
+by a TA in a course that already has a zucchini farm set up (as an example,
+we will use the sample zucchini farm), that an instructor or TA has already
+prepared the assignment and linked to it on the farm (as an example, we will
+use the sample zucchini JUnit assignment), and that student submissions are
+available in directory (as an example, we will use sample submissions on a
+git repo).
+
+Note that this tutorial expects that you are on either Linux or OSX, that you
+have access to the terminal (Terminal.app on OSX), that you have installed a
+Python distribution that's either 2.7 or >3.4 (we recommend Anaconda for
+beginners), that you have git installed, that you have JDK 1.8 or higher
+installed and linked to your path, and that you have gradle installed.
+
+Let’s start by installing zucchini
+
+::
+
+    pip install zucchini
+
+We set up our workspace by entering our identity details:
+
+::
+
+    zucc setup
+
+Then we add the farm for the metadata repository created by our
+instructor. We name it ``cs1337-fall1970``:
+
+::
+
+    zucc farm https://github.com/zucchini/sample-farm.git cs1337-fall1970
+    
+Then we make a new directory for our grading and change into it.
+
+::
+
+    mkdir zuccsample && cd zuccsample
+
+We list the assignments on our farms to find the one we’re looking for:
+
+::
+
+    zucc list
+
+From the output of this, we find that our assignment is called ``junit\stacks-queues``.
+We use ``zucc init`` to make zucchini pull the assignment configuration into a new
+directory which will have the assignment's name. We use our farm’s name as well as the
+assignment’s name on the farm. Note that detailed information about this assignment,
+which tests a Stack and Queue implementation using JUnit, can be found on the `repository
+page <https://github.com/zucchini/sample-assignment>`_ for the assignment.
+
+::
+
+    zucc init cs1337-fall1970/junit/stacks-queues
+
+Then, we download the sample submissions: 
+
+::
+
+    git clone https://github.com/zucchini/sample-assignment-submissions.git
+    
+Now we change into our assignment directory, and make zucchini load the submissions
+we just downloaded. Note that in a real workflow, submissions would likely be loaded
+through LMS integration modules such as Canvas. Also note that the `-d` flag for the
+path loader is used to make zucchini use the directory name (e.g. `Alice`) as the
+submitting student's name as well.
+
+::
+
+    cd stacks-queues
+    zucc load path -d ../sample-assignment-submissions/Alice
+    zucc load path -d ../sample-assignment-submissions/Bob
+    zucc load path -d ../sample-assignment-submissions/Charlie
+    zucc load path -d ../sample-assignment-submissions/Dave
+    zucc load path -d ../sample-assignment-submissions/Eve
+
+Then, we start the grading process. This will grade each submission separately and
+save their results in their folders into the submissions' meta.json files. Once the
+grading is done, a text editor will open to show the newly updated grades. Hit `:q`
+close it.
+
+::
+
+    zucc grade
+
+Now that we’re done grading, we want to exports the grades our students received. Note
+that in a real workflow, this would also likely be done through LMS integration modules
+such as Canvas, which allow for grades to be saved directly onto students' accounts.
+
+::
+
+    zucc export csv > grades.csv
+
+And we’re done! The grades can be found in the CSV file.
+
 ----------------------
 Creating an Assignment
 ----------------------
@@ -270,73 +370,3 @@ regrade their section all over again. Zucchini offers a solution to this
 you're probably already comfortable with: git.
 
 TODO: Finish
-
----------------------
-Grading an Assignment
----------------------
-
-The following is a zucchini workflow that would be used for grading an
-assignment, Homework Zero, for a fictional class CS 1337 at Utopia Tech.
-We assume that Utopia Tech uses Canvas and that we have set the Canvas
-course and assignment IDs in ``zucchini.yml``.
-
-Let’s start by installing zucchini
-
-::
-
-    pip install zucchini
-
-We set up our workspace by entering our identity details:
-
-::
-
-    zucc setup
-
-Then we add the farm for the metadata repository created by our
-instructor. We name it ``cs1337-fall1970``:
-
-::
-
-    zucc farm https://github.utopiatech.edu/cs1337/fall1970.git cs1337-fall1970
-
-We list the assignments on our farms to find the one we’re looking for:
-
-::
-
-    zucc list
-
-From the output of this, we find that it’s HW0 that we’re trying to
-grade. We use ``zucc init`` to create a directory with the HW0 grading
-configuration. This will download the config.yml file into our directory
-as well as filling the ``grader/`` directory with the grader files. We
-use our farm’s name as well as the assignment’s name on the farm.
-
-::
-
-    zucc init cs1337-fall1970/hw0 hw0-grading
-    cd hw0-grading
-
-Then, we load the submissions we downloaded. This will unpack and
-flatten the submissions, putting them in the correct directory structure
-in the ``submissions/`` directory.
-
-::
-
-    zucc load canvas
-
-Then, we start the grading process. Running the grade command without a
-config file name will use by default config.yml file in the current
-directory. This will grade each submission separately and put their
-results in their folders as JSON files.
-
-::
-
-    zucc grade
-
-Now that we’re done grading, we want to export our grades to Canvas:
-
-::
-
-    zucc export canvas
-
-And we’re done!
