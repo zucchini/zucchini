@@ -40,7 +40,7 @@ instructor. We name it ``cs1337-fall1970``:
 
 ::
 
-    zucc farm https://github.com/zucchini/sample-farm.git cs1337-fall1970
+    zucc farm add https://github.com/zucchini/sample-farm.git cs1337-fall1970
     
 Then we make a new directory for our grading and change into it.
 
