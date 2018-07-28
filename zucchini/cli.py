@@ -253,6 +253,8 @@ def load(state, to_dir):
                                 resolve_path=True))
 @click.option('-n', '--student-name', metavar='NAME', default=None,
               help='Name of student. Will prompt if missing')
+@click.option('-d', '--default-student-name, is_flag=True, help='Use the name
+              of the import directory as the student name by default.')
 @click.option('--max-archive-size', type=int, metavar='BYTES',
               help='maximum size of archive to extract')
 @pass_state
@@ -271,7 +273,10 @@ def load_path(state, path, student_name, max_archive_size):
         name_pieces = re.split(r'[-_\s,]+', os.path.basename(path))
         name_guess = ' '.join(name.capitalize() for name in name_pieces)
 
-        student_name = click.prompt('Student name', default=name_guess)
+        if default_student_name:
+            student_name = name_guess
+        else:
+            student_name = click.prompt('Student name', default=name_guess)
 
     base_dir = os.path.join(state.submission_dir, student_name)
     # Remove submission if it already exists
