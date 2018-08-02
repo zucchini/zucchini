@@ -253,7 +253,7 @@ def load(state, to_dir):
                                 resolve_path=True))
 @click.option('-n', '--student-name', metavar='NAME', default=None,
               help='Name of student. Will prompt if missing')
-@click.option('-d', '--default-student-name, is_flag=True, help='Use the name
+@click.option('-d', '--default-student-name', is_flag=True, help='Use the name
               of the import directory as the student name by default.')
 @click.option('--max-archive-size', type=int, metavar='BYTES',
               help='maximum size of archive to extract')
