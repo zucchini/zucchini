@@ -259,7 +259,8 @@ def load(state, to_dir):
               help='maximum size of archive to extract')
 @pass_state
 @need_config
-def load_path(state, path, student_name, max_archive_size):
+def load_path(state, path, student_name, default_student_name,
+              max_archive_size):
     """
     Load a submission from a filesystem path.
 
