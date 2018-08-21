@@ -325,6 +325,6 @@ class Assignment(object):
         for penalty in self.penalties:
             calc_penalty = penalty.calculate(submission, grade.grade)
             grade.penalties.append(calc_penalty)
-            grade.grade += calc_penalty.delta
+            grade.grade += calc_penalty.points_delta
 
         return grade
