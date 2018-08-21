@@ -21,7 +21,6 @@ class GradescopeMetadata(object):
 
     _ATTRS = {
         'created_at': datetime_from_string,
-        'assignment_id': int,
     }
 
     def __init__(self, json_dict):
