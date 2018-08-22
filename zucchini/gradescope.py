@@ -4,6 +4,7 @@ Utilities for gradescope autograding.
 
 import os
 import json
+from fractions import Fraction
 from zipfile import ZipFile, ZIP_DEFLATED
 
 from . import __version__ as ZUCCHINI_VERSION
@@ -84,9 +85,14 @@ class GradescopeAutograderOutput(ConfigDictNoMangleMixin, ConfigDictMixin):
         # Add penalties
         for penalty in computed_grade.penalties:
             if penalty.points_delta != 0:
+                # Hack: Display -37 as 0/37 and +37 as 37/37
+                fake_max_score = cls._two_decimals(abs(penalty.points_delta))
+                fake_score = cls._two_decimals(Fraction(0)) \
+                    if penalty.points_delta < 0 else fake_max_score
                 test = GradescopeAutograderTestOutput(
                     name=penalty.name,
-                    score=cls._two_decimals(penalty.points_delta))
+                    score=fake_score,
+                    max_score=fake_max_score)
                 tests.append(test)
 
         # Add actual test results
