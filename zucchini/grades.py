@@ -118,12 +118,12 @@ class PartGrade(ConfigDictMixin):
 
     def calculate_grade(self, points, part, partial_credit):
         grade = CalculatedPartGrade(name=part.description(),
-                                   points_delta=self.score * points - points,
-                                   points_got=self.score * points,
-                                   points_possible=points,
-                                   grade=self.score,
-                                   deductions=self.deductions,
-                                   log=self.log)
+                                    points_delta=self.score * points - points,
+                                    points_got=self.score * points,
+                                    points_possible=points,
+                                    grade=self.score,
+                                    deductions=self.deductions,
+                                    log=self.log)
 
         if not partial_credit:
             if grade.grade.numerator < grade.grade.denominator:

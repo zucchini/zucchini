@@ -17,10 +17,13 @@ from .utils import ConfigDictMixin, copy_globs, datetime_from_string, \
                    sanitize_path
 
 
-class ComponentPart(namedtuple('ComponentPart', ['weight', 'part', 'partial_credit'])):
+class ComponentPart(namedtuple('ComponentPart',
+                               ['weight', 'part', 'partial_credit'])):
     def calculate_grade(self, component_points, total_part_weight, part_grade):
         points = component_points * Fraction(self.weight, total_part_weight)
-        return part_grade.calculate_grade(points, self.part, self.partial_credit)
+        return part_grade.calculate_grade(points,
+                                          self.part,
+                                          self.partial_credit)
 
 
 class AssignmentComponent(ConfigDictMixin):
@@ -93,7 +96,9 @@ class AssignmentComponent(ConfigDictMixin):
                 del part_dict['partial_credit']
 
             part = self.grader.part_from_config_dict(part_dict)
-            self.parts.append(ComponentPart(weight=weight, part=part, partial_credit=partial_credit))
+            self.parts.append(ComponentPart(weight=weight,
+                                            part=part,
+                                            partial_credit=partial_credit))
             self.total_part_weight += weight
 
     def is_interactive(self):
