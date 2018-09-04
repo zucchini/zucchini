@@ -17,16 +17,16 @@ from .utils import ConfigDictMixin, copy_globs, datetime_from_string, \
                    sanitize_path
 
 
-class ComponentPart(namedtuple('ComponentPart', ['weight', 'part'])):
+class ComponentPart(namedtuple('ComponentPart', ['weight', 'part', 'partial_credit'])):
     def calculate_grade(self, component_points, total_part_weight, part_grade):
         points = component_points * Fraction(self.weight, total_part_weight)
-        return part_grade.calculate_grade(points, self.part)
+        return part_grade.calculate_grade(points, self.part, self.partial_credit)
 
 
 class AssignmentComponent(ConfigDictMixin):
     def __init__(self, assignment, name, backend, weight, parts, files=None,
                  optional_files=None, grading_files=None,
-                 backend_options=None):
+                 backend_options=None, partial_credit=True):
         self.assignment = assignment
         self.name = name
 
@@ -39,6 +39,8 @@ class AssignmentComponent(ConfigDictMixin):
         self.weight = weight
         if type(self.weight) != int:
             raise ValueError("Component weights need to be integers.")
+
+        self.partial_credit = partial_credit
 
         self.files = files
         if self.files is not None:
@@ -84,8 +86,14 @@ class AssignmentComponent(ConfigDictMixin):
             else:
                 weight = part_dict['weight']
                 del part_dict['weight']
+
+            partial_credit = True
+            if 'partial_credit' in part_dict:
+                partial_credit = part_dict['partial_credit']
+                del part_dict['partial_credit']
+
             part = self.grader.part_from_config_dict(part_dict)
-            self.parts.append(ComponentPart(weight=weight, part=part))
+            self.parts.append(ComponentPart(weight=weight, part=part, partial_credit=partial_credit))
             self.total_part_weight += weight
 
     def is_interactive(self):
@@ -141,7 +149,7 @@ class AssignmentComponent(ConfigDictMixin):
         points = Fraction(self.weight, total_weight)
         return component_grade.calculate_grade(points, self.name,
                                                self.total_part_weight,
-                                               self.parts)
+                                               self.parts, self.partial_credit)
 
 
 class AssignmentPenalty(ConfigDictMixin):

@@ -45,7 +45,7 @@ class AssignmentComponentGrade(ConfigDictMixin):
         return self.error is not None
 
     def calculate_grade(self, points, name, total_part_weight,
-                        component_parts):
+                        component_parts, partial_credit):
         # type: (List[ComponentPart]) -> CalculatedComponentGrade
         """
         Using the list of ComponentPart instances provided (which
@@ -77,6 +77,10 @@ class AssignmentComponentGrade(ConfigDictMixin):
         grade.points_possible = points
         grade.points_delta = grade.points_got - grade.points_possible
         grade.grade = Fraction(grade.points_got, grade.points_possible)
+
+        if not partial_credit:
+            if grade.grade.numerator < grade.grade.denominator:
+                grade.grade.numerator = 0
 
         return grade
 
@@ -114,14 +118,20 @@ class PartGrade(ConfigDictMixin):
         part_grade.score = Fraction(part_grade.score)
         return part_grade
 
-    def calculate_grade(self, points, part):
-        return CalculatedPartGrade(name=part.description(),
+    def calculate_grade(self, points, part, partial_credit):
+        grade = CalculatedPartGrade(name=part.description(),
                                    points_delta=self.score * points - points,
                                    points_got=self.score * points,
                                    points_possible=points,
                                    grade=self.score,
                                    deductions=self.deductions,
                                    log=self.log)
+
+        if not partial_credit:
+            if grade.grade.numerator < grade.grade.denominator:
+                grade.grade.numerator = 0
+
+        return grade
 
 
 class CalculatedGrade(Record):
