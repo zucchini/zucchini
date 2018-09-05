@@ -91,9 +91,9 @@ class AssignmentComponent(ConfigDictMixin):
                 del part_dict['weight']
 
             partial_credit = True
-            if 'partial_credit' in part_dict:
-                partial_credit = part_dict['partial_credit']
-                del part_dict['partial_credit']
+            if 'partial-credit' in part_dict:
+                partial_credit = part_dict['partial-credit']
+                del part_dict['partial-credit']
 
             part = self.grader.part_from_config_dict(part_dict)
             self.parts.append(ComponentPart(weight=weight,
