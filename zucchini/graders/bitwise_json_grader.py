@@ -94,7 +94,8 @@ class BitwiseJSONGrader(GraderInterface):
 
         if process.returncode != 0:
             raise BrokenSubmissionError(
-                'grader command exited with nonzero exit code {}'
+                ('grader command exited with nonzero exit code {}. '
+                 'syntax error?')
                 .format(process.returncode),
                 verbose=process.stdout.decode() if process.stdout else None)
 
