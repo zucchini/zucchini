@@ -80,7 +80,7 @@ class AssignmentComponentGrade(ConfigDictMixin):
 
         if not partial_credit:
             if grade.grade.numerator < grade.grade.denominator:
-                grade.grade.numerator = 0
+                grade.grade = Fraction(0, grade.grade.denominator)
 
         return grade
 
@@ -129,7 +129,7 @@ class PartGrade(ConfigDictMixin):
 
         if not partial_credit:
             if grade.grade.numerator < grade.grade.denominator:
-                grade.grade.numerator = 0
+                grade.grade = Fraction(0, grade.grade.denominator)
 
         return grade
 
