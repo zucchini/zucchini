@@ -73,12 +73,12 @@ class AssignmentComponentGrade(ConfigDictMixin):
                 grade.points_got += calc_part_grade.points_got
 
         grade.points_possible = points
+
+        if not partial_credit and grade.points_got < grade.points_possible:
+            grade.points_got = Fraction(0)
+
         grade.points_delta = grade.points_got - grade.points_possible
         grade.grade = Fraction(grade.points_got, grade.points_possible)
-
-        if not partial_credit:
-            if grade.grade.numerator < grade.grade.denominator:
-                grade.grade = Fraction(0, grade.grade.denominator)
 
         return grade
 
@@ -117,19 +117,17 @@ class PartGrade(ConfigDictMixin):
         return part_grade
 
     def calculate_grade(self, points, part, partial_credit):
-        grade = CalculatedPartGrade(name=part.description(),
-                                    points_delta=self.score * points - points,
-                                    points_got=self.score * points,
-                                    points_possible=points,
-                                    grade=self.score,
-                                    deductions=self.deductions,
-                                    log=self.log)
+        points_got = self.score * points
+        if not partial_credit and points_got < points:
+            points_got = Fraction(0)
 
-        if not partial_credit:
-            if grade.grade.numerator < grade.grade.denominator:
-                grade.grade = Fraction(0, grade.grade.denominator)
-
-        return grade
+        return CalculatedPartGrade(name=part.description(),
+                                   points_delta=self.score * points - points,
+                                   points_got=points_got,
+                                   points_possible=points,
+                                   grade=self.score,
+                                   deductions=self.deductions,
+                                   log=self.log)
 
 
 class CalculatedGrade(Record):
