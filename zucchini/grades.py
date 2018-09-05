@@ -45,7 +45,7 @@ class AssignmentComponentGrade(ConfigDictMixin):
         return self.error is not None
 
     def calculate_grade(self, points, name, total_part_weight,
-                        component_parts, partial_credit):
+                        component_parts):
         # type: (List[ComponentPart]) -> CalculatedComponentGrade
         """
         Using the list of ComponentPart instances provided (which
@@ -75,10 +75,6 @@ class AssignmentComponentGrade(ConfigDictMixin):
                 grade.points_got += calc_part_grade.points_got
 
         grade.points_possible = points
-
-        if not partial_credit and grade.points_got < grade.points_possible:
-            grade.points_got = Fraction(0)
-
         grade.points_delta = grade.points_got - grade.points_possible
         grade.grade = Fraction(grade.points_got, grade.points_possible)
 
