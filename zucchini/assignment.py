@@ -29,7 +29,7 @@ class ComponentPart(namedtuple('ComponentPart',
 class AssignmentComponent(ConfigDictMixin):
     def __init__(self, assignment, name, backend, weight, parts, files=None,
                  optional_files=None, grading_files=None,
-                 backend_options=None, partial_credit=True):
+                 backend_options=None):
         self.assignment = assignment
         self.name = name
 
@@ -42,8 +42,6 @@ class AssignmentComponent(ConfigDictMixin):
         self.weight = weight
         if type(self.weight) != int:
             raise ValueError("Component weights need to be integers.")
-
-        self.partial_credit = partial_credit
 
         self.files = files
         if self.files is not None:
@@ -154,7 +152,7 @@ class AssignmentComponent(ConfigDictMixin):
         points = Fraction(self.weight, total_weight)
         return component_grade.calculate_grade(points, self.name,
                                                self.total_part_weight,
-                                               self.parts, self.partial_credit)
+                                               self.parts)
 
 
 class AssignmentPenalty(ConfigDictMixin):
