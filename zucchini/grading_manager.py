@@ -268,9 +268,12 @@ class Grade(object):
             for component in grade.components:
                 if component.error is not None:
                     assignment_pass = False
-                    f.write("(%s / %s) [FAIL] TOTAL for %s: %s\n\n" % (
-                        component.points_got, component.points_possible,
-                        component.name, component.error))
+                    f.write("(%s / %s) [FAIL] TOTAL for %s: %s%s\n\n" % (
+                        self._left_pad(component.points_got),
+                        self._left_pad(component.points_possible),
+                        component.name, component.error,
+                        ('\n' + component.error_verbose)
+                        if component.error_verbose else ''))
                 else:
                     component_pass = True
 
