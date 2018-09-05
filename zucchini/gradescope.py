@@ -102,7 +102,8 @@ class GradescopeAutograderOutput(ConfigDictNoMangleMixin, ConfigDictMixin):
                     name=component.name,
                     score=cls._two_decimals(component.points_got),
                     max_score=cls._two_decimals(component.points_possible),
-                    output=component.error)
+                    output='{}\n{}'.format(component.error,
+                                           component.error_verbose or ''))
                 tests.append(test)
             else:
                 for part in component.parts:
