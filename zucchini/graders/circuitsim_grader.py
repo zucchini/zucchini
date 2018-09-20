@@ -27,8 +27,10 @@ class CircuitSimTest(Part):
                    ' autograder error to your instructors.')
             return PartGrade(score=Fraction(0), log=msg)
 
-        log = '\n'.join('{0[displayName]}: {0[message]}'.format(failure)
-                        for failure in result['partialFailures'])
+        log = '\n'.join('{}: {}'.format(
+            failure['displayName'],
+            failure.get('message', '(no details, sorry)'))
+            for failure in result['partialFailures'])
         partialFailures = len(result['partialFailures'])
         if partialFailures < result['failed']:
             log += '\n[omitted {} more failures]' \
