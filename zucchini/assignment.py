@@ -31,12 +31,13 @@ class AssignmentComponent(ConfigDictMixin):
                  backend_options=None):
         self.assignment = assignment
         self.name = name
+        self.backend = backend
 
         # Get the backend class
-        if backend not in AVAILABLE_GRADERS:
+        if self.backend not in AVAILABLE_GRADERS:
             raise ValueError("Invalid grading backend: %s" % backend)
 
-        backend_class = AVAILABLE_GRADERS[backend]
+        backend_class = AVAILABLE_GRADERS[self.backend]
 
         self.weight = weight
         if type(self.weight) != int:
@@ -111,6 +112,13 @@ class AssignmentComponent(ConfigDictMixin):
         grader.
         """
         return self.grader.list_prerequisites()
+
+    def list_extra_setup_commands(self):
+        """
+        This function should return a list of extra one-time commands to
+        run at Docker image creation time. This is Ubuntu.
+        """
+        return self.grader.list_extra_setup_commands()
 
     def needs_display(self):
         """
@@ -243,6 +251,14 @@ class Assignment(object):
         for component in self.components:
             self.prerequisites.update(component.list_prerequisites())
 
+        self.extra_setup_commands = []
+        backend_types_seen = set()
+        for component in self.components:
+            if component.backend not in backend_types_seen:
+                backend_types_seen.add(component.backend)
+                self.extra_setup_commands += \
+                    component.list_extra_setup_commands()
+
         self.penalties = []
 
         for penalty_config in config.get('penalties', ()):
@@ -257,6 +273,12 @@ class Assignment(object):
         Return a list of Ubuntu 16.04 packages needed by this assignment.
         """
         return list(self.prerequisites)
+
+    def list_extra_setup_commands(self):
+        """
+        Return a list of Ubuntu commands to run at setup time.
+        """
+        return self.extra_setup_commands
 
     def has_interactive(self):
         """

@@ -148,6 +148,7 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get update
 apt-get install -y python3 python3-pip python3-wheel {prereqs}
 pip3 install {pip_install_arg}
+{extra_commands}
 '''
 
 
@@ -231,10 +232,11 @@ class GradescopeAutograderZip(object):
     generates a Docker image for grading.
     """
 
-    def __init__(self, path='.', prerequisites=None, needs_display=False,
-                 wheel_path=None):
+    def __init__(self, path='.', prerequisites=None, extra_commands=None,
+                 needs_display=False, wheel_path=None):
         self.path = path
         self.prerequisites = prerequisites or []
+        self.extra_commands = extra_commands or []
         self.needs_display = needs_display
         self.wheel_path = wheel_path
 
@@ -321,6 +323,8 @@ class GradescopeAutograderZip(object):
                                  real_path=self.wheel_path)
                 pip_install_arg = wheel_filename
 
+            extra_commands = '\n'.join(self.extra_commands)
             setup_sh = SETUP_SH.format(pip_install_arg=pip_install_arg,
-                                       prereqs=' '.join(self.prerequisites))
+                                       prereqs=' '.join(self.prerequisites),
+                                       extra_commands=extra_commands)
             self._write_string(setup_sh, 'setup.sh', zipfile)

@@ -25,6 +25,13 @@ class GraderInterface(ConfigDictMixin):
         """
         return []
 
+    def list_extra_setup_commands(self):  # type: () -> List[str]
+        """
+        This function should return a list of extra one-time commands to
+        run at Docker image creation time. This is Ubuntu.
+        """
+        return []
+
     def is_interactive(self):  # type: () -> bool
         """
         Return True if and only if this grader will produce command-line
