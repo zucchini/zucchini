@@ -1,4 +1,5 @@
 import json
+import os
 from fractions import Fraction
 
 from ..submission import BrokenSubmissionError
@@ -79,7 +80,7 @@ class PyLC3Grader(GraderInterface):
                 verbose=(process.stdout.decode()
                          if process.stdout else '(no output)'))
 
-        with open('results.json', 'r') as json_fp:
+        with open(os.path.join(path, 'results.json'), 'r') as json_fp:
             results = json.load(json_fp)
 
         return [part.grade(results.get(part.test)) for part in parts]
