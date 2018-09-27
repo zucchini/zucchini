@@ -56,19 +56,24 @@ class PyLC3Grader(GraderInterface):
     def list_extra_setup_commands(self):
         return ['pip install scikit-build',
                 'pip install pyLC3',
-                'ldconfig']
+                'ldconfig',
+                'pip install parameterized']
 
     def part_from_config_dict(self, config_dict):
         return PyLC3Test.from_config_dict(config_dict)
 
     def grade(self, submission, path, parts):
         cmdline = ['python2', 'runner.py', self.test_class]
+        env = os.environ.copy()
+        # HACK HACK HACK HACK HACK
+        env['LD_LIBRARY_PATH'] = '/usr/local/lib/python2.7/dist-packages/pyLC3'
         try:
             # Do not mix stderr into stdout because sometimes our friend
             # Roi printStackTrace()s or System.err.println()s, and that
             # will mess up JSON parsing
             process = run_process(cmdline, cwd=path, timeout=self.timeout,
-                                  stdout=PIPE, stderr=STDOUT, input='')
+                                  stdout=PIPE, stderr=STDOUT, input='',
+                                  env=env)
         except TimeoutExpired:
             raise BrokenSubmissionError('timeout of {} seconds expired for '
                                         'grader'.format(self.timeout))
