@@ -27,8 +27,8 @@ class PyLC3Test(Part):
                              log='results for test not found. misspelling?')
 
         log = '\n'.join('{0[display-name]}: {0[message]}'.format(test)
-                        for test in result if not test.passed)
-        failed = sum(1 for test in result if not test.passed)
+                        for test in result if not test['passed'])
+        failed = sum(1 for test in result if not test['passed'])
 
         score = Fraction(len(result) - failed, len(result))
         return PartGrade(score=score, log=log)
@@ -83,4 +83,5 @@ class PyLC3Grader(GraderInterface):
         with open(os.path.join(path, 'results.json'), 'r') as json_fp:
             results = json.load(json_fp)
 
-        return [part.grade(results.get(part.test)) for part in parts]
+        return [part.grade(results['results'].get(part.test))
+                for part in parts]
