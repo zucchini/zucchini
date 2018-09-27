@@ -60,11 +60,13 @@ class AssignmentComponentGrade(ConfigDictMixin):
                                          points_possible=Fraction(0),
                                          grade=Fraction(1),
                                          error=None,
+                                         error_verbose=None,
                                          parts=[])
 
         if self.is_broken():
             grade.points_got = Fraction(0)
             grade.error = self.error
+            grade.error_verbose = self.error_verbose
         else:
             for part, part_grade in zip(component_parts, self.part_grades):
                 calc_part_grade = part.calculate_grade(
@@ -150,7 +152,7 @@ class CalculatedComponentGrade(Record):
     possible.
     """
     __slots__ = ['name', 'points_delta', 'points_got', 'points_possible',
-                 'grade', 'error', 'parts']
+                 'grade', 'error', 'error_verbose', 'parts']
 
 
 class CalculatedPartGrade(Record):
