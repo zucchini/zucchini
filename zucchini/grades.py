@@ -118,7 +118,7 @@ class PartGrade(ConfigDictMixin):
             points_got = Fraction(0)
 
         return CalculatedPartGrade(name=part.description(),
-                                   points_delta=self.score * points - points,
+                                   points_delta=points_got - points,
                                    points_got=points_got,
                                    points_possible=points,
                                    grade=self.score,
