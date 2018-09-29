@@ -8,7 +8,6 @@ from fractions import Fraction
 from zipfile import ZipFile, ZIP_DEFLATED
 
 from . import __version__ as ZUCCHINI_VERSION
-from .grading_manager import Grade
 from .constants import ASSIGNMENT_CONFIG_FILE, ASSIGNMENT_FILES_DIRECTORY
 from .utils import ConfigDictMixin, ConfigDictNoMangleMixin, \
                    datetime_from_string
@@ -22,11 +21,21 @@ class GradescopeMetadata(object):
 
     _ATTRS = {
         'created_at': datetime_from_string,
+        'assignment.due_date': datetime_from_string,
+        # The nested int(float(..)) deal is because int('100.0')
+        # explodes
+        'assignment.total_points': lambda pts: int(float(pts)),
     }
 
     def __init__(self, json_dict):
         for attr, type_ in self._ATTRS.items():
-            setattr(self, attr, type_(json_dict[attr]))
+            if '.' in attr:
+                left, right = attr.split('.')
+                val = json_dict[left][right]
+                attr = right
+            else:
+                val = json_dict[attr]
+            setattr(self, attr, type_(val))
 
     @classmethod
     def from_json_path(cls, json_path):
@@ -65,9 +74,9 @@ class GradescopeAutograderOutput(ConfigDictNoMangleMixin, ConfigDictMixin):
         return dict_
 
     @staticmethod
-    def _two_decimals(frac):
+    def _two_decimals(grade, frac):
         """Convert a fraction to string with two decimal points"""
-        return '{:.02f}'.format(Grade.to_float(frac))
+        return '{:.02f}'.format(grade.to_float(frac))
 
     @classmethod
     def from_grade(cls, grade):
@@ -86,8 +95,9 @@ class GradescopeAutograderOutput(ConfigDictNoMangleMixin, ConfigDictMixin):
         for penalty in computed_grade.penalties:
             if penalty.points_delta != 0:
                 # Hack: Display -37 as 0/37 and +37 as 37/37
-                fake_max_score = cls._two_decimals(abs(penalty.points_delta))
-                fake_score = cls._two_decimals(Fraction(0)) \
+                fake_max_score = cls._two_decimals(
+                    grade, abs(penalty.points_delta))
+                fake_score = cls._two_decimals(grade, Fraction(0)) \
                     if penalty.points_delta < 0 else fake_max_score
                 test = GradescopeAutograderTestOutput(
                     name=penalty.name,
@@ -100,8 +110,9 @@ class GradescopeAutograderOutput(ConfigDictNoMangleMixin, ConfigDictMixin):
             if component.error:
                 test = GradescopeAutograderTestOutput(
                     name=component.name,
-                    score=cls._two_decimals(component.points_got),
-                    max_score=cls._two_decimals(component.points_possible),
+                    score=cls._two_decimals(grade, component.points_got),
+                    max_score=cls._two_decimals(
+                        grade, component.points_possible),
                     output='{}\n{}'.format(component.error,
                                            component.error_verbose or ''))
                 tests.append(test)
@@ -115,8 +126,9 @@ class GradescopeAutograderOutput(ConfigDictNoMangleMixin, ConfigDictMixin):
 
                     test = GradescopeAutograderTestOutput(
                         name='{}: {}'.format(component.name, part.name),
-                        score=cls._two_decimals(part.points_got),
-                        max_score=cls._two_decimals(part.points_possible),
+                        score=cls._two_decimals(grade, part.points_got),
+                        max_score=cls._two_decimals(
+                            grade, part.points_possible),
                         output=deductions + part.log)
                     tests.append(test)
 

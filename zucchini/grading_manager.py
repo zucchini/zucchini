@@ -27,9 +27,10 @@ class Grade(object):
     ZUCCHINI_END_GRADELOG = 'ZUCCHINI_END_GRADELOG'
     READ_BUFFER_SIZE = 65536
 
-    def __init__(self, assignment, submission):
+    def __init__(self, assignment, submission, max_score=100):
         self._assignment = assignment
         self._submission = submission
+        self._max_score = max_score
         self._component_grades = self._submission.component_grades
         self._grade = None
 
@@ -120,46 +121,44 @@ class Grade(object):
         """Return the id of the student, or None if unset."""
         return self._submission.id
 
-    @staticmethod
-    def to_float(frac):
+    def to_float(self, frac):
         """
         Convert a fraction on [0,1] to a float to two decimal points.
         Should be used for ballparking, NOT calculations.
         """
         # We want a number on [0,100], not [0,1]
-        out_of_100 = frac * 100
-        return float(out_of_100.numerator) / float(out_of_100.denominator)
+        out_of_max = frac * self._max_score
+        return float(out_of_max.numerator) / float(out_of_max.denominator)
 
-    @staticmethod
-    def _decimal_out_of_100(frac):
+    def _decimal_out_of_max(self, frac):
         """
         Convert frac to a decimal.Decimal instance representing the
-        score it represents out of 100.
+        score it represents out of 100 (or whatever the max score is).
         """
         # We want a number on [0,100], not [0,1]
-        out_of_100 = frac * 100
-        return decimal.Decimal(out_of_100.numerator) \
-            / decimal.Decimal(out_of_100.denominator)
+        out_of_max = frac * self._max_score
+        return decimal.Decimal(out_of_max.numerator) \
+            / decimal.Decimal(out_of_max.denominator)
 
-    @classmethod
-    def to_integer(cls, frac):
-        """Round frac to an integer out of 100"""
-        quotient = cls._decimal_out_of_100(frac)
-        return int(quotient.to_integral_value(cls.ROUNDING))
+    def to_integer(self, frac):
+        """
+        Round frac to an integer out of 100 (or whatever the max score
+        is)
+        """
+        quotient = self._decimal_out_of_max(frac)
+        return int(quotient.to_integral_value(self.ROUNDING))
 
-    @classmethod
-    def two_decimals(cls, frac):
+    def two_decimals(self, frac):
         """
         Convert frac to a string holding the number of points out of 100
-        to two decimal points.
+        (or whatever the max score is) to two decimal points.
         """
-        quotient = cls._decimal_out_of_100(frac)
+        quotient = self._decimal_out_of_max(frac)
         # Round to two decimal places
-        return str(quotient.quantize(decimal.Decimal('1.00'), cls.ROUNDING))
+        return str(quotient.quantize(decimal.Decimal('1.00'), self.ROUNDING))
 
-    @classmethod
-    def _left_pad(cls, num):
-        return "%*.2f" % (5, num * 100)
+    def _left_pad(self, num):
+        return "%*.2f" % (5, num * self._max_score)
 
     def computed_grade(self):
         """
@@ -169,7 +168,10 @@ class Grade(object):
         return self._get_grade()
 
     def score(self):
-        """Return the grade as an integer out of 100."""
+        """
+        Return the grade as an integer out of 100 (or whatever the
+        max score is).
+        """
         grade = self._get_grade()
         if grade is None:
             return 0

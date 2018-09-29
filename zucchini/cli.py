@@ -12,7 +12,7 @@ import click
 
 from .utils import EmailParamType, mkdir_p, CANVAS_URL, CANVAS_TOKEN, \
     AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_BUCKET_NAME, \
-    queue, run_thread, current_iso8601
+    queue, run_thread
 from .grading_manager import Grade, GradingManager
 from .filter import FilterBuilder
 from .zucchini import ZucchiniState
@@ -960,20 +960,13 @@ def gradescope_bridge(state, metadata_path):
 
     metadata = GradescopeMetadata.from_json_path(metadata_path)
     assignment = state.get_assignment()
-    due_date = assignment.due_date
-
-    if due_date is None:
-        # Use the current ISO 8601 to decrease the likelihood they'll
-        # mess up the timezone and unfairly penalize students
-        raise ValueError("you need to set `due-date: {}' in assignment "
-                         "configuration".format(current_iso8601()))
 
     seconds_late = \
-        max(int((metadata.created_at - due_date).total_seconds()), 0)
+        max(int((metadata.created_at - metadata.due_date).total_seconds()), 0)
 
     submission = Submission.load_from_component_grades_json(
         assignment, seconds_late=seconds_late, component_grades_fp=sys.stdin)
-    grade = Grade(assignment, submission)
+    grade = Grade(assignment, submission, max_score=metadata.total_points)
 
     output = GradescopeAutograderOutput.from_grade(grade)
     output.to_json_stream(sys.stdout)
