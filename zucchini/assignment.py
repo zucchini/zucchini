@@ -13,8 +13,7 @@ from .grades import AssignmentComponentGrade, CalculatedGrade, \
 from .graders import AVAILABLE_GRADERS
 from .penalizers import AVAILABLE_PENALIZERS
 from .constants import ASSIGNMENT_CONFIG_FILE, ASSIGNMENT_FILES_DIRECTORY
-from .utils import ConfigDictMixin, copy_globs, datetime_from_string, \
-                   sanitize_path
+from .utils import ConfigDictMixin, copy_globs, sanitize_path
 
 
 class ComponentPart(namedtuple('ComponentPart', ['weight', 'part'])):
@@ -193,11 +192,6 @@ class Assignment(object):
         except KeyError as e:
             raise ValueError("Missing field in assignment config: %s" %
                              e.args[0])
-
-        if 'due-date' in config:
-            self.due_date = datetime_from_string(config['due-date'])
-        else:
-            self.due_date = None
 
         # TODO: Don't hardcode Canvas logic in here. Need to make something
         #       like "Modules" for handling these things.
