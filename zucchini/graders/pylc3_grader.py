@@ -54,7 +54,8 @@ class PyLC3Grader(GraderInterface):
                 'libglib2.0-dev', 'castxml', 'python-pip']
 
     def list_extra_setup_commands(self):
-        return ['pip install scikit-build',
+        return ['pip uninstall -y wheel',  # THANKS ARJUN
+                'pip install scikit-build',
                 'pip install pyLC3',
                 'ldconfig',
                 'pip install parameterized']
