@@ -21,21 +21,19 @@ class CircuitSimTest(Part):
     def description(self):
         return self.test
 
-    def grade(self, results):
-        test_results = [result for result in results
-                        if result['methodName'] == self.test]
-
-        if not test_results:
+    def grade(self, result):
+        if result is None:
             return PartGrade(score=Fraction(0),
-                             log='results for test not found')
+                             log='results for test not found. misspelling?')
 
-        log = '\n'.join('{0[displayName]}: {0[message]}'.format(test_result)
-                        for test_result in test_results
-                        if not test_result['passed'])
+        log = '\n'.join('{0[displayName]}: {0[message]}'.format(failure)
+                        for failure in result['partialFailures'])
+        partialFailures = len(result['partialFailures'])
+        if partialFailures < result['failed']:
+            log += '\n[omitted {} more failures]' \
+                   .format(result['failed'] - partialFailures)
 
-        score = Fraction(sum(1 for test_result in test_results
-                             if test_result['passed']),
-                         len(test_results))
+        score = Fraction(result['total'] - result['failed'], result['total'])
         return PartGrade(score=score, log=log)
 
 
@@ -95,4 +93,6 @@ class CircuitSimGrader(GraderInterface):
         if 'error' in results:
             raise BrokenSubmissionError(results['error'])
 
-        return [part.grade(results['tests']) for part in parts]
+        method_results = {result['methodName']:
+                          result for result in results['tests']}
+        return [part.grade(method_results.get(part.test)) for part in parts]
