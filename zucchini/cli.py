@@ -962,7 +962,7 @@ def gradescope_bridge(state, metadata_path):
     assignment = state.get_assignment()
 
     seconds_late = \
-        max(int((metadata.created_at - metadata.due_date).total_seconds()), 0)
+        max(int((metadata.submission_date - metadata.due_date).total_seconds()), 0)
 
     submission = Submission.load_from_component_grades_json(
         assignment, seconds_late=seconds_late, component_grades_fp=sys.stdin)

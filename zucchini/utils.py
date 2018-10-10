@@ -40,6 +40,23 @@ def mkdir_p(path):
         else:
             raise
 
+def recursive_get_using_string(collection, key):
+    """
+    Given a collection and a key in the format of x.y.z.a, return collection
+    [x][y][z][a].
+    """
+
+    if "." not in key:
+        if key.isdigit():
+            key = int(key)
+
+        return collection[key]
+
+    left, right = key.split('.', 1)
+    return recursive_get_using_string(
+            recursive_get_using_string(collection, left),
+            right)
+
 
 def run_thread(func, args, result_queue):
     """
