@@ -24,7 +24,8 @@ class GradescopeMetadata(object):
         ('due_date', 'assignment.due_date', datetime_from_string),
         # The nested int(float(..)) deal is because int('100.0')
         # explodes
-        ('total_points', 'assignment.outline.0.weight', lambda pts: int(float(pts))),
+        ('total_points', 'assignment.outline.0.weight',
+            lambda pts: int(float(pts))),
     ]
 
     def __init__(self, json_dict):
