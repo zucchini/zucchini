@@ -40,6 +40,7 @@ def mkdir_p(path):
         else:
             raise
 
+
 def recursive_get_using_string(collection, key):
     """
     Given a collection and a key in the format of x.y.z.a, return collection
