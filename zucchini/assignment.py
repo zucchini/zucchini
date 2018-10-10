@@ -13,14 +13,16 @@ from .grades import AssignmentComponentGrade, CalculatedGrade, \
 from .graders import AVAILABLE_GRADERS
 from .penalizers import AVAILABLE_PENALIZERS
 from .constants import ASSIGNMENT_CONFIG_FILE, ASSIGNMENT_FILES_DIRECTORY
-from .utils import ConfigDictMixin, copy_globs, datetime_from_string, \
-                   sanitize_path
+from .utils import ConfigDictMixin, copy_globs, sanitize_path
 
 
-class ComponentPart(namedtuple('ComponentPart', ['weight', 'part'])):
+class ComponentPart(namedtuple('ComponentPart',
+                               ['weight', 'part', 'partial_credit'])):
     def calculate_grade(self, component_points, total_part_weight, part_grade):
         points = component_points * Fraction(self.weight, total_part_weight)
-        return part_grade.calculate_grade(points, self.part)
+        return part_grade.calculate_grade(points,
+                                          self.part,
+                                          self.partial_credit)
 
 
 class AssignmentComponent(ConfigDictMixin):
@@ -84,8 +86,16 @@ class AssignmentComponent(ConfigDictMixin):
             else:
                 weight = part_dict['weight']
                 del part_dict['weight']
+
+            partial_credit = True
+            if 'partial-credit' in part_dict:
+                partial_credit = part_dict['partial-credit']
+                del part_dict['partial-credit']
+
             part = self.grader.part_from_config_dict(part_dict)
-            self.parts.append(ComponentPart(weight=weight, part=part))
+            self.parts.append(ComponentPart(weight=weight,
+                                            part=part,
+                                            partial_credit=partial_credit))
             self.total_part_weight += weight
 
     def is_interactive(self):
@@ -193,11 +203,6 @@ class Assignment(object):
         except KeyError as e:
             raise ValueError("Missing field in assignment config: %s" %
                              e.args[0])
-
-        if 'due-date' in config:
-            self.due_date = datetime_from_string(config['due-date'])
-        else:
-            self.due_date = None
 
         # TODO: Don't hardcode Canvas logic in here. Need to make something
         #       like "Modules" for handling these things.

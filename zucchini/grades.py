@@ -114,10 +114,14 @@ class PartGrade(ConfigDictMixin):
         part_grade.score = Fraction(part_grade.score)
         return part_grade
 
-    def calculate_grade(self, points, part):
+    def calculate_grade(self, points, part, partial_credit):
+        points_got = self.score * points
+        if not partial_credit and points_got < points:
+            points_got = Fraction(0)
+
         return CalculatedPartGrade(name=part.description(),
-                                   points_delta=self.score * points - points,
-                                   points_got=self.score * points,
+                                   points_delta=points_got - points,
+                                   points_got=points_got,
                                    points_possible=points,
                                    grade=self.score,
                                    deductions=self.deductions,
