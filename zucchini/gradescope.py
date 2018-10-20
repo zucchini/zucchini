@@ -158,6 +158,7 @@ set -e
 set -o pipefail
 
 cd /autograder/source
+zucc flatten /autograder/submission
 {grade_cmd_prefix}zucc grade-submission /autograder/submission \
     | zucc gradescope bridge /autograder/submission_metadata.json \
     > /autograder/results/results.json
