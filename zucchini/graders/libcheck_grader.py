@@ -127,7 +127,7 @@ class LibcheckGrader(ThreadedGrader):
 
         self.build_timeout = self.DEFAULT_BUILD_TIMEOUT \
             if build_timeout is None else build_timeout
-        self.test_timeout = self.DEFAULT_TIMEOUT \
+        self.test_timeout = self.DEFAULT_TEST_TIMEOUT \
             if test_timeout is None else test_timeout
         self.valgrind_timeout = self.DEFAULT_VALGRIND_TIMEOUT \
             if valgrind_timeout is None else valgrind_timeout
