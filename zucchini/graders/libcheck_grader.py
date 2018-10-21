@@ -33,7 +33,7 @@ class LibcheckTest(Part):
 
     @staticmethod
     def test_error_grade(message):
-        return PartGrade(Fraction(0), deductions=('error'), log=message)
+        return PartGrade(Fraction(0), deductions=('error',), log=message)
 
     def grade(self, path, grader):
         """Grade a single libcheck test"""
@@ -53,8 +53,11 @@ class LibcheckTest(Part):
                               cwd=path, stdout=PIPE, stderr=STDOUT)
 
         if process.returncode != 0:
-            return self.test_error_grade('tester exited with {} != 0'
-                                         .format(process.returncode))
+            return self.test_error_grade('tester exited with {} != 0:\n{}'
+                                         .format(process.returncode,
+                                                 process.stdout.decode()
+                                                 if process.stdout is not None
+                                                 else '(no output)'))
         try:
             with open(logfile_path, 'r') as logfile:
                 logfile_contents = logfile.read()
