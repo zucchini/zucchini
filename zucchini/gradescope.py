@@ -10,7 +10,7 @@ from zipfile import ZipFile, ZIP_DEFLATED
 from . import __version__ as ZUCCHINI_VERSION
 from .constants import ASSIGNMENT_CONFIG_FILE, ASSIGNMENT_FILES_DIRECTORY
 from .utils import ConfigDictMixin, ConfigDictNoMangleMixin, \
-                   datetime_from_string
+                   datetime_from_string, recursive_get_using_string
 
 
 class GradescopeMetadata(object):
@@ -19,22 +19,18 @@ class GradescopeMetadata(object):
     https://gradescope-autograders.readthedocs.io/en/latest/submission_metadata/
     """
 
-    _ATTRS = {
-        'created_at': datetime_from_string,
-        'assignment.due_date': datetime_from_string,
+    _ATTRS = [
+        ('submission_date', 'created_at', datetime_from_string),
+        ('due_date', 'assignment.due_date', datetime_from_string),
         # The nested int(float(..)) deal is because int('100.0')
         # explodes
-        'assignment.total_points': lambda pts: int(float(pts)),
-    }
+        ('total_points', 'assignment.outline.0.weight',
+            lambda pts: int(float(pts))),
+    ]
 
     def __init__(self, json_dict):
-        for attr, type_ in self._ATTRS.items():
-            if '.' in attr:
-                left, right = attr.split('.')
-                val = json_dict[left][right]
-                attr = right
-            else:
-                val = json_dict[attr]
+        for attr, key, type_ in self._ATTRS:
+            val = recursive_get_using_string(json_dict, key)
             setattr(self, attr, type_(val))
 
     @classmethod
