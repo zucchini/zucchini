@@ -419,8 +419,8 @@ CANVAS_TOKEN = CanvasTokenType()
 
 class EmailParamType(click.ParamType):
     name = 'email'
-    regex = '^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*' \
-            '(\.[a-z]{2,4})$'
+    regex = r'^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*' \
+            r'(\.[a-z]{2,4})$'
 
     def convert(self, value, param, ctx):
         if re.match(EmailParamType.regex, value) is None:
