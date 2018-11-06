@@ -74,9 +74,11 @@ class AssignmentComponentGrade(ConfigDictMixin):
                 grade.parts.append(calc_part_grade)
                 grade.points_got += calc_part_grade.points_got
 
-            # Make a second pass through the grades if partial credit is not allowed
+            # Make a second pass if partial credit is not allowed
             if not partial_credit and (grade.points_got < points):
                 grade.points_got = Fraction(0)
+                grade.parts = []
+
                 for part, part_grade in zip(component_parts, self.part_grades):
                     calc_part_grade = part.calculate_grade(
                         points, total_part_weight, part_grade, force_zero=True)
@@ -130,7 +132,10 @@ class PartGrade(ConfigDictMixin):
 
         log = self.log
         if force_zero:
-            log = "You need to pass all parts of this component to get credit.\n\n" + log
+            log = "%s\n\n%s" % (
+                "You need to pass all parts of this component to get credit.",
+                log
+            )
 
         grade = Fraction(points_got, points)
 

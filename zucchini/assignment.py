@@ -18,11 +18,13 @@ from .utils import ConfigDictMixin, copy_globs, sanitize_path
 
 class ComponentPart(namedtuple('ComponentPart',
                                ['weight', 'part', 'partial_credit'])):
-    def calculate_grade(self, component_points, total_part_weight, part_grade):
+    def calculate_grade(self, component_points, total_part_weight, part_grade,
+                        force_zero=False):
         points = component_points * Fraction(self.weight, total_part_weight)
         return part_grade.calculate_grade(points,
                                           self.part,
-                                          self.partial_credit)
+                                          self.partial_credit,
+                                          force_zero)
 
 
 class AssignmentComponent(ConfigDictMixin):
