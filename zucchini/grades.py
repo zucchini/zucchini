@@ -132,11 +132,8 @@ class PartGrade(ConfigDictMixin):
 
         log = self.log
         if force_zero:
-            log = "%s\n\n%s" % (
-                "You need to pass all parts of this component to get credit.",
-                log
-            )
-
+            log = "You need to pass all parts of {{componentName}} to get" \
+                  "credit.\n\n{log}".format(log=log)
         grade = Fraction(points_got, points)
 
         return CalculatedPartGrade(name=part.description(),
