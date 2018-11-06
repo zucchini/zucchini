@@ -84,6 +84,11 @@ class AssignmentComponentGrade(ConfigDictMixin):
                         points, total_part_weight, part_grade, force_zero=True)
                     grade.parts.append(calc_part_grade)
 
+            # Insert name in the logs if required by the log in any of the parts
+            for calc_part_grade in grade.parts:
+                log = calc_part_grade.log.format(componentName=name)
+                calc_part_grade.log = log
+
         grade.points_possible = points
 
         grade.points_delta = grade.points_got - grade.points_possible
@@ -133,7 +138,7 @@ class PartGrade(ConfigDictMixin):
         log = self.log
         if force_zero:
             log = "You need to pass all parts of {{componentName}} to get" \
-                  "credit.\n\n{log}".format(log=log)
+                  " credit.\n\n{log}".format(log=log)
         grade = Fraction(points_got, points)
 
         return CalculatedPartGrade(name=part.description(),
