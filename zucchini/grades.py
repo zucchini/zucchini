@@ -84,7 +84,7 @@ class AssignmentComponentGrade(ConfigDictMixin):
                         points, total_part_weight, part_grade, force_zero=True)
                     grade.parts.append(calc_part_grade)
 
-            # Insert name in the logs if required by the log in any of the parts
+            # Insert component name in logs if required by the log of any parts
             for calc_part_grade in grade.parts:
                 log = calc_part_grade.log.format(componentName=name)
                 calc_part_grade.log = log
