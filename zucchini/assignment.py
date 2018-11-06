@@ -18,19 +18,22 @@ from .utils import ConfigDictMixin, copy_globs, sanitize_path
 
 class ComponentPart(namedtuple('ComponentPart',
                                ['weight', 'part', 'partial_credit'])):
-    def calculate_grade(self, component_points, total_part_weight, part_grade):
+    def calculate_grade(self, component_points, total_part_weight, part_grade,
+                        force_zero=False):
         points = component_points * Fraction(self.weight, total_part_weight)
         return part_grade.calculate_grade(points,
                                           self.part,
-                                          self.partial_credit)
+                                          self.partial_credit,
+                                          force_zero)
 
 
 class AssignmentComponent(ConfigDictMixin):
     def __init__(self, assignment, name, backend, weight, parts, files=None,
                  optional_files=None, grading_files=None,
-                 backend_options=None):
+                 backend_options=None, partial_credit=True):
         self.assignment = assignment
         self.name = name
+        self.partial_credit = bool(partial_credit)
 
         # Get the backend class
         if backend not in AVAILABLE_GRADERS:
@@ -151,7 +154,7 @@ class AssignmentComponent(ConfigDictMixin):
         points = Fraction(self.weight, total_weight)
         return component_grade.calculate_grade(points, self.name,
                                                self.total_part_weight,
-                                               self.parts)
+                                               self.parts, self.partial_credit)
 
 
 class AssignmentPenalty(ConfigDictMixin):

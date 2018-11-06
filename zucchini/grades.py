@@ -45,7 +45,7 @@ class AssignmentComponentGrade(ConfigDictMixin):
         return self.error is not None
 
     def calculate_grade(self, points, name, total_part_weight,
-                        component_parts):
+                        component_parts, partial_credit):
         # type: (List[ComponentPart]) -> CalculatedComponentGrade
         """
         Using the list of ComponentPart instances provided (which
@@ -74,7 +74,23 @@ class AssignmentComponentGrade(ConfigDictMixin):
                 grade.parts.append(calc_part_grade)
                 grade.points_got += calc_part_grade.points_got
 
+            # Make a second pass if partial credit is not allowed
+            if not partial_credit and (grade.points_got < points):
+                grade.points_got = Fraction(0)
+                grade.parts = []
+
+                for part, part_grade in zip(component_parts, self.part_grades):
+                    calc_part_grade = part.calculate_grade(
+                        points, total_part_weight, part_grade, force_zero=True)
+                    grade.parts.append(calc_part_grade)
+
+            # Insert component name in logs if required by the log of any parts
+            for calc_part_grade in grade.parts:
+                log = calc_part_grade.log.format(componentName=name)
+                calc_part_grade.log = log
+
         grade.points_possible = points
+
         grade.points_delta = grade.points_got - grade.points_possible
         grade.grade = Fraction(grade.points_got, grade.points_possible)
 
@@ -114,18 +130,24 @@ class PartGrade(ConfigDictMixin):
         part_grade.score = Fraction(part_grade.score)
         return part_grade
 
-    def calculate_grade(self, points, part, partial_credit):
+    def calculate_grade(self, points, part, partial_credit, force_zero=False):
         points_got = self.score * points
-        if not partial_credit and points_got < points:
+        if force_zero or (not partial_credit and points_got < points):
             points_got = Fraction(0)
+
+        log = self.log
+        if force_zero:
+            log = "You need to pass all parts of {{componentName}} to get" \
+                  " credit.\n\n{log}".format(log=log)
+        grade = Fraction(points_got, points)
 
         return CalculatedPartGrade(name=part.description(),
                                    points_delta=points_got - points,
                                    points_got=points_got,
                                    points_possible=points,
-                                   grade=self.score,
+                                   grade=grade,
                                    deductions=self.deductions,
-                                   log=self.log)
+                                   log=log)
 
 
 class CalculatedGrade(Record):
