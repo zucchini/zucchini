@@ -28,9 +28,10 @@ class ComponentPart(namedtuple('ComponentPart',
 class AssignmentComponent(ConfigDictMixin):
     def __init__(self, assignment, name, backend, weight, parts, files=None,
                  optional_files=None, grading_files=None,
-                 backend_options=None):
+                 backend_options=None, partial_credit=True):
         self.assignment = assignment
         self.name = name
+        self.partial_credit = bool(partial_credit)
 
         # Get the backend class
         if backend not in AVAILABLE_GRADERS:
@@ -151,7 +152,7 @@ class AssignmentComponent(ConfigDictMixin):
         points = Fraction(self.weight, total_weight)
         return component_grade.calculate_grade(points, self.name,
                                                self.total_part_weight,
-                                               self.parts)
+                                               self.parts, self.partial_credit)
 
 
 class AssignmentPenalty(ConfigDictMixin):
