@@ -73,6 +73,9 @@ class LibcheckTest(Part):
         failed = int(match.group('errors')) + int(match.group('failures'))
         grade.score *= Fraction(total - failed, total)
 
+        if grader.valgrind_cmd is None:
+            return grade
+
         grade.log += '\nValgrind\n--------\n'
 
         if grade.score < 1:
@@ -117,17 +120,19 @@ class LibcheckGrader(ThreadedGrader):
     DEFAULT_TEST_TIMEOUT = 5
     DEFAULT_VALGRIND_TIMEOUT = 30
 
-    def __init__(self, build_cmd, run_cmd, valgrind_cmd,
-                 valgrind_deduction, build_timeout=None,
+    def __init__(self, build_cmd, run_cmd, valgrind_cmd=None,
+                 valgrind_deduction=None, build_timeout=None,
                  test_timeout=None, valgrind_timeout=None,
                  num_threads=None):
         super(LibcheckGrader, self).__init__(num_threads)
 
         self.build_cmd = shlex.split(build_cmd)
         self.run_cmd = shlex.split(run_cmd)
-        self.valgrind_cmd = shlex.split(valgrind_cmd)
-        self.valgrind_deduction = Fraction(valgrind_deduction)
 
+        self.valgrind_cmd = None \
+            if valgrind_deduction is None else shlex.split(valgrind_cmd)
+        self.valgrind_deduction = Fraction(1) \
+            if valgrind_deduction is None else valgrind_deduction
         self.build_timeout = self.DEFAULT_BUILD_TIMEOUT \
             if build_timeout is None else build_timeout
         self.test_timeout = self.DEFAULT_TEST_TIMEOUT \
