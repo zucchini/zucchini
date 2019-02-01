@@ -18,28 +18,28 @@ class GraderInterface(ConfigDictMixin):
         """
         pass
 
-    def list_prerequisites(self):  
+    def list_prerequisites(self):
         """
         This function should return a list of Ubuntu 16.04 packages
         required to run this grader.
         """
         return []
 
-    def list_extra_setup_commands(self):  
+    def list_extra_setup_commands(self):
         """
         This function should return a list of extra one-time commands to
         run at Docker image creation time. This is Ubuntu.
         """
         return []
 
-    def is_interactive(self):  
+    def is_interactive(self):
         """
         Return True if and only if this grader will produce command-line
         prompts.
         """
         return False
 
-    def needs_display(self):  
+    def needs_display(self):
         """
         Return True if and only if this grader expects a graphical
         environment, like $DISPLAY on GNU/Linux. Does not necessarily
@@ -59,9 +59,9 @@ class GraderInterface(ConfigDictMixin):
 
     @abstractmethod
     def grade(self,
-              submission,  
-              path,        
-              parts):      
+              submission,
+              path,
+              parts):
         """
         This function should take in a Submission object and a path,
         where the path can be assumed to be the root of the submission

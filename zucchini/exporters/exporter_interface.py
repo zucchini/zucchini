@@ -8,7 +8,7 @@ class ExporterInterface:
     # options from the command line, in order.
 
     @abstractmethod
-    def export(self, submission):  
+    def export(self, submission):
         """This method should take in a Submission object and export its
         grading to whatever export it's doing.
         For example, if we're exporting to CSV, the Exporter object should
