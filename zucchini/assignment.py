@@ -155,7 +155,6 @@ class AssignmentComponent(ConfigDictMixin):
         return AssignmentComponentGrade(part_grades)
 
     def calculate_grade(self, total_weight, component_grade):
-        # type: (AssignmentComponentGrade) -> fractions.Fraction
         points = Fraction(self.weight, total_weight)
         return component_grade.calculate_grade(points, self.name,
                                                self.total_part_weight,
@@ -309,7 +308,6 @@ class Assignment(object):
         copy_globs(files, grading_files_dir, path)
 
     def grade_submission(self, submission, interactive=None):
-        # type: (Submission, bool) -> List[AssignmentComponentGrade]
         """
         Grade each assignment component of submission, returning an
         AssignmentComponentGrade for each component.

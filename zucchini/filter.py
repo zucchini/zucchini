@@ -59,7 +59,7 @@ class FilterCondition(object):
         """
         pass
 
-    def accepts(self, submission):  # type: (Submission) -> bool
+    def accepts(self, submission):  
         """Return True if this submission matches the condition, """
         pass
 
