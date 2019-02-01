@@ -33,7 +33,7 @@ class LibcheckTest(Part):
 
     @staticmethod
     def test_error_grade(message):
-        return PartGrade(Fraction(0), deductions=('error'), log=message)
+        return PartGrade(Fraction(0), deductions=('error',), log=message)
 
     def grade(self, path, grader):
         """Grade a single libcheck test"""
@@ -48,12 +48,16 @@ class LibcheckTest(Part):
         run_cmd = self.format_cmd(grader.run_cmd, testcase=self.name,
                                   logfile=logfile_basename)
         process = run_process(run_cmd,
-                              env={'CK_DEFAULT_TIMEOUT': str(grader.timeout)},
+                              env={'CK_DEFAULT_TIMEOUT':
+                                   str(grader.test_timeout)},
                               cwd=path, stdout=PIPE, stderr=STDOUT)
 
         if process.returncode != 0:
-            return self.test_error_grade('tester exited with {} != 0'
-                                         .format(process.returncode))
+            return self.test_error_grade('tester exited with {} != 0:\n{}'
+                                         .format(process.returncode,
+                                                 process.stdout.decode()
+                                                 if process.stdout is not None
+                                                 else '(no output)'))
         try:
             with open(logfile_path, 'r') as logfile:
                 logfile_contents = logfile.read()
@@ -88,10 +92,11 @@ class LibcheckTest(Part):
                                                stderr=STDOUT,
                                                env={'CK_FORK': 'no'},
                                                cwd=path,
-                                               timeout=grader.timeout)
+                                               timeout=grader.valgrind_timeout)
             except TimeoutExpired:
-                grade.log += 'valgrind timed out, deducting full valgrind ' \
-                             'penalty...\n'
+                grade.log += ('valgrind timed out after {} seconds, deducting '
+                              'full valgrind penalty...\n').format(
+                                  grader.valgrind_timeout)
                 valgrind_deduct = True
             else:
                 if valgrind_process.stdout:
@@ -108,10 +113,14 @@ class LibcheckTest(Part):
 
 
 class LibcheckGrader(ThreadedGrader):
-    DEFAULT_TIMEOUT = 5
+    DEFAULT_BUILD_TIMEOUT = 15
+    DEFAULT_TEST_TIMEOUT = 5
+    DEFAULT_VALGRIND_TIMEOUT = 30
 
     def __init__(self, build_cmd, run_cmd, valgrind_cmd,
-                 valgrind_deduction, timeout=None, num_threads=None):
+                 valgrind_deduction, build_timeout=None,
+                 test_timeout=None, valgrind_timeout=None,
+                 num_threads=None):
         super(LibcheckGrader, self).__init__(num_threads)
 
         self.build_cmd = shlex.split(build_cmd)
@@ -119,13 +128,15 @@ class LibcheckGrader(ThreadedGrader):
         self.valgrind_cmd = shlex.split(valgrind_cmd)
         self.valgrind_deduction = Fraction(valgrind_deduction)
 
-        if timeout is None:
-            self.timeout = self.DEFAULT_TIMEOUT
-        else:
-            self.timeout = timeout
+        self.build_timeout = self.DEFAULT_BUILD_TIMEOUT \
+            if build_timeout is None else build_timeout
+        self.test_timeout = self.DEFAULT_TEST_TIMEOUT \
+            if test_timeout is None else test_timeout
+        self.valgrind_timeout = self.DEFAULT_VALGRIND_TIMEOUT \
+            if valgrind_timeout is None else valgrind_timeout
 
     def list_prerequisites(self):
-        return ['build-essential', 'check', 'valgrind']
+        return ['build-essential', 'check', 'valgrind', 'pkg-config']
 
     def grade_part(self, part, path, submission):
         return part.grade(path, self)
@@ -136,7 +147,7 @@ class LibcheckGrader(ThreadedGrader):
     def grade(self, submission, path, parts):
         try:
             process = run_process(self.build_cmd, cwd=path,
-                                  timeout=self.timeout,
+                                  timeout=self.build_timeout,
                                   stdout=PIPE,
                                   stderr=STDOUT)
         except TimeoutExpired:
