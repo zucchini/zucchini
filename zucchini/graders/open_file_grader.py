@@ -7,7 +7,7 @@ from ..utils import sanitize_path
 
 
 class OpenFileGrader(PromptGrader):
-    def __init__(self, file_name):  # type: (str) -> OpenFileGrader
+    def __init__(self, file_name):
         # Set up the Prompt Grader first
         super(OpenFileGrader, self).__init__()
 
