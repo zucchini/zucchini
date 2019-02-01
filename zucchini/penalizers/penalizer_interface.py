@@ -22,9 +22,8 @@ class PenalizerInterface(ConfigDictMixin):
 
     @abstractmethod
     def adjust_grade(self,
-                     submission,  # type: Submission
-                     grade):      # type: fractions.Fraction
-        # type: (...) -> fractions.Fraction
+                     submission,
+                     grade):
         """
         This function should take in a Submission object and a Fraction
         holding the calculated grade, returning the new grade.
