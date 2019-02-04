@@ -41,6 +41,24 @@ def mkdir_p(path):
             raise
 
 
+def recursive_get_using_string(collection, key):
+    """
+    Given a collection and a key in the format of x.y.z.a, return collection
+    [x][y][z][a].
+    """
+
+    if "." not in key:
+        if key.isdigit():
+            key = int(key)
+
+        return collection[key]
+
+    left, right = key.split('.', 1)
+    return recursive_get_using_string(
+            recursive_get_using_string(collection, left),
+            right)
+
+
 def run_thread(func, args, result_queue):
     """
     Run a thread which runs func(args), putting each yielded result in
@@ -401,8 +419,8 @@ CANVAS_TOKEN = CanvasTokenType()
 
 class EmailParamType(click.ParamType):
     name = 'email'
-    regex = '^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*' \
-            '(\.[a-z]{2,4})$'
+    regex = r'^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*' \
+            r'(\.[a-z]{2,4})$'
 
     def convert(self, value, param, ctx):
         if re.match(EmailParamType.regex, value) is None:
