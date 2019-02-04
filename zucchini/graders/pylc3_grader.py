@@ -65,9 +65,10 @@ class PyLC3Grader(GraderInterface):
 
     def grade(self, submission, path, parts):
         cmdline = ['python2', 'runner.py', self.test_class]
-        env = os.environ.copy()
+        #env = os.environ.copy()
         # HACK HACK HACK HACK HACK
-        env['LD_LIBRARY_PATH'] = '/usr/local/lib/python2.7/dist-packages/pyLC3'
+        # Commented out because this will be included in the Docker image for the grader
+        #env['LD_LIBRARY_PATH'] = '/usr/local/lib/python2.7/dist-packages/pyLC3'
         try:
             # Do not mix stderr into stdout because sometimes our friend
             # Roi printStackTrace()s or System.err.println()s, and that

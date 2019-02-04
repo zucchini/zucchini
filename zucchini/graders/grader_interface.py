@@ -25,7 +25,7 @@ class GraderInterface(ConfigDictMixin):
         """
         return []
 
-    def list_extra_setup_commands(self):  
+    def list_extra_setup_commands(self):
         """
         This function should return a list of extra one-time commands to
         run at Docker image creation time. This is Ubuntu.
