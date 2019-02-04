@@ -18,7 +18,7 @@ class GraderInterface(ConfigDictMixin):
         """
         pass
 
-    def list_prerequisites(self):  # type: () -> List[str]
+    def list_prerequisites(self):
         """
         This function should return a list of Ubuntu 16.04 packages
         required to run this grader.
@@ -31,15 +31,15 @@ class GraderInterface(ConfigDictMixin):
         run at Docker image creation time. This is Ubuntu.
         """
         return []
-
-    def is_interactive(self):  # type: () -> bool
+        
+    def is_interactive(self):
         """
         Return True if and only if this grader will produce command-line
         prompts.
         """
         return False
 
-    def needs_display(self):  # type: () -> bool
+    def needs_display(self):
         """
         Return True if and only if this grader expects a graphical
         environment, like $DISPLAY on GNU/Linux. Does not necessarily
@@ -50,7 +50,7 @@ class GraderInterface(ConfigDictMixin):
         return False
 
     @abstractmethod
-    def part_from_config_dict(self, config_dict):  # type: (dict) -> Part
+    def part_from_config_dict(self, config_dict):
         """
         Convert and validate a dictionary parsed from the `parts'
         section of a component configuration to a Part instance.
@@ -59,10 +59,9 @@ class GraderInterface(ConfigDictMixin):
 
     @abstractmethod
     def grade(self,
-              submission,  # type: Submission
-              path,        # type: str
-              parts):      # type: List[Part]
-        # type: (...) -> List[PartGrade]
+              submission,
+              path,
+              parts):
         """
         This function should take in a Submission object and a path,
         where the path can be assumed to be the root of the submission
