@@ -65,7 +65,7 @@ class PyLC3Grader(GraderInterface):
 
     def grade(self, submission, path, parts):
         cmdline = ['python2', 'runner.py', self.test_class]
-        # env['LD_LIBRARY_PATH'] = 
+        # env['LD_LIBRARY_PATH'] =
         # '/usr/local/lib/python2.7/dist-packages/pyLC3'
         try:
             # Do not mix stderr into stdout because sometimes our friend
