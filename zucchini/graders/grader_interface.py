@@ -31,7 +31,7 @@ class GraderInterface(ConfigDictMixin):
         run at Docker image creation time. This is Ubuntu.
         """
         return []
-        
+
     def is_interactive(self):
         """
         Return True if and only if this grader will produce command-line
