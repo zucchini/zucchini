@@ -1,7 +1,6 @@
 import re
 from fractions import Fraction
 import requests
-from ..utils import ConfigDictMixin
 import json
 
 
