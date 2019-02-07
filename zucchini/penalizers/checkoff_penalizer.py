@@ -2,37 +2,12 @@ import re
 from fractions import Fraction
 import requests
 from ..utils import ConfigDictMixin
+import json
 
 
 from . import PenalizerInterface, InvalidPenalizerConfigError
 
 """Penalize a submission after being checked off."""
-
-
-class AttendanceLoader(ConfigDictMixin):
-
-    def __init__(self, google_api_url, google_api_key, sheet_id, name_range):
-        self.google_api_url = google_api_url
-        self.google_api_key = google_api_key
-        self.sheet_id = sheet_id
-        self.name_range = name_range
-
-    def load_students(self):
-        students = []
-        url = self.google_api_url + "%s?key=%s" % (self.sheet_id,
-                                                   self.google_api_key)
-        spreadsheet = requests.get(url).json()
-
-        for sheet in spreadsheet["sheets"]:
-            name_range = sheet["properties"]["title"] + "!" + self.name_range
-            student_values = requests.get(
-                self.google_api_url
-                + "%s/values/%s?key=%s" % (self.sheet_id, name_range,
-                                           self.google_api_key)).json()
-            if "values" in student_values:
-                for student in student_values["values"]:
-                    students.append(student[0])
-        return students
 
 
 class CheckoffPenalizer(PenalizerInterface):
@@ -50,15 +25,12 @@ class CheckoffPenalizer(PenalizerInterface):
       backend: CheckoffPenalizer
       backend-options:
         penalty: 100pts
-        config:
-            google-api-url: https://sheets.googleapis.com/v4/spreadsheets/
-            google-api-key: dfbus9fd8byiuydfis098s7d0875ga
-            sheet-id: asdfatfb7d65fga8967s5d87a4sd
-            name-range: 'B2:B'
+        api-url: https:/.....
+        api-key: djfal;ksf
 
     """
 
-    def __init__(self, penalty, config):
+    def __init__(self, penalty, api_url, api_key):
         self.penalty, penalty_unit = self.split_units(penalty)
         if penalty_unit in ('pt', 'pts'):
             self.penalty /= 100
@@ -71,11 +43,17 @@ class CheckoffPenalizer(PenalizerInterface):
                                               "by `pt'."
                                               .format(penalty_unit))
 
-        self.loader = AttendanceLoader.from_config_dict(config)
+        self.api_url = api_url
+        self.api_key = api_key
 
     def adjust_grade(self, submission, grade):
-        students = self.loader.load_students()
-        if submission.student_name in students:
+        params = {
+            "student_name": submission.student_name,
+            "attendance_event": submission.assignment.name
+        }
+        check = requests.post(url=self.api_url, data=json.dumps(params),
+                              headers={"x-api-key": self.api_key})
+        if check.json():
             if self.penalty_points:
                 grade = max(0, grade - self.penalty)
                 return grade
