@@ -28,7 +28,7 @@ class AttendanceLoader(ConfigDictMixin):
             student_values = requests.get(
                 self.google_api_url
                 + "%s/values/%s?key=%s" % (self.sheet_id, name_range,
-                                         self.google_api_key)).json()
+                                           self.google_api_key)).json()
             if "values" in student_values:
                 for student in student_values["values"]:
                     students.append(student[0])
@@ -38,7 +38,7 @@ class AttendanceLoader(ConfigDictMixin):
 class CheckoffPenalizer(PenalizerInterface):
     UNITS_REGEX = re.compile(r'^(?P<mag>[0-9/]+)\s*(?P<unit>[a-z]*)$')
     """
-    Penalize students for submitting after being checked off 
+    Penalize students for submitting after being checked off
     on the attendance sheet.
 
     Configure it like this in the assignment config file. In this
