@@ -1,7 +1,6 @@
 import re
 from fractions import Fraction
 import requests
-import json
 from ..utils import ConfigDictMixin
 
 
@@ -20,12 +19,16 @@ class AttendanceLoader(ConfigDictMixin):
 
     def load_students(self):
         students = []
-        spreadsheet = requests.get(self.google_api_url + "%s?key=%s" % (self.sheet_id, self.google_api_key)).json()
+        url = self.google_api_url + "%s?key=%s" % (self.sheet_id,
+                                                   self.google_api_key)
+        spreadsheet = requests.get(url).json()
 
         for sheet in spreadsheet["sheets"]:
             name_range = sheet["properties"]["title"] + "!" + self.name_range
             student_values = requests.get(
-                self.google_api_url + "%s/values/%s?key=%s" % (self.sheet_id, name_range, self.google_api_key)).json()
+                self.google_api_url
+                + "%s/values/%s?key=%s" % (self.sheet_id, name_range,
+                                         self.google_api_key)).json()
             if "values" in student_values:
                 for student in student_values["values"]:
                     students.append(student[0])
@@ -35,7 +38,8 @@ class AttendanceLoader(ConfigDictMixin):
 class CheckoffPenalizer(PenalizerInterface):
     UNITS_REGEX = re.compile(r'^(?P<mag>[0-9/]+)\s*(?P<unit>[a-z]*)$')
     """
-    Penalize students for submitting after being checked off on the attendance sheet.
+    Penalize students for submitting after being checked off 
+    on the attendance sheet.
 
     Configure it like this in the assignment config file. In this
     example, after 8 hours late you get 75 points off your grade (a 85
@@ -74,14 +78,11 @@ class CheckoffPenalizer(PenalizerInterface):
         if submission.student_name in students:
             if self.penalty_points:
                 grade = max(0, grade - self.penalty)
-                print(grade)
                 return grade
             else:
                 grade = grade * (1 - self.penalty)
-                print(grade)
                 return grade
         return grade
-
 
     @classmethod
     def split_units(cls, amount_str):
@@ -95,5 +96,3 @@ class CheckoffPenalizer(PenalizerInterface):
                                               .format())
 
         return Fraction(match.group('mag')), match.group('unit') or None
-
-
