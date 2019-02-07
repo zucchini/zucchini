@@ -966,6 +966,7 @@ def gradescope_bridge(state, metadata_path):
 
     submission = Submission.load_from_component_grades_json(
         assignment, seconds_late=seconds_late, component_grades_fp=sys.stdin)
+    submission.student_name = metadata.student_name
     grade = Grade(assignment, submission, max_score=metadata.total_points)
 
     output = GradescopeAutograderOutput.from_grade(grade)
