@@ -32,6 +32,8 @@ class GradescopeMetadata(object):
         for attr, key, type_ in self._ATTRS:
             val = recursive_get_using_string(json_dict, key)
             setattr(self, attr, type_(val))
+        # Hardcoded hack. Not the best but the fact that users is an array doesn't play nice with the above strategy
+        setattr(self, "student_name", json_dict["users"][0]["name"])
 
     @classmethod
     def from_json_path(cls, json_path):
