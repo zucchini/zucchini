@@ -24,6 +24,7 @@ from .flatten import flatten, ArchiveError
 from .gradescope import GradescopeMetadata, GradescopeAutograderOutput, \
                         GradescopeAutograderZip
 from .loaders import CanvasArchiveLoader, GradescopeLoader
+from .local_grading import LocalAutograderOutput
 
 pass_state = click.make_pass_decorator(ZucchiniState)
 
@@ -1014,6 +1015,38 @@ def flatten_(self, dir_path, max_archive_size):
     and forged archive filenames.
     """
     flatten(dir_path, max_archive_size=max_archive_size)
+
+
+@cli.group('local')
+def local_():
+    """Handy scripts for local autograding."""
+    pass
+
+
+@local_.command('print')
+@pass_state
+def local_print(state):
+    """
+    Convert component grades to printed output.
+
+    Take the component results obtained with `zucc grade-submission' and
+    output it to the command line. Used to enable local autograding
+    without having to setup the zucchini config.
+
+    \b
+    Usual usage:
+    zucc grade-submission /autograder/submission \\
+        | zucc local print
+    """
+
+    assignment = state.get_assignment()
+
+    submission = Submission.load_from_component_grades_json(
+        assignment, component_grades_fp=sys.stdin)
+    grade = Grade(assignment, submission)
+    output = LocalAutograderOutput.from_grade(grade)
+
+    click.echo_via_pager(output)
 
 
 if __name__ == "__main__":
