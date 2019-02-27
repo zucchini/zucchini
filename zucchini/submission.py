@@ -127,7 +127,6 @@ class Submission(ConfigDictMixin):
 
     # XXX Support copying directories
     def copy_files(self, files, path, allow_fail=False):
-        # type: (List[str], str, bool) -> None
         try:
             copy_globs(files, self.files_path, path)
         except FileNotFoundError as err:

@@ -20,6 +20,7 @@ class GradescopeMetadata(object):
     """
 
     _ATTRS = [
+        ('student_name', 'users.0.name', str),
         ('submission_date', 'created_at', datetime_from_string),
         ('due_date', 'assignment.due_date', datetime_from_string),
         # The nested int(float(..)) deal is because int('100.0')

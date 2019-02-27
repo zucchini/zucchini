@@ -5,7 +5,7 @@ from ..utils import run_process
 
 
 class CommandGrader(PromptGrader):
-    def __init__(self, command):  # type: (str) -> OpenFileGrader
+    def __init__(self, command):
         # Set up the Prompt Grader first
         super(CommandGrader, self).__init__()
 

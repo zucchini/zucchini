@@ -46,7 +46,6 @@ class AssignmentComponentGrade(ConfigDictMixin):
 
     def calculate_grade(self, points, name, total_part_weight,
                         component_parts):
-        # type: (List[ComponentPart]) -> CalculatedComponentGrade
         """
         Using the list of ComponentPart instances provided (which
         contain the weight of components) and the part grades held in
