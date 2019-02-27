@@ -158,7 +158,6 @@ except NameError:
         pass
 
 
-# XXX Support copying directories
 def copy_globs(globs, src_dir, dest_dir):
     """
     Copy files matched by `globs' (a list of glob strings) from src_dir
@@ -172,9 +171,7 @@ def copy_globs(globs, src_dir, dest_dir):
     # later file.
     for file_glob in globs:
         absolute_glob = os.path.join(src_dir, file_glob)
-        # Match only files, not directories
-        matches = [path for path in glob.iglob(absolute_glob)
-                   if os.path.isfile(path)]
+        matches = glob.iglob(absolute_glob)
 
         if not matches:
             raise FileNotFoundError("missing file `{}'".format(file_glob))
@@ -185,8 +182,12 @@ def copy_globs(globs, src_dir, dest_dir):
         relative_path = os.path.relpath(file_to_copy, start=src_dir)
         dirname = os.path.dirname(relative_path)
 
-        mkdir_p(os.path.join(dest_dir, dirname))
-        shutil.copy(file_to_copy, os.path.join(dest_dir, relative_path))
+        dest = os.path.join(dest_dir, relative_path)
+        if os.path.isdir(file_to_copy):
+            shutil.copytree(file_to_copy, dest)
+        else:
+            mkdir_p(os.path.join(dest_dir, dirname))
+            shutil.copy(file_to_copy, dest)
 
 
 # Same as the Canvas date format
