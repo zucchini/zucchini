@@ -11,12 +11,13 @@ from .bitwise_json_grader import BitwiseJSONGrader
 from .circuitsim_grader import CircuitSimGrader
 from .pylc3_grader import PyLC3Grader
 from .multi_command_grader import MultiCommandGrader
+from .python_module_grader import PythonModuleGrader
 
 __all__ = ['InvalidGraderConfigError', 'GraderInterface', 'Part',
            'ThreadedGrader', 'PromptGrader', 'OpenFileGrader', 'CommandGrader',
            'LibcheckGrader', 'JUnitJSONGrader', 'JUnitXMLGrader',
            'BitwiseJSONGrader', 'CircuitSimGrader', 'PyLC3Grader',
-           'MultiCommandGrader']
+           'MultiCommandGrader', 'PythonModuleGrader']
 
 _GRADERS = (
     PromptGrader,
@@ -29,5 +30,6 @@ _GRADERS = (
     CircuitSimGrader,
     PyLC3Grader,
     MultiCommandGrader,
+    PythonModuleGrader,
 )
 AVAILABLE_GRADERS = {cls.__name__: cls for cls in _GRADERS}
