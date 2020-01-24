@@ -18,7 +18,7 @@ requirements = [
     'GitPython==2.1.8',
     'PyYAML==3.13',
     'smmap2==2.0.3',
-    'requests==2.18.4',
+    'requests==2.20.0',
     'boto3==1.5.19',
     'subprocess32==3.2.7;python_version<"3.0"',
     'arrow==0.12.1',
