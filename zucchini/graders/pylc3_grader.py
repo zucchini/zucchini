@@ -24,7 +24,7 @@ class PyLC3Test(Part):
     def grade(self, result):
         if result is None:
             return PartGrade(score=Fraction(0),
-                             log='results for test not found. misspelling?')
+                             log='results for test not found. misspelling? If you received this message and you are a student ensure your assembly files assemble by loading into complx and that you did not change any of the default labels.')
 
         log = '\n'.join('{0[display-name]}: {0[message]}'.format(test)
                         for test in result if not test['passed'])
