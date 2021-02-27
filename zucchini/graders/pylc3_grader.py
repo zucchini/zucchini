@@ -41,8 +41,8 @@ class PyLC3Grader(GraderInterface):
 
     DEFAULT_TIMEOUT = 30
 
-    def __init__(self, test_class, timeout=None):
-        self.test_class = test_class
+    def __init__(self, test_file, timeout=None):
+        self.test_file = test_file
 
         if timeout is None:
             self.timeout = self.DEFAULT_TIMEOUT
@@ -64,9 +64,7 @@ class PyLC3Grader(GraderInterface):
         return PyLC3Test.from_config_dict(config_dict)
 
     def grade(self, submission, path, parts):
-        cmdline = ['python3', self.test_class]
-        # env['LD_LIBRARY_PATH'] =
-        # '/usr/local/lib/python3/dist-packages/pyLC3'
+        cmdline = ['python3', self.test_file]
         try:
             # Do not mix stderr into stdout because sometimes our friend
             # Roi printStackTrace()s or System.err.println()s, and that
