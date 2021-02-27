@@ -70,6 +70,6 @@ class CheckoffPenalizer(PenalizerInterface):
 
         if match is None:
             raise InvalidPenalizerConfigError("unknown units format `{}'"
-                                              .format())
+                                              .format(amount_str))
 
         return Fraction(match.group('mag')), match.group('unit') or None
