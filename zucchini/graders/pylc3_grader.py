@@ -64,7 +64,7 @@ class PyLC3Grader(GraderInterface):
         return PyLC3Test.from_config_dict(config_dict)
 
     def grade(self, submission, path, parts):
-        cmdline = ['python3', 'runner.py', self.test_class]
+        cmdline = ['python3', self.test_class]
         # env['LD_LIBRARY_PATH'] =
         # '/usr/local/lib/python3/dist-packages/pyLC3'
         try:
