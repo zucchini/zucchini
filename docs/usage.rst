@@ -19,9 +19,9 @@ git repo).
 
 Note that this tutorial expects that you are on either Linux or OSX, that you
 have access to the terminal (Terminal.app on OSX), that you have installed a
-Python distribution that's either 2.7 or >3.4 (we recommend Anaconda for
-beginners), that you have git installed, that you have JDK 1.8 or higher
-installed and linked to your path, and that you have gradle installed.
+Python distribution that's >=3.4 (we recommend Anaconda for beginners), that you
+have git installed, that you have JDK 1.8 or higher installed and linked to your
+path, and that you have gradle installed.
 
 Let’s start by installing zucchini
 
@@ -41,7 +41,7 @@ instructor. We name it ``cs1337-fall1970``:
 ::
 
     zucc farm add https://github.com/zucchini/sample-farm.git cs1337-fall1970
-    
+
 Then we make a new directory for our grading and change into it.
 
 ::
@@ -65,12 +65,12 @@ page <https://github.com/zucchini/sample-assignment>`_ for the assignment.
 
     zucc init cs1337-fall1970/junit/stacks-queues
 
-Then, we download the sample submissions: 
+Then, we download the sample submissions:
 
 ::
 
     git clone https://github.com/zucchini/sample-assignment-submissions.git
-    
+
 Now we change into our assignment directory, and make zucchini load the submissions
 we just downloaded. Note that in a real workflow, submissions would likely be loaded
 through LMS integration modules such as Canvas. Also note that the `-d` flag for the
