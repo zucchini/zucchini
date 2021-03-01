@@ -10,7 +10,6 @@ from . import GraderInterface, Part
 
 """
 Grade a homework using the classic Java bitwise operators grader
-(usually homework 2).
 """
 
 

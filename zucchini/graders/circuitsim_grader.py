@@ -7,8 +7,7 @@ from ..grades import PartGrade
 from . import GraderInterface, Part
 
 """
-Grade a homework using the classic Java bitwise operators grader
-(usually homework 2).
+Grade a homework using a CircuitSim grader
 """
 
 
@@ -23,8 +22,10 @@ class CircuitSimTest(Part):
 
     def grade(self, result):
         if result is None:
-            return PartGrade(score=Fraction(0),
-                             log='results for test not found. misspelling?')
+            msg = ('Results for test not found. Check if there were any'
+                   ' internal errors reported. If not, report this as an'
+                   ' autograder error to your instructors.')
+            return PartGrade(score=Fraction(0), log=msg)
 
         log = '\n'.join('{0[displayName]}: {0[message]}'.format(failure)
                         for failure in result['partialFailures'])
