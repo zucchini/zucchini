@@ -23,8 +23,10 @@ class PyLC3Test(Part):
 
     def grade(self, result):
         if result is None:
-            return PartGrade(score=Fraction(0),
-                             log='results for test not found. misspelling?')
+            msg = ('Results for test not found. Check if there were any'
+                   ' internal errors reported. If not, report this as an'
+                   ' autograder error to your instructors.')
+            return PartGrade(score=Fraction(0), log=msg)
 
         log = '\n'.join('{0[display-name]}: {0[message]}'.format(test)
                         for test in result if not test['passed'])
@@ -41,8 +43,8 @@ class PyLC3Grader(GraderInterface):
 
     DEFAULT_TIMEOUT = 30
 
-    def __init__(self, test_class, timeout=None):
-        self.test_class = test_class
+    def __init__(self, test_file, timeout=None):
+        self.test_file = test_file
 
         if timeout is None:
             self.timeout = self.DEFAULT_TIMEOUT
@@ -64,9 +66,7 @@ class PyLC3Grader(GraderInterface):
         return PyLC3Test.from_config_dict(config_dict)
 
     def grade(self, submission, path, parts):
-        cmdline = ['python3', 'runner.py', self.test_class]
-        # env['LD_LIBRARY_PATH'] =
-        # '/usr/local/lib/python3/dist-packages/pyLC3'
+        cmdline = ['python3', self.test_file]
         try:
             # Do not mix stderr into stdout because sometimes our friend
             # Roi printStackTrace()s or System.err.println()s, and that

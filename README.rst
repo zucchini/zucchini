@@ -6,8 +6,8 @@ Zucchini
 .. image:: https://img.shields.io/pypi/v/zucchini.svg
         :target: https://pypi.python.org/pypi/zucchini
 
-.. image:: https://img.shields.io/travis/zucchini/zucchini.svg
-        :target: https://travis-ci.org/zucchini/zucchini
+.. image:: https://travis-ci.com/zucchini/zucchini.svg?branch=master
+        :target: https://travis-ci.com/zucchini/zucchini
 
 .. image:: https://readthedocs.org/projects/zucchini/badge/?version=latest
         :target: https://zucchini.readthedocs.io/en/latest/?badge=latest
