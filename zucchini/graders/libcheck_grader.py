@@ -130,9 +130,9 @@ class LibcheckGrader(ThreadedGrader):
         self.run_cmd = shlex.split(run_cmd)
 
         self.valgrind_cmd = None \
-            if valgrind_deduction is None else shlex.split(valgrind_cmd)
+            if valgrind_cmd is None else shlex.split(valgrind_cmd)
         self.valgrind_deduction = Fraction(1) \
-            if valgrind_deduction is None else valgrind_deduction
+            if valgrind_deduction is None else Fraction(valgrind_deduction)
         self.build_timeout = self.DEFAULT_BUILD_TIMEOUT \
             if build_timeout is None else build_timeout
         self.test_timeout = self.DEFAULT_TEST_TIMEOUT \
