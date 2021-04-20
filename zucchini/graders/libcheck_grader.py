@@ -21,8 +21,11 @@ class LibcheckTest(Part):
                                r'Failures:\s+(?P<failures>\d+),\s+'
                                r'Errors:\s+(?P<errors>\d+)')
 
-    def __init__(self, name):
+    def __init__(self, name, disable_valgrind=False, valgrind_deduction=None):
         self.name = name
+        self.disable_valgrind = disable_valgrind
+        self.valgrind_deduction = Fraction(valgrind_deduction) \
+            if valgrind_deduction is not None else None
 
     def description(self):
         return self.name
@@ -73,7 +76,7 @@ class LibcheckTest(Part):
         failed = int(match.group('errors')) + int(match.group('failures'))
         grade.score *= Fraction(total - failed, total)
 
-        if grader.valgrind_cmd is None:
+        if grader.valgrind_cmd is None or self.disable_valgrind:
             return grade
 
         grade.log += '\nValgrind\n--------\n'
@@ -109,8 +112,11 @@ class LibcheckTest(Part):
                 valgrind_deduct = valgrind_process.returncode != 0
 
         if valgrind_deduct:
+            deduction = self.valgrind_deduction \
+                if self.valgrind_deduction is not None \
+                else grader.valgrind_deduction
             grade.deductions.append('valgrind')
-            grade.score *= 1 - grader.valgrind_deduction
+            grade.score *= 1 - deduction
 
         return grade
 
