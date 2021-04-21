@@ -36,7 +36,7 @@ class GradescopeMetadata(object):
 
     @classmethod
     def from_json_path(cls, json_path):
-        with open(json_path, 'r') as json_fp:
+        with open(json_path, 'r', errors='ignore') as json_fp:
             return cls(json.load(json_fp))
 
 
