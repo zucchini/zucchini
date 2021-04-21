@@ -62,7 +62,9 @@ class LibcheckTest(Part):
                                                  if process.stdout is not None
                                                  else '(no output)'))
         try:
-            with open(logfile_path, 'r') as logfile:
+            # NOTE: drop any non-UTF8 characters (e.g. if a string is not
+            # null-terminated)
+            with open(logfile_path, 'r', errors='ignore') as logfile:
                 logfile_contents = logfile.read()
                 grade.log += logfile_contents
 
