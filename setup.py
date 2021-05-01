@@ -16,7 +16,7 @@ requirements = [
     'click==6.7',
     'gitdb2==2.0.3',
     'GitPython==2.1.8',
-    'PyYAML==5.1',
+    'PyYAML==5.4',
     'smmap2==2.0.3',
     'requests==2.20.0',
     'boto3==1.5.19',
@@ -34,7 +34,7 @@ test_requirements = [
 
 setup(
     name='zucchini',
-    version='2.0.4',
+    version='2.0.7',
     description="Zucchini is an automatic grader tool for use in grading programming assignments.",
     long_description=readme + '\n\n' + history,
     author="Zucchini Team",
