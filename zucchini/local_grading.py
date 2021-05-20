@@ -36,7 +36,8 @@ class LocalAutograderOutput:
                     else:
                         output.append("TEST: %-45s %-15s (%s)" %
                                       (part.name, "PASSED", points))
-        score = 'Total score: {:.2f}/{:.2f}'.format(total_got, total_max)
+        score_percentage = 100.0 * total_got / total_max
+        score = 'Total score: {:.2f}%'.format(score_percentage)
         output.append(score)
         if any_errors:
             output.append('Some errors occurred; the score above may not be'
