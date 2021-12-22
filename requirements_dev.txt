@@ -7,4 +7,4 @@ tox==3.23.1
 coverage==5.5
 Sphinx==4.0.2
 cryptography==3.4.7
-setuptools==57.0.0
+setuptools==60.0.4
