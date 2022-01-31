@@ -7,8 +7,14 @@ from ..utils import ConfigDictMixin
 """Penalize a late submission."""
 
 
+class LatePenaltyType:
+    PERCENT = '%'
+    POINTS = 'pts'
+    MAX_POINTS = 'max_pts'
+
+
 class LatePenalty(ConfigDictMixin):
-    UNITS_REGEX = re.compile(r'^(?P<mag>[0-9/]+)\s*(?P<unit>[a-z]*)$')
+    UNITS_REGEX = re.compile(r'^(?P<mag>[0-9/]+)\s*(?P<unit>[a-z_-]*)$')
 
     def __init__(self, after, penalty):
         self.after = self.time_to_seconds(after)
@@ -16,13 +22,17 @@ class LatePenalty(ConfigDictMixin):
 
         if penalty_unit in ('pt', 'pts'):
             self.penalty /= 100
-            self.penalty_points = True
+            self.penalty_type = LatePenaltyType.POINTS
+        elif penalty_unit in ('maxpts', 'max-pts', 'max_pts',
+                              'maxpt', 'max-pt', 'max_pt'):
+            self.penalty /= 100
+            self.penalty_type = LatePenaltyType.MAX_POINTS
         elif penalty_unit is None:
-            self.penalty_points = False
+            self.penalty_type = LatePenaltyType.PERCENT
         else:
             raise InvalidPenalizerConfigError("unknown penalty unit `{}'. try "
                                               "a fraction optionally followed "
-                                              "by `pt'."
+                                              "by `pts' or `max-pts'."
                                               .format(penalty_unit))
 
     @classmethod
@@ -56,10 +66,15 @@ class LatePenalty(ConfigDictMixin):
                and submission.seconds_late > self.after
 
     def adjust_grade(self, grade):
-        if self.penalty_points:
-            return max(0, grade - self.penalty)
-        else:
+        if self.penalty_type == LatePenaltyType.PERCENT:
             return grade * (1 - self.penalty)
+        elif self.penalty_type == LatePenaltyType.POINTS:
+            return max(0, grade - self.penalty)
+        elif self.penalty_type == LatePenaltyType.MAX_POINTS:
+            return min(grade, self.penalty)
+        else:
+            raise ValueError("unknown penalty type `{}'. code bug?"
+                             .format(self.penalty_type))
 
 
 class LatePenalizer(PenalizerInterface):
@@ -83,6 +98,18 @@ class LatePenalizer(PenalizerInterface):
     That is, penalties are applied in order, and they do not stop when
     there is a match. They don't necessarily have to be in increasing
     order of `after' values.
+
+    The penalty unit (pts above) can be any of the following, where N is the
+    number provided (e.g., N pts):
+
+     * pt, pts: Subtract N/100, a fixed number of points, from the student's
+                grade. Do not allow their grade to go below 0.
+
+     * maxpts, max_pts, maxpt, max_pt: Set the maximum grade a student can
+                                       achieve to N/100.
+
+     * (none): Multiply the student's grade by (1-N). Here, N is expected to be
+               a fraction already, e.g., 1/4.
     """
 
     def __init__(self, penalties):
