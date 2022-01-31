@@ -261,7 +261,7 @@ class Grade(object):
                 m, s = divmod(self._submission.seconds_late, 60)
                 h, m = divmod(m, 60)
 
-                f.write(", hours_late: %s" % "%d:%02d:%02d" % (h, m, s))
+                f.write(", late by (h:m:s): %d:%02d:%02d" % (h, m, s))
 
             f.write("\n\n")
 
