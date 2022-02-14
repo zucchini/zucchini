@@ -169,7 +169,7 @@ def extract(archive, dest_dir, max_archive_size=None):
             if uncompressed_size > max_archive_size:
                 # In case this error bubbles its way up to students,
                 # don't reveal the setup of their filesystem
-                safe_archive_name = os.path.basename(archive.path())
+                safe_archive_name = os.path.basename(archive.path)
                 raise ArchiveError("Archive `{}' has uncompressed size of {} "
                                    "bytes which exceeds maximum of {} bytes. "
                                    "Refusing to extract!"
