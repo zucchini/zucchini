@@ -21,7 +21,7 @@ requirements = [
     'requests==2.20.0',
     'boto3==1.5.19',
     'subprocess32==3.2.7;python_version<"3.0"',
-    'arrow==0.12.1',
+    'arrow==0.15.1',
 ]
 
 setup_requirements = [
