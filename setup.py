@@ -15,7 +15,7 @@ with open('HISTORY.rst') as history_file:
 requirements = [
     'click==6.7',
     'gitdb2==2.0.3',
-    'GitPython==2.1.8',
+    'GitPython==3.1.30',
     'PyYAML==5.4',
     'smmap2==2.0.3',
     'requests==2.20.0',
