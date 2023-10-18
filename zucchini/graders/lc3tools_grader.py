@@ -21,22 +21,21 @@ class LC3ToolsTest(Part):
     @staticmethod
     def format_cmd(cmd, **kwargs):
         return [arg.format(**kwargs) for arg in cmd]
+    
+    @staticmethod
+    def test_error_grade(message):
+        return PartGrade(Fraction(0), deductions=('error',), log=message)
 
     def grade(self, path, grader):
         grade = PartGrade(Fraction(1), log='')
 
-        logfile_fp, logfile_path = tempfile.mkstemp(prefix='log-', dir=path)
-        # Don't leak fds
-        os.close(logfile_fp)
-        logfile_basename = os.path.basename(logfile_path)
-
-        run_cmd = self.format_cmd(grader.cmdline, testcase=self.name,
-                                  logfile=logfile_basename)
+        run_cmd = self.format_cmd(grader.cmdline, testcase=self.name)
         
         process = run_process(run_cmd,
                               env={'CK_DEFAULT_TIMEOUT':
                                    str(grader.timeout)},
                               cwd=path, stdout=PIPE, stderr=STDOUT)
+        print(process)
 
         if process.returncode != 0:
             return self.test_error_grade('tester exited with {} != 0:\n{}'
@@ -45,12 +44,21 @@ class LC3ToolsTest(Part):
                                                  if process.stdout is not None
                                                  else '(no output)'))
         
-        logfile_contents = process.stdout.decode()
-        grade.log += "".join(logfile_contents.strip().splitlines(keepends=True)[:-1])
-        summary = logfile_contents.splitlines()[-1]
-        score = summary.replace("/", " ").split()[3:5]
-        grade.score *= Fraction(int(score[0]), int(score[1]))
-
+        out_contents = process.stdout.decode()
+        results = "".join(out_contents.strip().splitlines(keepends=True)[:-1])
+        grade.log += results
+        
+        try:    
+            summary = out_contents.splitlines()[-1]
+            score = summary.replace("/", " ").split()[3:5]
+            score[0] = Fraction(float(score[0]))
+            score[1] = Fraction(float(score[1]))
+            grade.score *= Fraction(score[0], score[1])
+        except ValueError as err:
+            return self.test_error_grade('Could not assemble file: \n{}'
+                                         .format(process.stdout.decode()
+                                                 if process.stdout is not None
+                                                 else '(no output)'))
         return grade
 
 
@@ -68,7 +76,7 @@ class LC3ToolsGrader(ThreadedGrader):
         self.asm_file = asm_file
 
         self.cmdline = ["./" + self.test_file, self.asm_file, '--test_filter={testcase}',
-                        "--tester-verbose"]
+                        "--tester-verbose", "--asm-print-level=3" ]
 
         self.timeout = self.DEFAULT_TIMEOUT \
             if timeout is None else timeout
