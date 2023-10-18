@@ -1,10 +1,7 @@
-import os
-import tempfile
-import sys
 from fractions import Fraction
 
 from ..submission import BrokenSubmissionError
-from ..utils import run_process, PIPE, STDOUT, TimeoutExpired
+from ..utils import run_process, PIPE, STDOUT
 from ..grades import PartGrade
 from . import ThreadedGrader, Part
 
@@ -31,11 +28,7 @@ class LC3ToolsTest(Part):
 
         run_cmd = self.format_cmd(grader.cmdline, testcase=self.name)
         
-        process = run_process(run_cmd,
-                              env={'CK_DEFAULT_TIMEOUT':
-                                   str(grader.timeout)},
-                              cwd=path, stdout=PIPE, stderr=STDOUT)
-        print(process)
+        process = run_process(run_cmd, cwd=path, stdout=PIPE, stderr=STDOUT)
 
         if process.returncode != 0:
             return self.test_error_grade('tester exited with {} != 0:\n{}'
@@ -54,7 +47,7 @@ class LC3ToolsTest(Part):
             score[0] = Fraction(float(score[0]))
             score[1] = Fraction(float(score[1]))
             grade.score *= Fraction(score[0], score[1])
-        except ValueError as err:
+        except ValueError:
             return self.test_error_grade('Could not assemble file: \n{}'
                                          .format(process.stdout.decode()
                                                  if process.stdout is not None
