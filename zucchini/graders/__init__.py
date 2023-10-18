@@ -12,10 +12,11 @@ from .circuitsim_grader import CircuitSimGrader
 from .pylc3_grader import PyLC3Grader
 from .multi_command_grader import MultiCommandGrader
 from .python_module_grader import PythonModuleGrader
+from .lc3tools_grader import LC3ToolsGrader
 
 __all__ = ['InvalidGraderConfigError', 'GraderInterface', 'Part',
            'ThreadedGrader', 'PromptGrader', 'OpenFileGrader', 'CommandGrader',
-           'LibcheckGrader', 'JUnitJSONGrader', 'JUnitXMLGrader',
+           'LC3ToolsGrader', 'LibcheckGrader', 'JUnitJSONGrader', 'JUnitXMLGrader',
            'BitwiseJSONGrader', 'CircuitSimGrader', 'PyLC3Grader',
            'MultiCommandGrader', 'PythonModuleGrader']
 
@@ -23,6 +24,7 @@ _GRADERS = (
     PromptGrader,
     OpenFileGrader,
     CommandGrader,
+    LC3ToolsGrader,
     LibcheckGrader,
     JUnitJSONGrader,
     JUnitXMLGrader,
