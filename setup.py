@@ -16,7 +16,7 @@ requirements = [
     'click==6.7',
     'gitdb2==2.0.3',
     'GitPython==3.1.30',
-    'PyYAML==5.4',
+    'PyYAML==6.0.1',
     'smmap2==2.0.3',
     'requests==2.28.2',
     'boto3==1.26.42',
