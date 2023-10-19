@@ -30,7 +30,7 @@ class LC3ToolsTest(Part):
         run_cmd = self.format_cmd(grader.cmdline, testcase=self.name)
         
         process = run_process(run_cmd, cwd=path, stdout=PIPE, stderr=STDOUT)
-        print(run_cmd)
+        
         if process.returncode != 0:
             return self.test_error_grade('tester exited with {} != 0:\n{}'
                                          .format(process.returncode,
