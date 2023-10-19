@@ -29,6 +29,9 @@ class GradescopeMetadata(object):
             lambda pts: int(float(pts))),
     ]
 
+    # Tell Arjun to interpret ANSI escape sequences (terminal colors)
+    _OUTPUT_FORMAT = 'ansi'
+
     def __init__(self, json_dict):
         for attr, key, type_ in self._ATTRS:
             val = recursive_get_using_string(json_dict, key)
@@ -58,11 +61,13 @@ class GradescopeAutograderOutput(ConfigDictNoMangleMixin, ConfigDictMixin):
     https://gradescope-autograders.readthedocs.io/en/latest/specs/#output-format
     """
 
-    def __init__(self, score=None, tests=None, extra_data=None):
+    def __init__(self, score=None, tests=None, extra_data=None, output_format=None, test_output_format=None):
         self.score = score
         self.tests = [GradescopeAutograderTestOutput.from_config_dict(test)
                       for test in tests] if tests is not None else None
         self.extra_data = extra_data
+        self.output_format = output_format
+        self.test_output_format = test_output_format
 
     def to_config_dict(self, *args):
         dict_ = super(GradescopeAutograderOutput, self).to_config_dict(*args)
@@ -129,7 +134,7 @@ class GradescopeAutograderOutput(ConfigDictNoMangleMixin, ConfigDictMixin):
                         output=deductions + part.log)
                     tests.append(test)
 
-        return cls(score=score, tests=tests, extra_data=extra_data)
+        return cls(score=score, tests=tests, extra_data=extra_data, output_format=cls._OUTPUT_FORMAT, test_output_format=cls._OUTPUT_FORMAT)
 
     def to_json_stream(self, fp):
         json.dump(self.to_config_dict(), fp)
