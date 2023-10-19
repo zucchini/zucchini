@@ -1,3 +1,4 @@
+import re
 from fractions import Fraction
 
 from ..submission import BrokenSubmissionError
@@ -29,7 +30,7 @@ class LC3ToolsTest(Part):
         run_cmd = self.format_cmd(grader.cmdline, testcase=self.name)
         
         process = run_process(run_cmd, cwd=path, stdout=PIPE, stderr=STDOUT)
-
+        print(run_cmd)
         if process.returncode != 0:
             return self.test_error_grade('tester exited with {} != 0:\n{}'
                                          .format(process.returncode,
@@ -38,16 +39,17 @@ class LC3ToolsTest(Part):
                                                  else '(no output)'))
         
         out_contents = process.stdout.decode()
+        out_contents = re.sub(r'\((.*)\)', '', out_contents)
         results = "".join(out_contents.strip().splitlines(keepends=True)[:-1])
         grade.log += results
-        
+
         try:    
             summary = out_contents.splitlines()[-1]
             score = summary.replace("/", " ").split()[3:5]
             score[0] = Fraction(float(score[0]))
             score[1] = Fraction(float(score[1]))
             grade.score *= Fraction(score[0], score[1])
-        except ValueError:
+        except ValueError or IndexError:
             return self.test_error_grade('Could not assemble file: \n{}'
                                          .format(process.stdout.decode()
                                                  if process.stdout is not None
@@ -68,7 +70,7 @@ class LC3ToolsGrader(ThreadedGrader):
         self.test_file = test_file
         self.asm_file = asm_file
 
-        self.cmdline = ["./" + self.test_file, self.asm_file, '--test_filter={testcase}',
+        self.cmdline = ["./" + self.test_file, self.asm_file, '--test-filter={testcase}',
                         "--tester-verbose", "--asm-print-level=3" ]
 
         self.timeout = self.DEFAULT_TIMEOUT \
