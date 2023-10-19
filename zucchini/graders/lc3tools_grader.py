@@ -30,7 +30,7 @@ class LC3ToolsTest(Part):
         run_cmd = self.format_cmd(grader.cmdline, testcase=self.name)
         
         process = run_process(run_cmd, cwd=path, stdout=PIPE, stderr=STDOUT)
-        
+
         if process.returncode != 0:
             return self.test_error_grade('tester exited with {} != 0:\n{}'
                                          .format(process.returncode,
@@ -49,7 +49,7 @@ class LC3ToolsTest(Part):
             score[0] = Fraction(float(score[0]))
             score[1] = Fraction(float(score[1]))
             grade.score *= Fraction(score[0], score[1])
-        except ValueError or IndexError:
+        except (ValueError, IndexError):
             return self.test_error_grade('Could not assemble file: \n{}'
                                          .format(process.stdout.decode()
                                                  if process.stdout is not None
