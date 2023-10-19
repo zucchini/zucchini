@@ -29,9 +29,6 @@ class GradescopeMetadata(object):
             lambda pts: int(float(pts))),
     ]
 
-    # Tell Arjun to interpret ANSI escape sequences (terminal colors)
-    _OUTPUT_FORMAT = 'ansi'
-
     def __init__(self, json_dict):
         for attr, key, type_ in self._ATTRS:
             val = recursive_get_using_string(json_dict, key)
@@ -60,6 +57,9 @@ class GradescopeAutograderOutput(ConfigDictNoMangleMixin, ConfigDictMixin):
     Hold Gradescope Autograder output as described in
     https://gradescope-autograders.readthedocs.io/en/latest/specs/#output-format
     """
+
+    # Tell Arjun to interpret ANSI escape sequences (terminal colors)
+    _OUTPUT_FORMAT = 'ansi'
 
     def __init__(self, score=None, tests=None, extra_data=None, output_format=None, test_output_format=None):
         self.score = score
