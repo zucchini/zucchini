@@ -39,7 +39,7 @@ class LC3ToolsTest(Part):
                                                  else '(no output)'))
         
         out_contents = process.stdout.decode()
-        out_contents = re.sub(r'\((.*)\)', '', out_contents)
+        out_contents = re.sub(r'\(\+.*pts\)', '', out_contents)
         results = "".join(out_contents.strip().splitlines(keepends=True)[:-1])
         grade.log += results
 
