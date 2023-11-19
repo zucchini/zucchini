@@ -1,7 +1,6 @@
 import re
 from fractions import Fraction
 
-from ..submission import BrokenSubmissionError
 from ..utils import run_process, PIPE, STDOUT
 from ..grades import PartGrade
 from . import ThreadedGrader, Part
@@ -15,11 +14,11 @@ class LC3ToolsTest(Part):
 
     def description(self):
         return self.name
-    
+
     @staticmethod
     def format_cmd(cmd, **kwargs):
         return [arg.format(**kwargs) for arg in cmd]
-    
+
     @staticmethod
     def test_error_grade(message):
         return PartGrade(Fraction(0), deductions=('error',), log=message)
@@ -28,7 +27,7 @@ class LC3ToolsTest(Part):
         grade = PartGrade(Fraction(1), log='')
 
         run_cmd = self.format_cmd(grader.cmdline, testcase=self.name)
-        
+
         process = run_process(run_cmd, cwd=path, stdout=PIPE, stderr=STDOUT)
 
         if process.returncode != 0:
@@ -37,13 +36,13 @@ class LC3ToolsTest(Part):
                                                  process.stdout.decode()
                                                  if process.stdout is not None
                                                  else '(no output)'))
-        
+
         out_contents = process.stdout.decode()
         out_contents = re.sub(r'\(\+.*pts\)', '', out_contents)
         results = "".join(out_contents.strip().splitlines(keepends=True)[:-1])
         grade.log += results
 
-        try:    
+        try:
             summary = out_contents.splitlines()[-1]
             score = summary.replace("/", " ").split()[3:5]
             score[0] = Fraction(float(score[0]))
@@ -70,8 +69,9 @@ class LC3ToolsGrader(ThreadedGrader):
         self.test_file = test_file
         self.asm_file = asm_file
 
-        self.cmdline = ["./" + self.test_file, self.asm_file, '--test-filter={testcase}',
-                        "--tester-verbose", "--asm-print-level=3" ]
+        self.cmdline = ["./" + self.test_file, self.asm_file,
+                        '--test-filter={testcase}', "--tester-verbose",
+                        "--asm-print-level=3"]
 
         self.timeout = self.DEFAULT_TIMEOUT \
             if timeout is None else timeout
@@ -81,7 +81,7 @@ class LC3ToolsGrader(ThreadedGrader):
 
     def part_from_config_dict(self, config_dict):
         return LC3ToolsTest.from_config_dict(config_dict)
-    
+
     def grade_part(self, part, path, submission):
         return part.grade(path, self)
 
