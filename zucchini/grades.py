@@ -62,6 +62,8 @@ class AssignmentComponentGrade(ConfigDictMixin):
                                          error_verbose=None,
                                          parts=[])
 
+        grade.grade = Fraction(0)
+
         if self.is_broken():
             grade.points_got = Fraction(0)
             grade.error = self.error
@@ -72,10 +74,11 @@ class AssignmentComponentGrade(ConfigDictMixin):
                     points, total_part_weight, part_grade)
                 grade.parts.append(calc_part_grade)
                 grade.points_got += calc_part_grade.points_got
+                grade.grade += part_grade.score * Fraction(part.weight,
+                                                           total_part_weight)
 
         grade.points_possible = points
         grade.points_delta = grade.points_got - grade.points_possible
-        grade.grade = Fraction(grade.points_got, grade.points_possible)
 
         return grade
 
