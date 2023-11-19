@@ -45,10 +45,15 @@ class GradescopeAutograderTestOutput(ConfigDictNoMangleMixin, ConfigDictMixin):
     Output of a single test in Gradescope JSON.
     """
 
-    def __init__(self, name=None, score=None, max_score=None, output=None):
+    STATUS_PASSED = 'passed'
+    STATUS_FAILED = 'failed'
+
+    def __init__(self, name=None, score=None, max_score=None, status=None,
+                 output=None):
         self.name = name
         self.score = score
         self.max_score = max_score
+        self.status = status
         self.output = output
 
 
@@ -61,7 +66,8 @@ class GradescopeAutograderOutput(ConfigDictNoMangleMixin, ConfigDictMixin):
     # Tell Arjun to interpret ANSI escape sequences (terminal colors)
     _OUTPUT_FORMAT = 'ansi'
 
-    def __init__(self, score=None, tests=None, extra_data=None, output_format=None, test_output_format=None):
+    def __init__(self, score=None, tests=None, extra_data=None,
+                 output_format=None, test_output_format=None):
         self.score = score
         self.tests = [GradescopeAutograderTestOutput.from_config_dict(test)
                       for test in tests] if tests is not None else None
@@ -79,6 +85,19 @@ class GradescopeAutograderOutput(ConfigDictNoMangleMixin, ConfigDictMixin):
     def _two_decimals(grade, frac):
         """Convert a fraction to string with two decimal points"""
         return '{:.02f}'.format(grade.to_float(frac))
+
+    @staticmethod
+    def _get_status(part_score):
+        """
+        Override how Gradescope determines status. If a student gets 0% of 0
+        points, we send them 0/0, which it cannot distinguish from 100% of 0
+        points, which is 0/0 too. So use the point percentage to calculate
+        this, not points earned.
+
+        tl;dr: You can fail a test worth 0 points, but this blows Arjun's mind
+        """
+        return GradescopeAutograderTestOutput.STATUS_PASSED if part_score > 0 \
+            else GradescopeAutograderTestOutput.STATUS_FAILED
 
     @classmethod
     def from_grade(cls, grade):
@@ -104,7 +123,14 @@ class GradescopeAutograderOutput(ConfigDictNoMangleMixin, ConfigDictMixin):
                 test = GradescopeAutograderTestOutput(
                     name=penalty.name,
                     score=fake_score,
-                    max_score=fake_max_score)
+                    max_score=fake_max_score,
+                    # Let's be paranoid here and assume that any penalizer that
+                    # doesn't change points is probably still telling them
+                    # something that should get their attention. So mark as
+                    # failed to make it red like a test failure
+                    status=(GradescopeAutograderTestOutput.STATUS_FAILED
+                            if penalty.points_delta <= 0
+                            else GradescopeAutograderTestOutput.STATUS_PASSED))
                 tests.append(test)
 
         # Add actual test results
@@ -115,6 +141,7 @@ class GradescopeAutograderOutput(ConfigDictNoMangleMixin, ConfigDictMixin):
                     score=cls._two_decimals(grade, component.points_got),
                     max_score=cls._two_decimals(
                         grade, component.points_possible),
+                    status=cls._get_status(component.grade),
                     output='{}\n{}'.format(component.error,
                                            component.error_verbose or ''))
                 tests.append(test)
@@ -131,10 +158,13 @@ class GradescopeAutograderOutput(ConfigDictNoMangleMixin, ConfigDictMixin):
                         score=cls._two_decimals(grade, part.points_got),
                         max_score=cls._two_decimals(
                             grade, part.points_possible),
+                        status=cls._get_status(part.grade),
                         output=deductions + part.log)
                     tests.append(test)
 
-        return cls(score=score, tests=tests, extra_data=extra_data, output_format=cls._OUTPUT_FORMAT, test_output_format=cls._OUTPUT_FORMAT)
+        return cls(score=score, tests=tests, extra_data=extra_data,
+                   output_format=cls._OUTPUT_FORMAT,
+                   test_output_format=cls._OUTPUT_FORMAT)
 
     def to_json_stream(self, fp):
         json.dump(self.to_config_dict(), fp)
