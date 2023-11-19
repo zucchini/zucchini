@@ -16,9 +16,9 @@ from .lc3tools_grader import LC3ToolsGrader
 
 __all__ = ['InvalidGraderConfigError', 'GraderInterface', 'Part',
            'ThreadedGrader', 'PromptGrader', 'OpenFileGrader', 'CommandGrader',
-           'LC3ToolsGrader', 'LibcheckGrader', 'JUnitJSONGrader', 'JUnitXMLGrader',
-           'BitwiseJSONGrader', 'CircuitSimGrader', 'PyLC3Grader',
-           'MultiCommandGrader', 'PythonModuleGrader']
+           'LC3ToolsGrader', 'LibcheckGrader', 'JUnitJSONGrader',
+           'JUnitXMLGrader', 'BitwiseJSONGrader', 'CircuitSimGrader',
+           'PyLC3Grader', 'MultiCommandGrader', 'PythonModuleGrader']
 
 _GRADERS = (
     PromptGrader,
