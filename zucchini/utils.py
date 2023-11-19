@@ -234,7 +234,7 @@ class ConfigDictMixin(object):
         Exclude arguments found in `exclude_args'.
         """
 
-        arg_spec = inspect.getargspec(cls.__init__)
+        arg_spec = inspect.getfullargspec(cls.__init__)
         num_optional_args = 0 if arg_spec.defaults is None \
             else min(len(arg_spec.args)-1, len(arg_spec.defaults))
         first_optional_arg = len(arg_spec.args) - num_optional_args
