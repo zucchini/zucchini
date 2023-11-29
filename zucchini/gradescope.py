@@ -96,8 +96,8 @@ class GradescopeAutograderOutput(ConfigDictNoMangleMixin, ConfigDictMixin):
 
         tl;dr: You can fail a test worth 0 points, but this blows Arjun's mind
         """
-        return GradescopeAutograderTestOutput.STATUS_PASSED if part_score > 0 \
-            else GradescopeAutograderTestOutput.STATUS_FAILED
+        return GradescopeAutograderTestOutput.STATUS_FAILED if part_score < 1 \
+            else GradescopeAutograderTestOutput.STATUS_PASSED
 
     @classmethod
     def from_grade(cls, grade):
