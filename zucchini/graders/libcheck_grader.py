@@ -3,6 +3,7 @@ import re
 import shlex
 import tempfile
 from fractions import Fraction
+from signal import strsignal
 
 from ..submission import BrokenSubmissionError
 from ..utils import run_process, PIPE, STDOUT, TimeoutExpired
@@ -55,6 +56,8 @@ class LibcheckTest(Part):
                                    str(grader.test_timeout)},
                               cwd=path, stdout=PIPE, stderr=STDOUT)
 
+        if process.returncode < 0:
+            return self.test_error_grade(strsignal(-process.returncode))
         if process.returncode != 0:
             return self.test_error_grade('tester exited with {} != 0:\n{}'
                                          .format(process.returncode,
@@ -98,7 +101,7 @@ class LibcheckTest(Part):
                 valgrind_process = run_process(valgrind_cmd,
                                                stdout=PIPE,
                                                stderr=STDOUT,
-                                               env={'CK_FORK': 'no'},
+                                               env=dict(os.environ, CK_FORK='no'),
                                                cwd=path,
                                                timeout=grader.valgrind_timeout)
             except TimeoutExpired:
