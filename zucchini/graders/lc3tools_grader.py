@@ -71,7 +71,13 @@ class LC3ToolsGrader(GraderInterface):
         return LC3ToolsTest.from_config_dict(config_dict)
 
     def grade(self, submission, path, parts):
-        cmdline = ["./", self.test_file, self.asm_file, "--json-output"]
+        cmdline = [
+            "./",
+            self.test_file,
+            self.asm_file,
+            "--json-output",
+            "--asm-print-level=3",
+        ]
         try:
             # Do not mix stderr into stdout because sometimes our friend
             # Roi printStackTrace()s or System.err.println()s, and that
