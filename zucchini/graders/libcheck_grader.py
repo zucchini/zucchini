@@ -101,7 +101,8 @@ class LibcheckTest(Part):
                 valgrind_process = run_process(valgrind_cmd,
                                                stdout=PIPE,
                                                stderr=STDOUT,
-                                               env=dict(os.environ, CK_FORK='no'),
+                                               env=dict(os.environ,
+                                                        CK_FORK='no'),
                                                cwd=path,
                                                timeout=grader.valgrind_timeout)
             except TimeoutExpired:

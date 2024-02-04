@@ -1,90 +1,110 @@
-import re
+import json
 from fractions import Fraction
 
-from ..utils import run_process, PIPE, STDOUT
 from ..grades import PartGrade
-from . import ThreadedGrader, Part
+from ..submission import BrokenSubmissionError
+from ..utils import PIPE, TimeoutExpired, run_process
+from . import GraderInterface, Part
+
+"""
+Grade a homework using a LC3tools grader on the new testing framework
+(API_VER 2110)
+"""
 
 
 class LC3ToolsTest(Part):
-    __slots__ = ('name')
+    __slots__ = ("test",)
 
-    def __init__(self, name):
-        self.name = name
+    def __init__(self, test):
+        self.test = test
 
     def description(self):
-        return self.name
+        return self.test
 
-    @staticmethod
-    def format_cmd(cmd, **kwargs):
-        return [arg.format(**kwargs) for arg in cmd]
+    def grade(self, result):
+        if result is None:
+            msg = (
+                "Results for test not found. Check if there were any "
+                "assembler erros when assembling this file on lc3tools. If not"
+                ", report this as an autograder error to the instructors."
+            )
+            return PartGrade(score=Fraction(0), log=msg)
 
-    @staticmethod
-    def test_error_grade(message):
-        return PartGrade(Fraction(0), deductions=('error',), log=message)
+        # display potentially helpful output if test failed
+        partialFailures = len(result["partialFailures"])
+        log = result["output"] if partialFailures else ""
 
-    def grade(self, path, grader):
-        grade = PartGrade(Fraction(1), log='')
+        log += "\n".join(
+            "--{}: {}".format(failure["displayName"], failure["message"])
+            for failure in result["partialFailures"]
+        )
 
-        run_cmd = self.format_cmd(grader.cmdline, testcase=self.name)
+        if partialFailures < result["failed"]:
+            log += "\n[omitted {} more failures]".format(
+                result["failed"] - partialFailures
+            )
 
-        process = run_process(run_cmd, cwd=path, stdout=PIPE, stderr=STDOUT)
-
-        if process.returncode != 0:
-            return self.test_error_grade('tester exited with {} != 0:\n{}'
-                                         .format(process.returncode,
-                                                 process.stdout.decode()
-                                                 if process.stdout is not None
-                                                 else '(no output)'))
-
-        out_contents = process.stdout.decode()
-        out_contents = re.sub(r'\(\+.*pts\)', '', out_contents)
-        results = "".join(out_contents.strip().splitlines(keepends=True)[:-1])
-        grade.log += results
-
-        try:
-            summary = out_contents.splitlines()[-1]
-            score = summary.replace("/", " ").split()[3:5]
-            score[0] = Fraction(float(score[0]))
-            score[1] = Fraction(float(score[1]))
-            grade.score *= Fraction(score[0], score[1])
-        except (ValueError, IndexError):
-            return self.test_error_grade('Could not assemble file: \n{}'
-                                         .format(process.stdout.decode()
-                                                 if process.stdout is not None
-                                                 else '(no output)'))
-        return grade
+        score = Fraction(result["total"] - result["failed"], result["total"])
+        return PartGrade(score=score, log=log)
 
 
-class LC3ToolsGrader(ThreadedGrader):
+class LC3ToolsGrader(GraderInterface):
     """
-    Run a LC3Tools grader and collect the results.
+    Run a LC3Tools test executable, which can output json with the new
+    testing framework (much more reliable than regex). Pretty heavily inspired
+    by the CircuitSim and PyLC3 graders.
     """
 
     DEFAULT_TIMEOUT = 30
 
-    def __init__(self, test_file, asm_file, timeout=None, num_threads=None):
-
-        super(LC3ToolsGrader, self).__init__(num_threads)
+    def __init__(self, test_file, asm_file, timeout=None):
         self.test_file = test_file
         self.asm_file = asm_file
 
-        self.cmdline = ["./" + self.test_file, self.asm_file,
-                        '--test-filter={testcase}', "--tester-verbose",
-                        "--asm-print-level=3"]
-
-        self.timeout = self.DEFAULT_TIMEOUT \
-            if timeout is None else timeout
+        self.timeout = self.DEFAULT_TIMEOUT if timeout is None else timeout
 
     def list_prerequisites(self):
+        # test executables are already built
         return []
 
     def part_from_config_dict(self, config_dict):
         return LC3ToolsTest.from_config_dict(config_dict)
 
-    def grade_part(self, part, path, submission):
-        return part.grade(path, self)
-
     def grade(self, submission, path, parts):
+        cmdline = ["./", self.test_file, self.asm_file, "--json-output"]
+        try:
+            # Do not mix stderr into stdout because sometimes our friend
+            # Roi printStackTrace()s or System.err.println()s, and that
+            # will mess up JSON parsing
+            process = run_process(
+                cmdline,
+                cwd=path,
+                timeout=self.timeout,
+                stdout=PIPE,
+                stderr=PIPE,
+                input="",
+            )
+        except TimeoutExpired:
+            raise BrokenSubmissionError(
+                "timeout of {} seconds expired for grader".format(self.timeout)
+            )
 
-        return super(LC3ToolsGrader, self).grade(submission, path, parts)
+        if process.returncode != 0:
+            raise BrokenSubmissionError(
+                "grader command exited with nonzero exit code {}".format(
+                    process.returncode
+                ),
+                verbose="\n".join(
+                    output_stream.decode()
+                    for output_stream in [process.stderr, process.stdout]
+                    if output_stream
+                ),
+            )
+
+        results = json.loads(process.stdout.decode())
+
+        if "error" in results:
+            raise BrokenSubmissionError(results["error"])
+
+        method_results = {res["testName"]: res for res in results["tests"]}
+        return [part.grade(method_results.get(part.test)) for part in parts]
