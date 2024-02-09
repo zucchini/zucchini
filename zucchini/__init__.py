@@ -3,5 +3,5 @@
 """Top-level package for Zucchini."""
 
 __author__ = """Zucchini Team"""
-__email__ = 'team@zucc.io'
-__version__ = '2.2.0'
+__email__ = "team@zucc.io"
+__version__ = "2.2.1"
