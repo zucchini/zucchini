@@ -72,8 +72,7 @@ class LC3ToolsGrader(GraderInterface):
 
     def grade(self, submission, path, parts):
         cmdline = [
-            "./",
-            self.test_file,
+            "./" + self.test_file,
             self.asm_file,
             "--json-output",
             "--asm-print-level=3",
