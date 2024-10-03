@@ -14,13 +14,14 @@ from .multi_command_grader import MultiCommandGrader
 from .python_module_grader import PythonModuleGrader
 from .lc3tools_grader import LC3ToolsGrader
 from .lc3tools_legacy_grader import LC3ToolsLegacyGrader
+from .ensemble_grader import EnsembleGrader
 
 __all__ = ['InvalidGraderConfigError', 'GraderInterface', 'Part',
            'ThreadedGrader', 'PromptGrader', 'OpenFileGrader', 'CommandGrader',
            'LC3ToolsGrader', 'LC3ToolsLegacyGrader', 'LibcheckGrader',
            'JUnitJSONGrader', 'JUnitXMLGrader', 'BitwiseJSONGrader',
            'CircuitSimGrader', 'PyLC3Grader', 'MultiCommandGrader',
-           'PythonModuleGrader']
+           'PythonModuleGrader', 'EnsembleGrader']
 
 _GRADERS = (
     PromptGrader,
@@ -36,5 +37,6 @@ _GRADERS = (
     PyLC3Grader,
     MultiCommandGrader,
     PythonModuleGrader,
+	EnsembleGrader
 )
 AVAILABLE_GRADERS = {cls.__name__: cls for cls in _GRADERS}
