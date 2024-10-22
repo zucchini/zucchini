@@ -48,8 +48,8 @@ class CriterionTest(Part):
         if total == passing:
             return PartGrade(score=1, log="")
         
-        log_line_pattern = r"^\[----\].*"
-        matches = re.findall(log_line_pattern, result)
+        log_line_pattern = r"^\s*\[----\].*"
+        matches = re.findall(log_line_pattern, result, re.MULTILINE)
 
         return PartGrade(score=passing / total, log="\n".join(matches))
 
