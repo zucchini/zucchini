@@ -67,7 +67,7 @@ class CriterionGrader(GraderInterface):
             process = run_process(
                 command,
                 cwd=path,
-                timeout=self.timeout,
+                timeout=30,
                 stdout=PIPE,
                 stderr=STDOUT,
                 input=''
