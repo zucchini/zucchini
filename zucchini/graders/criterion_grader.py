@@ -17,11 +17,11 @@ class CriterionTest(Part):
     def description(self):
         return self.name
     
-    def grade(self):
+    def grade(self, path):
         command = ['./tests', f'--filter={self.suite}/{self.test}', '--ascii']
 
         try:
-            process = run_process(command, stdout=PIPE, stderr=STDOUT, timeout=60)
+            process = run_process(command, cwd=path, stdout=PIPE, stderr=STDOUT, timeout=60)
         except TimeoutExpired:
             raise BrokenSubmissionError("timeout of 60 seconds expired for grader")
         
@@ -46,7 +46,7 @@ class CriterionTest(Part):
             return PartGrade(score=0, log="No test cases were found")
 
         if total == passing:
-            return PartGrade(score=1)
+            return PartGrade(score=1, log="")
         
         log_line_pattern = r"^\[----\].*"
         matches = re.findall(log_line_pattern, result)
@@ -67,7 +67,7 @@ class CriterionGrader(GraderInterface):
             process = run_process(
                 command,
                 cwd=path,
-                timeout=self.timeout,
+                timeout=30,
                 stdout=PIPE,
                 stderr=STDOUT,
                 input=''
@@ -85,4 +85,4 @@ class CriterionGrader(GraderInterface):
                 verbose=process.stdout.decode() if process.stdout else None
             )
 
-        return [part.grade() for part in parts]
+        return [part.grade(path) for part in parts]
