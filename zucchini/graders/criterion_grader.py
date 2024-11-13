@@ -17,14 +17,14 @@ class CriterionTest(Part):
     def description(self):
         return self.name
     
-    def grade(self, path, valgrind):
+    def grade(self, path, grader):
         command = ['./tests', f'--filter={self.suite}/{self.test}']
-        valgrind_cmd = ['make', 'run-valgrind', f'TEST={self.suite}::{self.test}']
+        valgrind_cmd = grader.valgrind_cmd
 
         try:
-            process = run_process(command if not valgrind else valgrind_cmd, cwd=path, stdout=PIPE, stderr=STDOUT, timeout=60)
+            process = run_process(valgrind_cmd if valgrind_cmd else command, cwd=path, stdout=PIPE, stderr=STDOUT, timeout=60)
         except TimeoutExpired:
-            raise BrokenSubmissionError(' '.join(command))
+            raise BrokenSubmissionError('grader timed out after 60 seconds')
         
         result = process.stdout.decode()
 
@@ -46,7 +46,7 @@ class CriterionTest(Part):
         if total == 0:
             return PartGrade(score=0, log="No test cases were found")
 
-        if valgrind and process.returncode != 0:
+        if valgrind_cmd and process.returncode != 0:
             return PartGrade(passing / total * (1 - self.valgrind_deduction), log=result)
 
         if total == passing:
@@ -58,9 +58,9 @@ class CriterionTest(Part):
         return PartGrade(score=passing / total, log="\n".join(matches))
 
 class CriterionGrader(ThreadedGrader):
-    def __init__(self, valgrind=False):
+    def __init__(self, valgrind_cmd=None):
         super(CriterionGrader, self).__init__(None)
-        self.valgrind = valgrind
+        self.valgrind_cmd = valgrind_cmd.split(" ")
 
     def list_prerequisites(self):
         return []
@@ -69,7 +69,7 @@ class CriterionGrader(ThreadedGrader):
         return CriterionTest.from_config_dict(config_dict)
     
     def grade_part(self, part, path, submission):
-        return part.grade(path, self.valgrind)
+        return part.grade(path, self)
 
     def grade(self, submission, path, parts):
         command = ['make', 'tests']
