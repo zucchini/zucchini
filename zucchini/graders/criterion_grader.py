@@ -19,7 +19,7 @@ class CriterionTest(Part):
     
     def grade(self, path, grader):
         command = ['./tests', f'--filter={self.suite}/{self.test}']
-        valgrind_cmd = grader.valgrind_cmd
+        valgrind_cmd = grader.valgrind_cmd + [f'--filter={self.suite}/{self.test}']
 
         try:
             process = run_process(valgrind_cmd if valgrind_cmd else command, cwd=path, stdout=PIPE, stderr=STDOUT, timeout=60)
