@@ -1,29 +1,30 @@
 import re
 
-import xml.etree.ElementTree
 from ..submission import BrokenSubmissionError
 from ..utils import run_process, PIPE, STDOUT, TimeoutExpired
-from ..grades import PartGrade
-from . import Part, GraderInterface
+from ..grades import PartGrade, Fraction
+from . import Part, ThreadedGrader
 
 class CriterionTest(Part):
     __slots__ = ('name', 'suite', 'test')
 
-    def __init__(self, name, suite, test):
+    def __init__(self, name, suite, test, valgrind_deduction="1/2"):
         self.name = name
         self.suite = suite
         self.test = test
+        self.valgrind_deduction = Fraction(valgrind_deduction)
     
     def description(self):
         return self.name
     
-    def grade(self, path):
-        command = ['./tests', f'--filter={self.suite}/{self.test}', '--ascii']
+    def grade(self, path, valgrind):
+        command = ['./tests', f'--filter={self.suite}/{self.test}']
+        valgrind_cmd = ['make', 'run-valgrind', f'TEST={self.suite}::{self.test}']
 
         try:
-            process = run_process(command, cwd=path, stdout=PIPE, stderr=STDOUT, timeout=60)
+            process = run_process(command if not valgrind else valgrind_cmd, cwd=path, stdout=PIPE, stderr=STDOUT, timeout=60)
         except TimeoutExpired:
-            raise BrokenSubmissionError("timeout of 60 seconds expired for grader")
+            raise BrokenSubmissionError(' '.join(command))
         
         result = process.stdout.decode()
 
@@ -45,6 +46,9 @@ class CriterionTest(Part):
         if total == 0:
             return PartGrade(score=0, log="No test cases were found")
 
+        if valgrind and process.returncode != 0:
+            return PartGrade(passing / total * (1 - self.valgrind_deduction), log=result)
+
         if total == passing:
             return PartGrade(score=1, log="")
         
@@ -53,12 +57,19 @@ class CriterionTest(Part):
 
         return PartGrade(score=passing / total, log="\n".join(matches))
 
-class CriterionGrader(GraderInterface):
+class CriterionGrader(ThreadedGrader):
+    def __init__(self, valgrind=False):
+        super(CriterionGrader, self).__init__(None)
+        self.valgrind = valgrind
+
     def list_prerequisites(self):
         return []
 
     def part_from_config_dict(self, config_dict):
         return CriterionTest.from_config_dict(config_dict)
+    
+    def grade_part(self, part, path, submission):
+        return part.grade(path, self.valgrind)
 
     def grade(self, submission, path, parts):
         command = ['make', 'tests']
@@ -85,4 +96,4 @@ class CriterionGrader(GraderInterface):
                 verbose=process.stdout.decode() if process.stdout else None
             )
 
-        return [part.grade(path) for part in parts]
+        return super(CriterionGrader, self).grade(submission, path, parts)
