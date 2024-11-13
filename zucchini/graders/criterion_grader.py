@@ -19,7 +19,7 @@ class CriterionTest(Part):
     
     def grade(self, path, grader):
         command = ['./tests', f'--filter={self.suite}/{self.test}']
-        valgrind_cmd = grader.valgrind_cmd + [f'--filter={self.suite}/{self.test}']
+        valgrind_cmd = grader.valgrind_cmd + [f'--filter={self.suite}/{self.test}'] 
 
         try:
             process = run_process(valgrind_cmd if valgrind_cmd else command, cwd=path, stdout=PIPE, stderr=STDOUT, timeout=60)
@@ -46,7 +46,7 @@ class CriterionTest(Part):
         if total == 0:
             return PartGrade(score=0, log="No test cases were found")
 
-        if valgrind_cmd and process.returncode != 0:
+        if valgrind_cmd and re.findall(r"^==\d+==.*$", result, re.MULTILINE):
             return PartGrade(passing / total * (1 - self.valgrind_deduction), log=result)
 
         if total == passing:
