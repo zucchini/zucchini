@@ -19,7 +19,10 @@ class CriterionTest(Part):
     
     def grade(self, path, grader):
         command = ['./tests', f'--filter={self.suite}/{self.test}']
-        valgrind_cmd = grader.valgrind_cmd + [f'--filter={self.suite}/{self.test}'] 
+        if grader.valgrind_cmd is not None:
+            valgrind_cmd = grader.valgrind_cmd + [f'--filter={self.suite}/{self.test}'] 
+        else:
+            valgrind_cmd = None
 
         try:
             process = run_process(valgrind_cmd if valgrind_cmd else command, cwd=path, stdout=PIPE, stderr=STDOUT, timeout=60)
@@ -46,7 +49,7 @@ class CriterionTest(Part):
         if total == 0:
             return PartGrade(score=0, log="No test cases were found")
 
-        if valgrind_cmd and re.findall(r"^==\d+==.*$", result, re.MULTILINE):
+        if valgrind_cmd is not None and re.findall(r"^==\d+==.*$", result, re.MULTILINE):
             return PartGrade(passing / total * (1 - self.valgrind_deduction), log=result)
 
         if total == passing:
@@ -58,9 +61,12 @@ class CriterionTest(Part):
         return PartGrade(score=passing / total, log="\n".join(matches))
 
 class CriterionGrader(ThreadedGrader):
-    def __init__(self, valgrind_cmd=None):
+    def __init__(self, valgrind_cmd: "str | None" = None):
         super(CriterionGrader, self).__init__(None)
-        self.valgrind_cmd = valgrind_cmd.split(" ")
+        if valgrind_cmd is not None:
+            self.valgrind_cmd = valgrind_cmd.split(" ")
+        else:
+            self.valgrind_cmd = None
 
     def list_prerequisites(self):
         return []
