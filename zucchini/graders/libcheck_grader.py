@@ -61,7 +61,7 @@ class LibcheckTest(Part):
         if process.returncode != 0:
             return self.test_error_grade('tester exited with {} != 0:\n{}'
                                          .format(process.returncode,
-                                                 process.stdout.decode()
+                                                 process.stdout.decode(error='backslashreplace')
                                                  if process.stdout is not None
                                                  else '(no output)'))
         try:
@@ -112,7 +112,7 @@ class LibcheckTest(Part):
                 valgrind_deduct = True
             else:
                 if valgrind_process.stdout:
-                    grade.log += valgrind_process.stdout.decode()
+                    grade.log += valgrind_process.stdout.decode(error='backslashreplace')
                 else:
                     grade.log += '(no output)'
                 valgrind_deduct = valgrind_process.returncode != 0
@@ -175,6 +175,6 @@ class LibcheckGrader(ThreadedGrader):
             raise BrokenSubmissionError(
                 'build command exited with nonzero exit code {}'
                 .format(process.returncode),
-                verbose=process.stdout.decode() if process.stdout else None)
+                verbose=process.stdout.decode(error='backslashreplace') if process.stdout else None)
 
         return super(LibcheckGrader, self).grade(submission, path, parts)

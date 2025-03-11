@@ -64,7 +64,7 @@ class EnsembleGrader(GraderInterface):
             raise BrokenSubmissionError(
                 'grader command exited with exit code {}'
                 .format(process.returncode),
-                verbose=process.stdout.decode() if process.stdout else None
+                verbose=process.stdout.decode(error='backslashreplace') if process.stdout else None
             )
 
         report_xml_path = os.path.join(path, 'report.xml')

@@ -88,14 +88,14 @@ class JUnitXMLGrader(GraderInterface):
         #     raise BrokenSubmissionError(
         #         'grader command exited with nonzero exit code {}'
         #         .format(process.returncode),
-        #         verbose=process.stdout.decode() if process.stdout else None)
+        #         verbose=process.stdout.decode(error='backslashreplace') if process.stdout else None)
 
         test_result_path = os.path.join(path, self.xml_result_dir)
 
         if not os.path.exists(test_result_path):
             # XXX Is BrokenSubmissionError the right exception to use here?
             raise BrokenSubmissionError('could not find test results dir',
-                                        verbose=process.stdout.decode()
+                                        verbose=process.stdout.decode(error='backslashreplace')
                                         if process.stdout else None)
 
         # goes into xml_result_dir (relative path) and looks for files matching
