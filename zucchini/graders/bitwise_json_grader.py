@@ -96,7 +96,7 @@ class BitwiseJSONGrader(GraderInterface):
                 ('grader command exited with nonzero exit code {}. '
                  'syntax error?')
                 .format(process.returncode),
-                verbose=process.stdout.decode(error='backslashreplace') if process.stdout else None)
+                verbose=process.stdout.decode(errors='backslashreplace') if process.stdout else None)
 
         with open(gradelog_path) as gradelog_file:
             gradelog = json.load(gradelog_file)

@@ -34,7 +34,7 @@ class Command(Part):
         if process.stdout is None:
             log = '(no output)'
         else:
-            log = process.stdout.decode(error='backslashreplace')
+            log = process.stdout.decode(errors='backslashreplace')
 
         if process.returncode:
             score = Fraction(0)

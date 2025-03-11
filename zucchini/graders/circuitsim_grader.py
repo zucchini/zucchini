@@ -91,7 +91,7 @@ class CircuitSimGrader(GraderInterface):
                                   in [process.stderr, process.stdout]
                                   if output_stream))
 
-        results = json.loads(process.stdout.decode(error='backslashreplace'))
+        results = json.loads(process.stdout.decode(errors='backslashreplace'))
 
         if 'error' in results:
             raise BrokenSubmissionError(results['error'])

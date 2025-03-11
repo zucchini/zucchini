@@ -35,14 +35,14 @@ class LC3ToolsLegacyTest(Part):
                 "tester exited with {} != 0:\n{}".format(
                     process.returncode,
                     (
-                        process.stdout.decode(error='backslashreplace')
+                        process.stdout.decode(errors='backslashreplace')
                         if process.stdout is not None
                         else "(no output)"
                     ),
                 )
             )
 
-        out_contents = process.stdout.decode(error='backslashreplace')
+        out_contents = process.stdout.decode(errors='backslashreplace')
         out_contents = re.sub(r"\(\+.*pts\)", "", out_contents)
         results = "".join(out_contents.strip().splitlines(keepends=True)[:-1])
         grade.log += results
@@ -56,7 +56,7 @@ class LC3ToolsLegacyTest(Part):
         except (ValueError, IndexError):
             return self.test_error_grade(
                 "Could not assemble file: \n{}".format(
-                    process.stdout.decode(error='backslashreplace')
+                    process.stdout.decode(errors='backslashreplace')
                     if process.stdout is not None
                     else "(no output)"
                 )

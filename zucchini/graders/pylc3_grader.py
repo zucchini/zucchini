@@ -81,7 +81,7 @@ class PyLC3Grader(GraderInterface):
             raise BrokenSubmissionError(
                 'grader command exited with nonzero exit code {}'
                 .format(process.returncode),
-                verbose=(process.stdout.decode(error='backslashreplace')
+                verbose=(process.stdout.decode(errors='backslashreplace')
                          if process.stdout else '(no output)'))
 
         with open(os.path.join(path, 'results.json'), 'r') as json_fp:

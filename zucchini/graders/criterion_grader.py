@@ -29,7 +29,7 @@ class CriterionTest(Part):
         except TimeoutExpired:
             raise BrokenSubmissionError('grader timed out after 60 seconds')
         
-        result = process.stdout.decode(error='backslashreplace')
+        result = process.stdout.decode(errors='backslashreplace')
 
         if result is None:
             msg = ('Results for test not found. Check if there were any'
@@ -99,7 +99,7 @@ class CriterionGrader(ThreadedGrader):
             raise BrokenSubmissionError(
                 'grader command exited with exit code {}\n'
                 .format(process.returncode),
-                verbose=process.stdout.decode(error='backslashreplace') if process.stdout else None
+                verbose=process.stdout.decode(errors='backslashreplace') if process.stdout else None
             )
 
         return super(CriterionGrader, self).grade(submission, path, parts)

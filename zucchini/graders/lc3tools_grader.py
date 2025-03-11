@@ -106,7 +106,7 @@ class LC3ToolsGrader(GraderInterface):
                 ),
             )
 
-        results = json.loads(process.stdout.decode(error='backslashreplace'))
+        results = json.loads(process.stdout.decode(errors='backslashreplace'))
 
         if "error" in results:
             raise BrokenSubmissionError(results["error"])

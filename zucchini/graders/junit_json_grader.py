@@ -64,7 +64,7 @@ class JUnitJSONGrader(GraderInterface):
             raise BrokenSubmissionError(
                 'grader command exited with nonzero exit code {}'
                 .format(process.returncode),
-                verbose=process.stdout.decode(error='backslashreplace') if process.stdout else None)
+                verbose=process.stdout.decode(errors='backslashreplace') if process.stdout else None)
 
         gradelog_path = os.path.join(path, 'gradelog.json')
 
