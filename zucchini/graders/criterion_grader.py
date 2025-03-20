@@ -18,9 +18,13 @@ class CriterionTest(Part):
         return self.name
     
     def grade(self, path, grader):
-        command = ['./tests', f'--filter={self.suite}/{self.test}']
+        flags = [
+            f"--timeout 3",
+            f"--filter={self.suite}/{self.test}"
+        ]
+        command = ['./tests', *flags]
         if grader.valgrind_cmd is not None:
-            valgrind_cmd = grader.valgrind_cmd + [f'--filter={self.suite}/{self.test}'] 
+            valgrind_cmd = grader.valgrind_cmd + flags
         else:
             valgrind_cmd = None
 
