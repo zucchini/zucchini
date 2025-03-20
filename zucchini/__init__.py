@@ -4,4 +4,4 @@
 
 __author__ = """Zucchini Team"""
 __email__ = "team@zucc.io"
-__version__ = "2.2.15"
+__version__ = "2.2.16"

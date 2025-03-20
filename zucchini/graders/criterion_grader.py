@@ -19,7 +19,7 @@ class CriterionTest(Part):
     
     def grade(self, path, grader):
         flags = [
-            f"--timeout 3",
+            "--timeout", "3",
             f"--filter={self.suite}/{self.test}"
         ]
         command = ['./tests', *flags]
