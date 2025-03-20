@@ -19,7 +19,7 @@ class CriterionTest(Part):
     
     def grade(self, path, grader):
         flags = [
-            "--timeout", "3",
+            "--timeout", str(grader.single_timeout),
             f"--filter={self.suite}/{self.test}"
         ]
         command = ['./tests', *flags]
@@ -29,7 +29,7 @@ class CriterionTest(Part):
             valgrind_cmd = None
 
         try:
-            process = run_process(valgrind_cmd if valgrind_cmd else command, cwd=path, stdout=PIPE, stderr=STDOUT, timeout=60)
+            process = run_process(valgrind_cmd if valgrind_cmd else command, cwd=path, stdout=PIPE, stderr=STDOUT, timeout=grader.total_timeout)
         except TimeoutExpired:
             raise BrokenSubmissionError('grader timed out after 60 seconds')
         
@@ -65,12 +65,14 @@ class CriterionTest(Part):
         return PartGrade(score=passing / total, log="\n".join(matches))
 
 class CriterionGrader(ThreadedGrader):
-    def __init__(self, valgrind_cmd: "str | None" = None):
+    def __init__(self, valgrind_cmd: "str | None" = None, total_timeout: int = 60, single_timeout: int = 1):
         super(CriterionGrader, self).__init__(None)
         if valgrind_cmd is not None:
             self.valgrind_cmd = valgrind_cmd.split(" ")
         else:
             self.valgrind_cmd = None
+        self.single_timeout = int(single_timeout)
+        self.total_timeout = int(total_timeout)
 
     def list_prerequisites(self):
         return []
@@ -88,7 +90,7 @@ class CriterionGrader(ThreadedGrader):
             process = run_process(
                 command,
                 cwd=path,
-                timeout=30,
+                timeout=self.total_timeout,
                 stdout=PIPE,
                 stderr=STDOUT,
                 input=''
@@ -96,7 +98,7 @@ class CriterionGrader(ThreadedGrader):
         except TimeoutExpired:
             raise BrokenSubmissionError(
                 "timeout of {} seconds expired for grader"
-                .format(self.timeout)
+                .format(self.total_timeout)
             )
 
         if process.returncode != 0 and process.returncode != 1:
