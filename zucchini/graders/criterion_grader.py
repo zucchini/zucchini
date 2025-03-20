@@ -20,7 +20,7 @@ class CriterionTest(Part):
     def grade(self, path, grader):
         flags = [
             "--timeout", str(grader.single_timeout),
-            f"--filter={self.suite}/{self.test}"
+            f"--filter={self.suite}/{self.test}",
         ]
         command = ['./tests', *flags]
         if grader.valgrind_cmd is not None:
@@ -31,7 +31,7 @@ class CriterionTest(Part):
         try:
             process = run_process(valgrind_cmd if valgrind_cmd else command, cwd=path, stdout=PIPE, stderr=STDOUT, timeout=grader.total_timeout)
         except TimeoutExpired:
-            raise BrokenSubmissionError('grader timed out after 60 seconds')
+            raise BrokenSubmissionError(f'grader timed out after {grader.total_timeout} seconds')
         
         result = process.stdout.decode(errors='backslashreplace')
 
@@ -59,20 +59,20 @@ class CriterionTest(Part):
         if total == passing:
             return PartGrade(score=1, log="")
         
-        log_line_pattern = r"^\s*\[----\].*"
+        log_line_pattern = r"^\s*\[(?:----|FAIL)\].*"
         matches = re.findall(log_line_pattern, result, re.MULTILINE)
 
         return PartGrade(score=passing / total, log="\n".join(matches))
 
 class CriterionGrader(ThreadedGrader):
-    def __init__(self, valgrind_cmd: "str | None" = None, total_timeout: int = 60, single_timeout: int = 1):
+    def __init__(self, valgrind_cmd: "str | None" = None, total_timeout: float = 60, single_timeout: float = 3):
         super(CriterionGrader, self).__init__(None)
         if valgrind_cmd is not None:
             self.valgrind_cmd = valgrind_cmd.split(" ")
         else:
             self.valgrind_cmd = None
-        self.single_timeout = int(single_timeout)
-        self.total_timeout = int(total_timeout)
+        self.single_timeout = float(single_timeout)
+        self.total_timeout = float(total_timeout)
 
     def list_prerequisites(self):
         return []
