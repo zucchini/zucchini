@@ -1,4 +1,8 @@
+import json
+import os
 import re
+import shlex
+import tempfile
 
 from ..submission import BrokenSubmissionError
 from ..utils import run_process, PIPE, STDOUT, TimeoutExpired
@@ -8,7 +12,7 @@ from . import Part, ThreadedGrader
 class CriterionTest(Part):
     __slots__ = ('name', 'suite', 'test')
 
-    def __init__(self, name, suite, test, valgrind_deduction="1/2"):
+    def __init__(self, name, suite, test="*", valgrind_deduction="1/2"):
         self.name = name
         self.suite = suite
         self.test = test
@@ -18,15 +22,19 @@ class CriterionTest(Part):
         return self.name
     
     def grade(self, path, grader):
+        resultfile_fd, resultfile_fp = tempfile.mkstemp(prefix="log-", dir=path)
+        os.close(resultfile_fd)
+
         flags = [
             "--timeout", str(grader.single_timeout),
             f"--filter={self.suite}/{self.test}",
+            f"--json={resultfile_fp}"
         ]
+
         command = ['./tests', *flags]
+        valgrind_cmd = None
         if grader.valgrind_cmd is not None:
             valgrind_cmd = grader.valgrind_cmd + flags
-        else:
-            valgrind_cmd = None
 
         try:
             process = run_process(valgrind_cmd if valgrind_cmd else command, cwd=path, stdout=PIPE, stderr=STDOUT, timeout=grader.total_timeout)
@@ -41,15 +49,12 @@ class CriterionTest(Part):
                    ' autograder error to your instructors.')
             return PartGrade(score=0, log=msg)
         
-        pattern = r"Tested:\s*(\d+)\s*\|\s*Passing:\s*(\d+)"
-
-        matches = re.search(pattern, result)
-
-        if not matches:
-            return PartGrade(score=0, log="Could not parse autograder output")
+        with open(resultfile_fp, "r") as f:
+            report_data = json.load(f)
+        passing = report_data["passed"]
+        failing = report_data["failed"]
+        total = passing + failing
         
-        total, passing = int(matches.group(1)), int(matches.group(2))
-
         if total == 0:
             return PartGrade(score=0, log="No test cases were found")
 
@@ -68,7 +73,7 @@ class CriterionGrader(ThreadedGrader):
     def __init__(self, valgrind_cmd: "str | None" = None, total_timeout: float = 60, single_timeout: float = 3):
         super(CriterionGrader, self).__init__(None)
         if valgrind_cmd is not None:
-            self.valgrind_cmd = valgrind_cmd.split(" ")
+            self.valgrind_cmd = shlex.split(valgrind_cmd)
         else:
             self.valgrind_cmd = None
         self.single_timeout = float(single_timeout)
