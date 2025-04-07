@@ -36,8 +36,9 @@ class CriterionTest(Part):
         if grader.valgrind_cmd is not None:
             valgrind_cmd = grader.valgrind_cmd + flags
 
+        # Run one test without Valgrind:
         try:
-            process = run_process(valgrind_cmd if valgrind_cmd else command, cwd=path, stdout=PIPE, stderr=STDOUT, timeout=grader.total_timeout)
+            process = run_process(command, cwd=path, stdout=PIPE, stderr=STDOUT, timeout=grader.total_timeout)
         except TimeoutExpired:
             raise BrokenSubmissionError(f'grader timed out after {grader.total_timeout} seconds')
         
@@ -53,24 +54,36 @@ class CriterionTest(Part):
             try:
                 report_data = json.load(f)
             except json.JSONDecodeError:
-                return PartGrade(score=0, log="Cannot parse result JSON\n\nSTDOUT:" + result)
+                return PartGrade(score=0, log="Cannot parse result JSON")
         passing = report_data["passed"]
         failing = report_data["failed"]
         total = passing + failing
         
         if total == 0:
-            return PartGrade(score=0, log="No test cases were found\n\nSTDOUT:" + result)
-
-        if valgrind_cmd is not None and re.findall(r"^==\d+==.*$", result, re.MULTILINE):
-            return PartGrade(passing / total * (1 - self.valgrind_deduction), log=result)
+            return PartGrade(score=0, log="No test cases were found")
 
         if total == passing:
+            # Standard autograder passed, so check Valgrind:
+            # Check Valgrind test:
+            if valgrind_cmd is not None:
+                try:
+                    process = run_process(valgrind_cmd, cwd=path, stdout=PIPE, stderr=STDOUT, timeout=grader.total_timeout)
+                except TimeoutExpired:
+                    raise BrokenSubmissionError(f'grader timed out after {grader.total_timeout} seconds')
+                result = process.stdout.decode(errors='backslashreplace')
+
+                if re.search(r"^==\d+==.*$", result, re.MULTILINE): # Valgrind failed
+                    return PartGrade(1 - self.valgrind_deduction, log=result)
             return PartGrade(score=1, log="")
         
         log_line_pattern = r"^\s*\[(?:----|FAIL)\].*"
-        matches = re.findall(log_line_pattern, result, re.MULTILINE)
+        log = "\n".join(re.findall(log_line_pattern, result, re.MULTILINE))
+        deduct_factor = 1 # factor added to make Valgrind failures fairer
+        if valgrind_cmd is not None:
+            log += "\n\nValgrind skipped due to failed test."
+            deduct_factor *= 1 - self.valgrind_deduction
 
-        return PartGrade(score=passing / total, log="\n".join(matches))
+        return PartGrade(score=(passing / total) * deduct_factor, log=log)
 
 class CriterionGrader(ThreadedGrader):
     def __init__(self, valgrind_cmd: "str | None" = None, total_timeout: float = 60, single_timeout: float = 3):
