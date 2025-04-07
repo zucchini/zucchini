@@ -50,13 +50,16 @@ class CriterionTest(Part):
             return PartGrade(score=0, log=msg)
         
         with open(resultfile_fp, "r") as f:
-            report_data = json.load(f)
+            try:
+                report_data = json.load(f)
+            except json.JSONDecodeError:
+                return PartGrade(score=0, log="Cannot parse result JSON\n\nSTDOUT:" + result)
         passing = report_data["passed"]
         failing = report_data["failed"]
         total = passing + failing
         
         if total == 0:
-            return PartGrade(score=0, log="No test cases were found")
+            return PartGrade(score=0, log="No test cases were found\n\nSTDOUT:" + result)
 
         if valgrind_cmd is not None and re.findall(r"^==\d+==.*$", result, re.MULTILINE):
             return PartGrade(passing / total * (1 - self.valgrind_deduction), log=result)
@@ -72,10 +75,13 @@ class CriterionTest(Part):
 class CriterionGrader(ThreadedGrader):
     def __init__(self, valgrind_cmd: "str | None" = None, total_timeout: float = 60, single_timeout: float = 3):
         super(CriterionGrader, self).__init__(None)
+
+        # If enabled, use Valgrind:
+        self.valgrind_cmd = None
         if valgrind_cmd is not None:
             self.valgrind_cmd = shlex.split(valgrind_cmd)
-        else:
-            self.valgrind_cmd = None
+
+        # Configure timeout
         self.single_timeout = float(single_timeout)
         self.total_timeout = float(total_timeout)
 
