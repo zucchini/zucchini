@@ -1,8 +1,8 @@
 import re
 from fractions import Fraction
-import requests
 import json
 
+requests = [] # FIXME: evaluate whether or not to just straight up delete this penalizer
 
 from . import PenalizerInterface, InvalidPenalizerConfigError
 

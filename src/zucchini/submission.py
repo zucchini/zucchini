@@ -6,7 +6,6 @@ from .constants import SUBMISSION_META_FILE, SUBMISSION_FILES_DIRECTORY
 from .utils import ConfigDictMixin, datetime_to_string, copy_globs, \
                    FileNotFoundError
 
-
 class BrokenSubmissionError(Exception):
     def __init__(self, message, verbose=None):
         super(BrokenSubmissionError, self).__init__(message)
