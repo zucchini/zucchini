@@ -1,7 +1,7 @@
 import collections
 from fractions import Fraction
 
-import click
+click = [] # FIXME: Properly rewrite grader to remove click
 
 from ..grades import PartGrade
 from . import GraderInterface, InvalidGraderConfigError, Part

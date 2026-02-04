@@ -4,7 +4,6 @@ import tempfile
 from fractions import Fraction
 from collections import namedtuple
 
-import click
 import yaml
 
 from .submission import BrokenSubmissionError
@@ -196,8 +195,8 @@ class Assignment(object):
             raise ValueError("This directory is not a valid Zucchini "
                              "assignment: the Zucchini config is missing.")
 
-        with click.open_file(config_file_path, 'r') as config_file:
-            config = yaml.safe_load(config_file)
+        with open(config_file_path, "r") as f:
+            config = yaml.safe_load(f)
 
         if config is None:
             raise ValueError("The assignment configuration file could not be "

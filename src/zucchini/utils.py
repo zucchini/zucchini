@@ -9,7 +9,6 @@ import threading
 from collections import namedtuple
 
 import arrow
-import click
 
 if sys.version_info[0] < 3:
     # subprocess32, the python 3 subprocess module backported to python
@@ -339,92 +338,3 @@ class Record(object):
         props = ', '.join('{}={}'.format(prop, str(getattr(self, prop)))
                           for prop in self.__slots__ if hasattr(self, prop))
         return '<{} {}>'.format(type(self).__name__, props)
-
-
-class CanvasURLType(click.ParamType):
-    name = 'http(s) url'
-
-    def convert(self, value, param, ctx):
-        parsed = urlparse(value)
-        # Be picky and demand https://... and no querystrings or
-        # fragments or other weird stuff
-        valid_https_url = parsed.scheme == 'https' \
-            and '.' in parsed.netloc and parsed.path in ('/', '') \
-            and not parsed.params and not parsed.query \
-            and not parsed.fragment and not parsed.username \
-            and not parsed.password
-
-        if not valid_https_url:
-            self.fail("`{}' is not a valid Canvas URL. I want something "
-                      "like https://gatech.instructure.com/"
-                      .format(value), param, ctx)
-
-        # Strip trailing slash
-        if value.endswith('/'):
-            value = value[:-1]
-
-        return value
-
-
-CANVAS_URL = CanvasURLType()
-
-
-class AwsAccessKeyIdType(click.ParamType):
-    name = 'AWS Access Key ID'
-
-    def convert(self, value, param, ctx):
-        # TODO: actual error handling for AWS Access Key ID
-        return value.strip()
-
-
-AWS_ACCESS_KEY_ID = AwsAccessKeyIdType()
-
-
-class AwsSecretAccessKeyType(click.ParamType):
-    name = 'AWS Secret Access Key'
-
-    def convert(self, value, param, ctx):
-        # TODO: actual error handling for AWS Secret Access Key
-        return value.strip()
-
-
-AWS_SECRET_ACCESS_KEY = AwsSecretAccessKeyType()
-
-
-class AwsBucketNameType(click.ParamType):
-    name = 'AWS Bucket Name'
-
-    def convert(self, value, param, ctx):
-        # TODO: actual error handling for AWS Bucket Name
-        return value.strip()
-
-
-AWS_BUCKET_NAME = AwsBucketNameType()
-
-
-class CanvasTokenType(click.ParamType):
-    name = 'canvas token'
-
-    def convert(self, value, param, ctx):
-        value = value.strip()
-
-        if not re.match(r'^[A-Za-z0-9]{64}$', value):
-            self.fail("`{}' is not a valid Canvas token. Should be 64 "
-                      "alphanumeric characters.".format(value), param, ctx)
-
-        return value
-
-
-CANVAS_TOKEN = CanvasTokenType()
-
-
-class EmailParamType(click.ParamType):
-    name = 'email'
-    regex = r'^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*' \
-            r'(\.[a-z]{2,4})$'
-
-    def convert(self, value, param, ctx):
-        if re.match(EmailParamType.regex, value) is None:
-            self.fail('%s is not a valid email address' % value, param, ctx)
-
-        return value

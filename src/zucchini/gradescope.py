@@ -7,12 +7,11 @@ import json
 from fractions import Fraction
 from zipfile import ZipFile, ZIP_DEFLATED
 
-from . import __version__ as ZUCCHINI_VERSION
 from .constants import ASSIGNMENT_CONFIG_FILE, ASSIGNMENT_FILES_DIRECTORY
 from .utils import ConfigDictMixin, ConfigDictNoMangleMixin, \
                    datetime_from_string, recursive_get_using_string
 
-
+ZUCCHINI_VERSION = "3.0.0" # FIXME: don't hardcode this
 class GradescopeMetadata(object):
     """
     Parse the metadata as described in:

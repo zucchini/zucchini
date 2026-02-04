@@ -1,6 +1,6 @@
 import os
 
-import click
+click = [] # FIXME: Properly rewrite grader to remove click
 
 from . import PromptGrader, InvalidGraderConfigError
 from ..utils import sanitize_path
