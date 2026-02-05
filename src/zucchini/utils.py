@@ -1,126 +1,32 @@
-import sys
-import errno
-import os
-import re
-import inspect
-import glob
-import shutil
-import threading
-from collections import namedtuple
-
+from pathlib import Path
 import arrow
+import datetime as dt
+import inspect
+import os
+import shutil
+import subprocess
 
-if sys.version_info[0] < 3:
-    # subprocess32, the python 3 subprocess module backported to python
-    # 2, does not support non-POSIX platforms (aka Windows). So if
-    # you're on Windows, you need to use python 3, since it has a more
-    # up-to-date subprocess module in the standard library
-    if os.name != 'posix':
-        raise NotImplementedError('You need to use Python 3 on non-POSIX '
-                                  'platforms')
-
-    # Python 2 imports
-    import Queue as queue  # noqa
-    import subprocess32 as subprocess
-    from urlparse import urlparse
-else:
-    # Python 3 imports
-    import queue  # noqa
-    import subprocess
-    from urllib.parse import urlparse
-
-
-def mkdir_p(path):
-    try:
-        os.makedirs(path)
-    except OSError as exc:  # Python >2.5
-        if exc.errno == errno.EEXIST and os.path.isdir(path):
-            pass
-        else:
-            raise
-
-
-def recursive_get_using_string(collection, key):
+def recursive_get_using_string(collection, key: str):
     """
-    Given a collection and a key in the format of x.y.z.a, return collection
-    [x][y][z][a].
+    Given a collection and a key in the format of x.y.z.a, 
+    return collection[x][y][z][a].
     """
+    item = collection
+    for k in key.split("."):
+        if k.isdigit():
+            k = int(k)
+        item = item[k]
+    
+    return item
 
-    if "." not in key:
-        if key.isdigit():
-            key = int(key)
-
-        return collection[key]
-
-    left, right = key.split('.', 1)
-    return recursive_get_using_string(
-            recursive_get_using_string(collection, left),
-            right)
-
-
-def run_thread(func, args, result_queue):
-    """
-    Run a thread which runs func(args), putting each yielded result in
-    queue. Return the thread.
-    """
-
-    def thread():
-        try:
-            for result in func(*args):
-                result_queue.put(result)
-        except Exception as err:
-            result_queue.put(err)
-
-    thread = threading.Thread(target=thread)
-    thread.start()
-    return thread
-
-
-# Patch around old versions of subprocess
+# TODO: remove all of these
 PIPE = subprocess.PIPE
 STDOUT = subprocess.STDOUT
 TimeoutExpired = subprocess.TimeoutExpired
-CompletedProcess = namedtuple('CompletedProcess', ('args', 'returncode',
-                                                   'stdout', 'stderr'))
+CompletedProcess = subprocess.CompletedProcess
+run_process = subprocess.run
 
-
-def run_process(*popenargs, **kwargs):
-    """
-    A straight copy-paste of subprocess.run() from the CPython source to
-    support Python versions earlier than 3.5.
-    """
-
-    # Can't put these directly in function signature because PEP-3102 is
-    # not a thing in Python 2
-    input = kwargs.pop('input', None)
-    timeout = kwargs.pop('timeout', None)
-    check = kwargs.pop('check', False)
-
-    if input is not None:
-        if 'stdin' in kwargs:
-            raise ValueError('stdin and input arguments may not both be used.')
-        kwargs['stdin'] = subprocess.PIPE
-
-    with subprocess.Popen(*popenargs, **kwargs) as process:
-        try:
-            stdout, stderr = process.communicate(input, timeout=timeout)
-        except subprocess.TimeoutExpired:
-            process.kill()
-            stdout, stderr = process.communicate()
-            raise subprocess.TimeoutExpired(process.args, timeout,
-                                            output=stdout, stderr=stderr)
-        except: # noqa
-            process.kill()
-            process.wait()
-            raise
-        retcode = process.poll()
-        if check and retcode:
-            raise subprocess.CalledProcessError(retcode, process.args,
-                                                output=stdout, stderr=stderr)
-
-    return CompletedProcess(process.args, retcode, stdout, stderr)
-
-
+# TODO: evaluate need for sanitize_path
 def sanitize_path(path, path_lib=os.path, join=True):
     """
     Convert an untrusted path to a relative path.
@@ -148,52 +54,40 @@ def sanitize_path(path, path_lib=os.path, join=True):
     else:
         return components
 
-
-# Support FileNotFoundError, which does not exist in Python 2
-try:
-    FileNotFoundError = FileNotFoundError
-except NameError:
-    class FileNotFoundError(Exception):
-        pass
-
-
-def copy_globs(globs, src_dir, dest_dir):
+def copy_globs(globs: list[str], src_dir: Path, dest_dir: Path):
     """
-    Copy files matched by `globs' (a list of glob strings) from src_dir
+    Copy files matched by `globs` (a list of glob strings) from src_dir
     to dest_dir, maintaining directories if possible.
     """
 
-    files_to_copy = []
+    files_to_copy: list[Path] = []
 
     # Do a first pass to check for missing files. This way, we don't
     # copy a bunch of files only to blow up when we can't find a
     # later file.
     for file_glob in globs:
-        absolute_glob = os.path.join(src_dir, file_glob)
-        matches = glob.iglob(absolute_glob)
+        old_len = len(files_to_copy)
+        files_to_copy += src_dir.glob(file_glob)
 
-        if not matches:
-            raise FileNotFoundError("missing file `{}'".format(file_glob))
+        if len(files_to_copy) - old_len == 0: # No new files were added
+            raise FileNotFoundError(f"missing file {file_glob!r}")
 
-        files_to_copy += matches
+    for src_file in files_to_copy:
+        rel_path = src_file.relative_to(src_dir)
+        dest = dest_dir / rel_path
 
-    for file_to_copy in files_to_copy:
-        relative_path = os.path.relpath(file_to_copy, start=src_dir)
-        dirname = os.path.dirname(relative_path)
-
-        dest = os.path.join(dest_dir, relative_path)
-        if os.path.isdir(file_to_copy):
-            shutil.copytree(file_to_copy, dest)
+        if src_file.is_dir():
+            dest.mkdir(parents=True, exist_ok=True)
+            shutil.copytree(src_file, dest)
         else:
-            mkdir_p(os.path.join(dest_dir, dirname))
-            shutil.copy(file_to_copy, dest)
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy(src_file, dest)
 
 
 # Same as the Canvas date format
 _DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
 
-
-def datetime_from_string(date_str):
+def datetime_from_string(date_str: str) -> dt.datetime:
     """
     Convert a human-readable date/time string (in the format used by
     Canvas and in submission metadata files) to a datetime instance.
@@ -201,16 +95,9 @@ def datetime_from_string(date_str):
 
     return arrow.get(date_str).to('utc').datetime
 
-
-def datetime_to_string(datetime_obj):
+def datetime_to_string(datetime_obj: dt.datetime) -> str:
     """Convert a datetime UTC instance to a human-readable date/time string."""
-
     return datetime_obj.strftime(_DATETIME_FORMAT)
-
-
-def current_iso8601():
-    return arrow.now().replace(microsecond=0).isoformat()
-
 
 class ConfigDictMixin(object):
     @staticmethod
@@ -319,7 +206,7 @@ class ConfigDictNoMangleMixin(object):
         """Convert a field name to a config key"""
         return field_name
 
-
+# TODO: remove
 class Record(object):
     """
     A struct in Python, basically.
