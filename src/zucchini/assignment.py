@@ -3,8 +3,7 @@ import shutil
 import tempfile
 from fractions import Fraction
 from collections import namedtuple
-
-import yaml
+from ruamel.yaml import YAML
 
 from .submission import BrokenSubmissionError
 from .grades import AssignmentComponentGrade, CalculatedGrade, \
@@ -196,7 +195,8 @@ class Assignment(object):
                              "assignment: the Zucchini config is missing.")
 
         with open(config_file_path, "r") as f:
-            config = yaml.safe_load(f)
+            yaml = YAML(typ="safe")
+            config = yaml.load(f)
 
         if config is None:
             raise ValueError("The assignment configuration file could not be "
