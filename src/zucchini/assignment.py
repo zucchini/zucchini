@@ -209,24 +209,7 @@ class Assignment(object):
         except KeyError as e:
             raise ValueError("Missing field in assignment config: %s" %
                              e.args[0])
-
-        # TODO: Don't hardcode Canvas logic in here. Need to make something
-        #       like "Modules" for handling these things.
-        if 'canvas' in config:
-            try:
-                self.canvas_course_id = int(config['canvas']['course-id'])
-                self.canvas_assignment_id = \
-                    int(config['canvas']['assignment-id'])
-            except KeyError as err:
-                raise ValueError('canvas section in assignment config is '
-                                 'missing key: {}'.format(err.args[0]))
-            except ValueError as err:
-                raise ValueError('canvas id is not an integer: {}'
-                                 .format(str(err)))
-        else:
-            self.canvas_course_id = None
-            self.canvas_assignment_id = None
-
+        
         self.components = []
 
         # Now load the components (this is the fun part!)
