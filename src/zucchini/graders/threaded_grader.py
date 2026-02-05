@@ -1,7 +1,7 @@
 import queue
 import threading
 from multiprocessing import cpu_count
-from abc import ABCMeta, abstractmethod
+from abc import abstractmethod
 
 from . import GraderInterface
 
@@ -17,8 +17,6 @@ threaded!
 
 
 class ThreadedGrader(GraderInterface):
-    __metaclass__ = ABCMeta
-
     """
     A base class for graders to run parts in separate threads to speed
     up grading. Subclasses must implement grade_part().
