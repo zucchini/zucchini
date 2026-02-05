@@ -1,13 +1,10 @@
-from abc import ABCMeta, abstractmethod
+from abc import ABC, abstractmethod
 
 from ..utils import ConfigDictMixin
 
 
-class PenalizerInterface(ConfigDictMixin):
+class PenalizerInterface(ConfigDictMixin, ABC):
     """Penalize a student outside component grades. Example: Late penalties"""
-
-    __metaclass__ = ABCMeta
-
     def __init__(self):
         """
         The class needs an init method that will take in all of its

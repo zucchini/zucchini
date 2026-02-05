@@ -1,9 +1,7 @@
-from abc import ABCMeta, abstractmethod
+from abc import ABC, abstractmethod
 
 
-class ExporterInterface:
-    __metaclass__ = ABCMeta
-
+class ExporterInterface(ABC):
     # The class needs an init method that will take in all of its desired
     # options from the command line, in order.
 

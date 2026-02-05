@@ -1,11 +1,9 @@
-from abc import ABCMeta, abstractmethod
+from abc import ABC, abstractmethod
 
 from ..utils import ConfigDictMixin
 
 
-class GraderInterface(ConfigDictMixin):
-    __metaclass__ = ABCMeta
-
+class GraderInterface(ConfigDictMixin, ABC):
     def __init__(self):
         """
         The class needs an init method that will take in all of its
@@ -73,13 +71,11 @@ class GraderInterface(ConfigDictMixin):
         pass
 
 
-class Part(ConfigDictMixin):
+class Part(ConfigDictMixin, ABC):
     """
     Represent a `part' of grading which has its own weight and its own
     score: one prompt question, one unit test, etc.
     """
-
-    __metaclass__ = ABCMeta
 
     @abstractmethod
     def __init__(self):
