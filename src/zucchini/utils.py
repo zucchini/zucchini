@@ -54,12 +54,14 @@ def sanitize_path(path, path_lib=os.path, join=True):
     else:
         return components
 
-def copy_globs(globs: list[str], src_dir: Path, dest_dir: Path):
+def copy_globs(globs: list[str], src_dir: os.PathLike[str], dest_dir: os.PathLike[str]):
     """
     Copy files matched by `globs` (a list of glob strings) from src_dir
     to dest_dir, maintaining directories if possible.
     """
 
+    src_dir = Path(src_dir)
+    dest_dir = Path(dest_dir)
     files_to_copy: list[Path] = []
 
     # Do a first pass to check for missing files. This way, we don't
