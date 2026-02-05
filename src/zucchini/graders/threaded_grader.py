@@ -1,9 +1,9 @@
+import queue
 import threading
 from multiprocessing import cpu_count
 from abc import ABCMeta, abstractmethod
 
 from . import GraderInterface
-from ..utils import queue
 
 
 """

@@ -3,8 +3,7 @@ import json
 
 from .grades import AssignmentComponentGrade
 from .constants import SUBMISSION_META_FILE, SUBMISSION_FILES_DIRECTORY
-from .utils import ConfigDictMixin, datetime_to_string, copy_globs, \
-                   FileNotFoundError
+from .utils import ConfigDictMixin, datetime_to_string, copy_globs
 
 class BrokenSubmissionError(Exception):
     def __init__(self, message, verbose=None):
