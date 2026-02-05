@@ -1,6 +1,6 @@
 from .exceptions import InvalidGraderConfigError
 from .grader_interface import GraderInterface, Part
-from .libcheck_grader import LibcheckGrader
+from .threaded_grader import ThreadedGrader
 from .junit_xml_grader import JUnitXMLGrader
 from .bitwise_json_grader import BitwiseJSONGrader
 from .circuitsim_grader import CircuitSimGrader
@@ -10,12 +10,12 @@ from .ensemble_grader import EnsembleGrader
 from .criterion_grader import CriterionGrader
 
 __all__ = ['InvalidGraderConfigError', 'GraderInterface', 'Part',
-           'LibcheckGrader','JUnitXMLGrader', 'BitwiseJSONGrader',
+           'ThreadedGrader','JUnitXMLGrader', 'BitwiseJSONGrader',
            'CircuitSimGrader', 'MultiCommandGrader', 'PythonModuleGrader',
            'EnsembleGrader', 'CriterionGrader']
 
 _GRADERS = (
-    LibcheckGrader,
+    ThreadedGrader,
     JUnitXMLGrader,
     BitwiseJSONGrader,
     CircuitSimGrader,
