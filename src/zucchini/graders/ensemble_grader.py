@@ -2,6 +2,8 @@ import os
 
 from pathlib import Path
 from typing import Literal
+from typing_extensions import override
+
 import xml.etree.ElementTree
 from ..utils import run_command
 from ..grades import PartGrade
@@ -16,6 +18,7 @@ class EnsembleTest(Part):
     This corresponds to the function name used by Pytest.
     """
 
+    @override
     def description(self):
         return self.name
 
@@ -43,13 +46,16 @@ class EnsembleGrader(GraderInterface[EnsembleTest]):
     timeout: float = 30
     """Timeout for autograder."""
 
+    @override
     @classmethod
     def Part(cls):
         return EnsembleTest
     
+    @override
     def list_prerequisites(self):
         return []
 
+    @override
     def grade(self, submission, path, parts):
         command = ['pytest', self.test_file, '--junitxml', 'report.xml']
         cmd_result = run_command(command, cwd=path, timeout=self.timeout)

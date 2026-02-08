@@ -3,6 +3,7 @@ from fractions import Fraction
 from pathlib import Path
 import subprocess
 from typing import Literal
+from typing_extensions import override
 
 from ..submission import BrokenSubmissionError
 from ..utils import run_command
@@ -13,7 +14,6 @@ from . import GraderInterface, Part
 Grade a homework using a CircuitSim grader
 """
 
-
 class CircuitSimTest(Part):
     test: str
     """
@@ -21,6 +21,7 @@ class CircuitSimTest(Part):
     This corresponds to the method name of the JUnit test.
     """
     
+    @override
     def description(self):
         return self.test
 
@@ -66,18 +67,22 @@ class CircuitSimGrader(GraderInterface[CircuitSimTest]):
     Timeout (in seconds) before the autograder aborts operation.
     """
 
+    @override
     @classmethod
     def Part(cls):
         return CircuitSimTest
     
+    @override
     def list_prerequisites(self):
         # CircuitSim needs JavaFX
         return ['openjdk-8-jre', 'openjfx']
 
+    @override
     def needs_display(self):
         # CircuitSim needs JavaFX which needs a display server
         return True
 
+    @override
     def grade(self, submission, path, parts):
         cmdline = ['java', '-jar', self.grader_jar, '--zucchini',
                    self.test_class]

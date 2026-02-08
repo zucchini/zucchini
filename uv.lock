@@ -380,6 +380,7 @@ dependencies = [
     { name = "cyclopts" },
     { name = "pydantic" },
     { name = "ruamel-yaml" },
+    { name = "typing-extensions" },
 ]
 
 [package.metadata]
@@ -388,5 +389,6 @@ requires-dist = [
     { name = "cyclopts", specifier = ">=4.5.1" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "ruamel-yaml", specifier = ">=0.19.1" },
+    { name = "typing-extensions", specifier = ">=4.15.0" },
 ]
 provides-extras = ["dev"]

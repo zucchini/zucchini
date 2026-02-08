@@ -1,6 +1,7 @@
 from pathlib import Path
 from abc import abstractmethod
 from typing import Generic
+from typing_extensions import override
 import concurrent.futures
 
 from ..grades import PartGrade
@@ -38,6 +39,7 @@ class ThreadedGrader(GraderInterface[P], Generic[P]):
         """
         pass
 
+    @override
     def grade(self, submission, path, parts) -> list[PartGrade]:
         """Spin off the configured number of grading threads and grade."""
 

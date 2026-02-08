@@ -1,5 +1,6 @@
 from fractions import Fraction
 from typing import Annotated, Literal
+from typing_extensions import override
 
 from pydantic import Field
 
@@ -25,6 +26,7 @@ class Command(Part):
     The command to execute.
     """
 
+    @override
     def description(self):
         return self.summary
 
@@ -53,9 +55,11 @@ class MultiCommandGrader(GraderInterface):
 
     extra_setup_commands: Annotated[list[ShlexCommand], Field(default_factory=list)]
 
+    @override
     def list_extra_setup_commands(self):
         return self.extra_setup_commands
 
+    @override
     @classmethod
     def Part(cls):
         return Command

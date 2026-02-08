@@ -2,6 +2,7 @@ import enum
 import re
 from fractions import Fraction
 from typing import Annotated, Literal
+from typing_extensions import override
 
 from pydantic import BaseModel, BeforeValidator
 
@@ -119,6 +120,7 @@ class LatePenalizer(PenalizerInterface):
     kind: Literal["LatePenalizer"]
     penalties: list[LatePenalty]
 
+    @override
     def adjust_grade(self, submission: Submission, grade: Fraction):
         for penalty in self.penalties:
             if penalty.is_late(submission):
