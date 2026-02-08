@@ -33,14 +33,14 @@ class BitwiseJSONMethod(Part):
         # didn't implement it.
         if self.method not in jsonResults:
             return PartGrade(score=Fraction(0), log='method not found',
-                             deductions=('missing',))
+                             deductions=['missing'])
         else:
             jsonResult = jsonResults[self.method]
 
         if jsonResult.get('errorMessage', None):
             return PartGrade(score=Fraction(0), log=jsonResult['errorMessage'])
 
-        violations = jsonResult.get('violations', [])
+        violations: list[str] = jsonResult.get('violations', [])
 
         # If they violated any rules, boom, zero
         if violations:
