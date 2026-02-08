@@ -2,6 +2,7 @@ import os
 import json
 import tempfile
 from fractions import Fraction
+from typing import Literal
 
 from ..submission import BrokenSubmissionError
 from ..utils import run_process, PIPE, STDOUT, TimeoutExpired
@@ -14,14 +15,18 @@ Grade a homework using the classic Java bitwise operators grader
 
 
 class BitwiseJSONMethod(Part):
-    __slots__ = ('class_name', 'method',)
+    """
+    A method in the bitwise JSON autograder.
+    """
 
-    def __init__(self, class_name, method):
-        self.class_name = class_name
-        self.method = method
+    class_name: str | None = None
+    """Name of the class where the method is located."""
+
+    method: str
+    """The name of the method."""
 
     def description(self):
-        return '{}.{}()'.format(self.class_name, self.method)
+        return f'{self.class_name}.{self.method}()'
 
     def grade(self, jsonResults):
         # If the method is missing from the results, they probably
@@ -48,33 +53,41 @@ class BitwiseJSONMethod(Part):
 
         return PartGrade(score=score, deductions=violations, log=log)
 
-
-class BitwiseJSONGrader(GraderInterface):
+class BitwiseJSONGrader(GraderInterface[BitwiseJSONMethod]):
     """
     Run the legendary hw2checker.jar and collect results.
     """
+    
+    kind: Literal["BitwiseJSONGrader"]
+    
+    grader_jar: str
+    """
+    Filename for the autograder JAR this autograder should run.
+    """
 
-    DEFAULT_TIMEOUT = 10
+    source_file: str
+    """
+    The source file we're autograding (this will be the user's file).
+    """
 
-    def __init__(self, grader_jar, source_file, timeout=None):
-        self.grader_jar = grader_jar
-        self.source_file = source_file
+    timeout: float = 10
+    """
+    Timeout (in seconds) before the autograder aborts operation.
+    """
 
-        if timeout is None:
-            self.timeout = self.DEFAULT_TIMEOUT
-        else:
-            self.timeout = timeout
-
+    @classmethod
+    def Part(cls):
+        return BitwiseJSONMethod
+    
     def list_prerequisites(self):
         return ['openjdk-8-jre-headless']
 
     def class_name(self):
         """Return the class name of this file"""
         return self.source_file.rsplit('.', maxsplit=1)[0]
-
+    
     def part_from_config_dict(self, config_dict):
-        return BitwiseJSONMethod.from_config_dict(
-            config_dict, class_name=self.class_name())
+        return BitwiseJSONMethod(class_name=self.class_name(), **config_dict)
 
     def grade(self, submission, path, parts):
         gradelog_fp, gradelog_path = tempfile.mkstemp(prefix='log-',

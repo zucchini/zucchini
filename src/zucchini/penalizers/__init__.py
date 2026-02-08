@@ -5,6 +5,7 @@ from .late_penalizer import LatePenalizer
 __all__ = ['InvalidPenalizerConfigError', 'PenalizerInterface',
            'LatePenalizer']
 
+# If another penalizer is added, please update the format of below to match zucchini.graders.
 _PENALIZERS = (
     LatePenalizer,
 )

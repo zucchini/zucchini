@@ -1,81 +1,77 @@
+import enum
 import re
 from fractions import Fraction
+from typing import Annotated, Literal
+
+from pydantic import BaseModel, BeforeValidator
+
+from zucchini.submission import Submission
 
 from . import PenalizerInterface, InvalidPenalizerConfigError
-from ..utils import ConfigDictMixin
 
 """Penalize a late submission."""
 
 
-class LatePenaltyType:
+class LatePenaltyType(enum.Enum):
     PERCENT = '%'
     POINTS = 'pts'
     MAX_POINTS = 'max_pts'
 
+UNITS_REGEX = re.compile(r'^(?P<mag>[0-9/]+)\s*(?P<unit>[a-z_-]*)$')
+_UnitInput = str | int | float | Fraction
 
-class LatePenalty(ConfigDictMixin):
-    UNITS_REGEX = re.compile(r'^(?P<mag>[0-9/]+)\s*(?P<unit>[a-z_-]*)$')
+def _split_units(amount_str: _UnitInput) -> tuple[Fraction, str | None]:
+    if isinstance(amount_str, int | float | Fraction):
+        return Fraction(amount_str), None
+    
+    match = UNITS_REGEX.match(amount_str.lower())
 
-    def __init__(self, after, penalty):
-        self.after = self.time_to_seconds(after)
-        self.penalty, penalty_unit = self.split_units(penalty)
+    if match is None:
+        raise InvalidPenalizerConfigError(f"unknown units format {amount_str!r}")
 
-        if penalty_unit in ('pt', 'pts'):
-            self.penalty /= 100
-            self.penalty_type = LatePenaltyType.POINTS
-        elif penalty_unit in ('maxpts', 'max-pts', 'max_pts',
-                              'maxpt', 'max-pt', 'max_pt'):
-            self.penalty /= 100
-            self.penalty_type = LatePenaltyType.MAX_POINTS
-        elif penalty_unit is None:
-            self.penalty_type = LatePenaltyType.PERCENT
-        else:
-            raise InvalidPenalizerConfigError("unknown penalty unit `{}'. try "
-                                              "a fraction optionally followed "
-                                              "by `pts' or `max-pts'."
-                                              .format(penalty_unit))
+    return Fraction(match.group('mag')), match.group('unit') or None
 
-    @classmethod
-    def split_units(cls, amount_str):
-        if isinstance(amount_str, (int, float)):
-            return Fraction(amount_str), None
+def _parse_secs(time_str: _UnitInput):
+    mag, unit = _split_units(time_str)
+    unit = unit or "s"
 
-        match = cls.UNITS_REGEX.match(amount_str.lower())
+    units = {'s': 1, 'm': 60, 'h': 60*60, 'd': 24*60*60}
+    if unit not in units:
+        raise InvalidPenalizerConfigError(f"unknown time unit {unit!r}. try one of {', '.join(units)}.")
+    
+    return mag * units[unit]
 
-        if match is None:
-            raise InvalidPenalizerConfigError("unknown units format `{}'"
-                                              .format(amount_str))
+def _parse_penalty(penalty_str: _UnitInput):
+    mag, unit = _split_units(penalty_str)
 
-        return Fraction(match.group('mag')), match.group('unit') or None
+    if unit in ('pt', 'pts'):
+        return (mag / 100, LatePenaltyType.POINTS)
+    elif unit in ('maxpts', 'max-pts', 'max_pts', 'maxpt', 'max-pt', 'max_pt'):
+        return (mag / 100, LatePenaltyType.MAX_POINTS)
+    elif unit is None:
+        return (mag, LatePenaltyType.PERCENT)
+    else:
+        raise InvalidPenalizerConfigError(f"unknown penalty unit {unit!r}. try a fraction optionally followed by 'pts' or 'max-pts'.")
 
-    @classmethod
-    def time_to_seconds(cls, time_str):
-        mag, unit = cls.split_units(time_str)
+class LatePenalty(BaseModel):
+    after: Annotated[Fraction, BeforeValidator(_parse_secs)]
+    penalty: Annotated[tuple[Fraction, LatePenaltyType], BeforeValidator(_parse_penalty)]
 
-        unit = unit or 's'
-        units = {'s': 1, 'm': 60, 'h': 60*60, 'd': 24*60*60}
-
-        if unit not in units:
-            raise InvalidPenalizerConfigError("unknown time unit `{}'. try "
-                                              "one of {}"
-                                              .format(unit, ', '.join(units)))
-        return mag * units[unit]
-
-    def is_late(self, submission):
+    def is_late(self, submission: Submission):
         return submission.seconds_late is not None \
                and submission.seconds_late > self.after
 
-    def adjust_grade(self, grade):
-        if self.penalty_type == LatePenaltyType.PERCENT:
-            return grade * (1 - self.penalty)
-        elif self.penalty_type == LatePenaltyType.POINTS:
-            return max(0, grade - self.penalty)
-        elif self.penalty_type == LatePenaltyType.MAX_POINTS:
-            return min(grade, self.penalty)
-        else:
-            raise ValueError("unknown penalty type `{}'. code bug?"
-                             .format(self.penalty_type))
-
+    def adjust_grade(self, grade: Fraction):
+        penalty, penalty_type = self.penalty
+        match penalty_type:
+            case LatePenaltyType.PERCENT:
+                return grade * (1 - penalty)
+            case LatePenaltyType.POINTS:
+                return max(Fraction(0), grade - penalty)
+            case LatePenaltyType.MAX_POINTS:
+                return min(grade, penalty)
+            case ty:
+                raise ValueError(f"unknown penalty type {ty!r}. code bug?")
 
 class LatePenalizer(PenalizerInterface):
     """
@@ -112,10 +108,10 @@ class LatePenalizer(PenalizerInterface):
                a fraction already, e.g., 1/4.
     """
 
-    def __init__(self, penalties):
-        self.penalties = [LatePenalty.from_config_dict(p) for p in penalties]
+    kind: Literal["LatePenalizer"]
+    penalties: list[LatePenalty]
 
-    def adjust_grade(self, submission, grade):
+    def adjust_grade(self, submission: Submission, grade: Fraction):
         for penalty in self.penalties:
             if penalty.is_late(submission):
                 grade = penalty.adjust_grade(grade)

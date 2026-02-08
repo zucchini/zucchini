@@ -2,7 +2,12 @@ import queue
 import threading
 from multiprocessing import cpu_count
 from abc import abstractmethod
+from typing import Annotated, Generic
 
+from pydantic import Field
+
+
+from ..graders.grader_interface import P
 from . import GraderInterface
 
 
@@ -15,23 +20,18 @@ Actual graders can subclass this and implement grade_part() to become
 threaded!
 """
 
+def default_thread_count():
+    try:
+        return cpu_count()
+    except NotImplementedError:
+        return 1
 
-class ThreadedGrader(GraderInterface):
+class ThreadedGrader(GraderInterface[P], Generic[P]):
     """
     A base class for graders to run parts in separate threads to speed
     up grading. Subclasses must implement grade_part().
     """
-
-    def __init__(self, num_threads=None):
-        if num_threads is None:
-            try:
-                cpus = cpu_count()
-            except NotImplementedError:
-                cpus = 1
-
-            self.num_threads = 2 * cpus
-        else:
-            self.num_threads = num_threads
+    num_threads: Annotated[int, Field(default_factory=default_thread_count)]
 
     @abstractmethod
     def grade_part(self, part, path, submission):

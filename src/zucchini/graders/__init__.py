@@ -1,3 +1,4 @@
+from typing import Union, get_args
 from .exceptions import InvalidGraderConfigError
 from .grader_interface import GraderInterface, Part
 from .threaded_grader import ThreadedGrader
@@ -8,15 +9,14 @@ from .ensemble_grader import EnsembleGrader
 from .criterion_grader import CriterionGrader
 
 __all__ = ['InvalidGraderConfigError', 'GraderInterface', 'Part',
-           'ThreadedGrader', 'BitwiseJSONGrader', 'CircuitSimGrader',
+           'ThreadedGrader', 'BitwiseJSONGrader', 'CircuitSimGrader', 
            'MultiCommandGrader', 'EnsembleGrader', 'CriterionGrader']
 
-_GRADERS = (
-    ThreadedGrader,
+SupportedGrader = Union[
     BitwiseJSONGrader,
     CircuitSimGrader,
     MultiCommandGrader,
 	EnsembleGrader,
 	CriterionGrader
-)
-AVAILABLE_GRADERS = {cls.__name__: cls for cls in _GRADERS}
+]
+AVAILABLE_GRADERS = {cls.__name__: cls for cls in get_args(SupportedGrader)}
