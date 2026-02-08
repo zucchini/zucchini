@@ -4,6 +4,7 @@ from typing import Generic, TypeVar
 from typing_extensions import deprecated
 from pydantic import BaseModel
 
+from zucchini.grades import PartGrade
 from zucchini.submission import Submission
 
 class Part(BaseModel, ABC):
@@ -27,7 +28,7 @@ class Part(BaseModel, ABC):
         """
         pass
 
-P = TypeVar("P", bound=Part, covariant=True)
+P = TypeVar("P", bound=Part)
 class GraderInterface(BaseModel, ABC, Generic[P]):
     @classmethod
     @abstractmethod
@@ -82,7 +83,7 @@ class GraderInterface(BaseModel, ABC, Generic[P]):
     def grade(self,
               submission: Submission,
               path: Path,
-              parts: list[P]):
+              parts: list[P]) -> list[PartGrade]:
         """
         This function should take in a Submission object and a path,
         where the path can be assumed to be the root of the submission
