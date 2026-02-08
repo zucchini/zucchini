@@ -3,6 +3,7 @@ import json
 import tempfile
 from fractions import Fraction
 from typing import Literal
+from typing_extensions import override
 
 from ..submission import BrokenSubmissionError
 from ..utils import run_command
@@ -12,7 +13,6 @@ from . import GraderInterface, Part
 """
 Grade a homework using the classic Java bitwise operators grader
 """
-
 
 class BitwiseJSONMethod(Part):
     """
@@ -25,6 +25,7 @@ class BitwiseJSONMethod(Part):
     method: str
     """The name of the method."""
 
+    @override
     def description(self):
         return f'{self.class_name}.{self.method}()'
 
@@ -75,10 +76,12 @@ class BitwiseJSONGrader(GraderInterface[BitwiseJSONMethod]):
     Timeout (in seconds) before the autograder aborts operation.
     """
 
+    @override
     @classmethod
     def Part(cls):
         return BitwiseJSONMethod
     
+    @override
     def list_prerequisites(self):
         return ['openjdk-8-jre-headless']
 
@@ -86,9 +89,11 @@ class BitwiseJSONGrader(GraderInterface[BitwiseJSONMethod]):
         """Return the class name of this file"""
         return self.source_file.rsplit('.', maxsplit=1)[0]
     
+    @override
     def part_from_config_dict(self, config_dict):
         return BitwiseJSONMethod(class_name=self.class_name(), **config_dict)
 
+    @override
     def grade(self, submission, path, parts):
         gradelog_fp, gradelog_path = tempfile.mkstemp(prefix='log-',
                                                       suffix='.json', dir=path)

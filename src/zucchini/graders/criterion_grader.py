@@ -3,6 +3,7 @@ import os
 import re
 import tempfile
 from typing import Literal
+from typing_extensions import override
 
 from ..utils import ShlexCommand, run_command
 from ..grades import PartGrade, Fraction
@@ -30,6 +31,7 @@ class CriterionTest(Part):
 
     valgrind_deduction: Fraction = Fraction(1, 2)
 
+    @override
     def description(self):
         return self.name
     
@@ -96,16 +98,20 @@ class CriterionGrader(ThreadedGrader[CriterionTest]):
     valgrind_cmd: ShlexCommand | None = None
     """Command to use to run Valgrind."""
     
+    @override
     @classmethod
     def Part(cls):
         return CriterionTest
     
+    @override
     def list_prerequisites(self):
         return []
     
+    @override
     def grade_part(self, part, path, submission):
         return part.grade(path, self)
 
+    @override
     def grade(self, submission, path, parts):
         # Compile program:
         cmd_result = run_command(["make", "tests"], cwd=path, timeout=self.total_timeout)
