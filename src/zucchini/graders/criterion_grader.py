@@ -4,8 +4,7 @@ import re
 import tempfile
 from typing import Literal
 
-from ..submission import BrokenSubmissionError
-from ..utils import ShlexCommand, run_process, PIPE, STDOUT, TimeoutExpired
+from ..utils import ShlexCommand, run_command
 from ..grades import PartGrade, Fraction
 from . import Part, ThreadedGrader
 
@@ -49,20 +48,10 @@ class CriterionTest(Part):
         if grader.valgrind_cmd is not None:
             valgrind_cmd = grader.valgrind_cmd + flags
 
-        # Run one test without Valgrind:
-        try:
-            process = run_process(command, cwd=path, stdout=PIPE, stderr=STDOUT, timeout=grader.total_timeout)
-        except TimeoutExpired:
-            raise BrokenSubmissionError(f'grader timed out after {grader.total_timeout} seconds')
-        
-        result = process.stdout.decode(errors='backslashreplace')
+        # Run tests without Valgrind:
+        cmd_result = run_command(command, cwd=path, timeout=grader.total_timeout)
+        out = cmd_result.stdout
 
-        if result is None:
-            msg = ('Results for test not found. Check if there were any'
-                   ' internal errors reported. If not, report this as an'
-                   ' autograder error to your instructors.')
-            return PartGrade(score=0, log=msg)
-        
         with open(resultfile_fp, "r") as f:
             try:
                 report_data = json.load(f)
@@ -79,18 +68,15 @@ class CriterionTest(Part):
             # Standard autograder passed, so check Valgrind:
             # Check Valgrind test:
             if valgrind_cmd is not None:
-                try:
-                    process = run_process(valgrind_cmd, cwd=path, stdout=PIPE, stderr=STDOUT, timeout=grader.total_timeout)
-                except TimeoutExpired:
-                    raise BrokenSubmissionError(f'grader timed out after {grader.total_timeout} seconds')
-                result = process.stdout.decode(errors='backslashreplace')
+                cmd_result = run_command(valgrind_cmd, cwd=path, timeout=grader.total_timeout)
+                out = cmd_result.stdout
 
-                if re.search(r"^==\d+==.*$", result, re.MULTILINE): # Valgrind failed
-                    return PartGrade(1 - self.valgrind_deduction, log=result)
+                if re.search(r"^==\d+==.*$", out, re.MULTILINE): # Valgrind failed
+                    return PartGrade(1 - self.valgrind_deduction, log=out)
             return PartGrade(score=1, log="")
         
         log_line_pattern = r"^\s*\[(?:----|FAIL)\].*"
-        log = "\n".join(re.findall(log_line_pattern, result, re.MULTILINE))
+        log = "\n".join(re.findall(log_line_pattern, out, re.MULTILINE))
         deduct_factor = 1 # factor added to make Valgrind failures fairer
         if valgrind_cmd is not None:
             log += "\n\nValgrind skipped due to failed test."
@@ -121,28 +107,9 @@ class CriterionGrader(ThreadedGrader[CriterionTest]):
         return part.grade(path, self)
 
     def grade(self, submission, path, parts):
-        command = ['make', 'tests']
+        # Compile program:
+        cmd_result = run_command(["make", "tests"], cwd=path, timeout=self.total_timeout)
+        cmd_result.check_returncode({ 0, 1 })
 
-        try:
-            process = run_process(
-                command,
-                cwd=path,
-                timeout=self.total_timeout,
-                stdout=PIPE,
-                stderr=STDOUT,
-                input=''
-            )
-        except TimeoutExpired:
-            raise BrokenSubmissionError(
-                "timeout of {} seconds expired for grader"
-                .format(self.total_timeout)
-            )
-
-        if process.returncode != 0 and process.returncode != 1:
-            raise BrokenSubmissionError(
-                'grader command exited with exit code {}\n'
-                .format(process.returncode),
-                verbose=process.stdout.decode(errors='backslashreplace') if process.stdout else None
-            )
-
+        # Run each part:
         return super(CriterionGrader, self).grade(submission, path, parts)

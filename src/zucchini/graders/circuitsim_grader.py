@@ -1,10 +1,11 @@
 import json
 from fractions import Fraction
 from pathlib import Path
+import subprocess
 from typing import Literal
 
 from ..submission import BrokenSubmissionError
-from ..utils import run_process, PIPE, TimeoutExpired
+from ..utils import run_command
 from ..grades import PartGrade
 from . import GraderInterface, Part
 
@@ -80,26 +81,13 @@ class CircuitSimGrader(GraderInterface[CircuitSimTest]):
     def grade(self, submission, path, parts):
         cmdline = ['java', '-jar', self.grader_jar, '--zucchini',
                    self.test_class]
-        try:
-            # Do not mix stderr into stdout because sometimes our friend
-            # Roi printStackTrace()s or System.err.println()s, and that
-            # will mess up JSON parsing
-            process = run_process(cmdline, cwd=path, timeout=self.timeout,
-                                  stdout=PIPE, stderr=PIPE, input='')
-        except TimeoutExpired:
-            raise BrokenSubmissionError('timeout of {} seconds expired for '
-                                        'grader'.format(self.timeout))
-
-        if process.returncode != 0:
-            raise BrokenSubmissionError(
-                'grader command exited with nonzero exit code {}'
-                .format(process.returncode),
-                verbose='\n'.join(output_stream.decode()
-                                  for output_stream
-                                  in [process.stderr, process.stdout]
-                                  if output_stream))
-
-        results = json.loads(process.stdout.decode(errors='backslashreplace'))
+        
+        # Do not mix stderr into stdout because sometimes our friend
+        # Roi printStackTrace()s or System.err.println()s, and that
+        # will mess up JSON parsing
+        cmd_result = run_command(cmdline, cwd=path, timeout=self.timeout, stderr=subprocess.PIPE)
+        cmd_result.check_returncode()
+        results = json.loads(cmd_result.stdout)
 
         if 'error' in results:
             raise BrokenSubmissionError(results['error'])

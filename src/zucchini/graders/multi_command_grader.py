@@ -3,8 +3,7 @@ from typing import Annotated, Literal
 
 from pydantic import Field
 
-from ..submission import BrokenSubmissionError
-from ..utils import ShlexCommand, run_process, PIPE, STDOUT, TimeoutExpired
+from ..utils import ShlexCommand, run_command
 from ..grades import PartGrade
 from . import GraderInterface, Part
 
@@ -30,21 +29,12 @@ class Command(Part):
         return self.summary
 
     def grade(self, path, timeout):
-        try:
-            process = run_process(self.command, cwd=path, timeout=timeout,
-                                  stdout=PIPE, stderr=STDOUT, input='')
-        except TimeoutExpired:
-            raise BrokenSubmissionError(f'timeout of {timeout} seconds expired')
+        cmd_result = run_command(self.command, cwd=path, timeout=timeout)
+        log = cmd_result.stdout
 
-        if process.stdout is None:
-            log = '(no output)'
-        else:
-            log = process.stdout.decode(errors='backslashreplace')
-
-        if process.returncode:
+        if cmd_result.returncode:
             score = Fraction(0)
-            log += '\n\nprocess exited with exit code {} != 0' \
-                   .format(process.returncode)
+            log += f'\n\ngrader exited with exit code {cmd_result.returncode} != 0'
         else:
             score = Fraction(1)
 

@@ -5,7 +5,7 @@ from fractions import Fraction
 from typing import Literal
 
 from ..submission import BrokenSubmissionError
-from ..utils import run_process, PIPE, STDOUT, TimeoutExpired
+from ..utils import run_command
 from ..grades import PartGrade
 from . import GraderInterface, Part
 
@@ -95,21 +95,10 @@ class BitwiseJSONGrader(GraderInterface[BitwiseJSONMethod]):
         # Don't leak fds
         os.close(gradelog_fp)
 
-        cmdline = ['java', '-jar', self.grader_jar, '-z', self.source_file,
-                   gradelog_path]
-        try:
-            process = run_process(cmdline, cwd=path, timeout=self.timeout,
-                                  stdout=PIPE, stderr=STDOUT, input='')
-        except TimeoutExpired:
-            raise BrokenSubmissionError('timeout of {} seconds expired for '
-                                        'grader'.format(self.timeout))
-
-        if process.returncode != 0:
-            raise BrokenSubmissionError(
-                ('grader command exited with nonzero exit code {}. '
-                 'syntax error?')
-                .format(process.returncode),
-                verbose=process.stdout.decode(errors='backslashreplace') if process.stdout else None)
+        # Run command:
+        cmdline = ['java', '-jar', self.grader_jar, '-z', self.source_file, gradelog_path]
+        cmd_result = run_command(cmdline, cwd=path, timeout=self.timeout)
+        cmd_result.check_returncode()
 
         with open(gradelog_path) as gradelog_file:
             gradelog = json.load(gradelog_file)
