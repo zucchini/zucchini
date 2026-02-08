@@ -1,4 +1,5 @@
 import dataclasses
+import itertools
 from pathlib import Path
 import shlex
 from typing import Annotated, TypeAlias
@@ -131,34 +132,30 @@ Pydantic validator which accepts strings (and lists of strings) which act as scr
 and exposes the field as a split script command (as if from `shlex.split`).
 """
 
-# TODO: evaluate need for sanitize_path
-def sanitize_path(path, path_lib=os.path, join=True):
+def sanitize_path(path: os.PathLike[str] | str) -> Path:
     """
     Convert an untrusted path to a relative path.
-
-    Defaults to using os.path to manipulate (native) paths, but you can
-    pass path_lib=posixpath to always use Unix paths, for example.
-
-    If `join=False', return a list of path components. Default (True) is
-    to path_lib.join() them.
     """
 
     # Remove intermediate ..s
-    path = path_lib.normpath(path)
-    # Remove leading /s
-    path = path.lstrip(path_lib.sep)
-    components = path.split(path_lib.sep)
-
-    # Remove leading ..s and DOS drive letters
-    while components and (components[0] == '..' or
-                          len(components[0]) == 2 and components[0][1] == ':'):
-        components = components[1:]
-
-    if join:
-        return path_lib.join(*components)
+    normpath = Path(os.path.normpath(path))
+    if normpath.is_absolute():
+        # Remove absolute paths
+        return Path(*normpath.parts[1:])
     else:
-        return components
+        # Remove leading ..s in relative paths
+        parts = itertools.dropwhile(lambda p: p == os.path.pardir, normpath.parts)
+        return Path(*parts)
 
+def _copy_no_symlinks(src: os.PathLike[str] | str, dst: os.PathLike[str] | str):
+    """
+    Copies the source file to the destination (like `shutil.copy2`),
+    but errors if source is a symlink.
+    """
+    if Path(src).is_symlink():
+        raise ValueError(f"Cannot copy: {src} is a symlink")
+    
+    return shutil.copy2(src, dst)
 def copy_globs(globs: list[str], src_dir: os.PathLike[str], dest_dir: os.PathLike[str]):
     """
     Copy files matched by `globs` (a list of glob strings) from src_dir
@@ -185,10 +182,10 @@ def copy_globs(globs: list[str], src_dir: os.PathLike[str], dest_dir: os.PathLik
 
         if src_file.is_dir():
             dest.mkdir(parents=True, exist_ok=True)
-            shutil.copytree(src_file, dest)
+            shutil.copytree(src_file, dest, copy_function=_copy_no_symlinks, dirs_exist_ok=True)
         else:
             dest.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy(src_file, dest)
+            _copy_no_symlinks(src_file, dest)
 
 
 # Same as the Canvas date format
