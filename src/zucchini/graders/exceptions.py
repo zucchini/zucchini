@@ -1,2 +1,0 @@
-class InvalidGraderConfigError(Exception):
-    pass

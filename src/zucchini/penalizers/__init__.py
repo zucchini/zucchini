@@ -1,4 +1,4 @@
-from .exceptions import InvalidPenalizerConfigError
+from ..exceptions import InvalidPenalizerConfigError
 from .penalizer_interface import PenalizerInterface
 from .late_penalizer import LatePenalizer
 

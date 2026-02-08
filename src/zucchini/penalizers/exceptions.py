@@ -1,2 +1,0 @@
-class InvalidPenalizerConfigError(ValueError):
-    pass

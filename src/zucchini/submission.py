@@ -1,16 +1,10 @@
 import os
 import json
 
+from .exceptions import BrokenSubmissionError
 from .grades import AssignmentComponentGrade
 from .constants import SUBMISSION_META_FILE, SUBMISSION_FILES_DIRECTORY
 from .utils import ConfigDictMixin, datetime_to_string, copy_globs
-
-class BrokenSubmissionError(Exception):
-    def __init__(self, message, verbose=None):
-        super(BrokenSubmissionError, self).__init__(message)
-        self.message = message
-        self.verbose = verbose
-
 
 class Submission(ConfigDictMixin):
     def __init__(self, student_name, assignment, metadata_path, files_path,
@@ -129,7 +123,7 @@ class Submission(ConfigDictMixin):
             copy_globs(files, self.files_path, path)
         except FileNotFoundError as err:
             if not allow_fail:
-                raise BrokenSubmissionError(str(err))
+                raise BrokenSubmissionError(str(err)) from err
 
     def write_grade(self, component_grades):  # (Dict[object, object]) -> None
         """

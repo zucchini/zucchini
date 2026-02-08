@@ -5,7 +5,7 @@ from fractions import Fraction
 from collections import namedtuple
 from ruamel.yaml import YAML
 
-from .submission import BrokenSubmissionError
+from .exceptions import BrokenSubmissionError
 from .grades import AssignmentComponentGrade, CalculatedGrade, \
                     CalculatedPenalty
 from .graders import AVAILABLE_GRADERS

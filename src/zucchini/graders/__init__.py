@@ -1,5 +1,5 @@
 from typing import Union, get_args
-from .exceptions import InvalidGraderConfigError
+from ..exceptions import InvalidGraderConfigError
 from .grader_interface import GraderInterface, Part
 from .threaded_grader import ThreadedGrader
 from .bitwise_json_grader import BitwiseJSONGrader
