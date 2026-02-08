@@ -1,3 +1,4 @@
+import datetime as dt
 import enum
 import re
 from fractions import Fraction
@@ -32,15 +33,25 @@ def _split_units(amount_str: _UnitInput) -> tuple[Fraction, str | None]:
 
     return Fraction(match.group('mag')), match.group('unit') or None
 
-def _parse_secs(time_str: _UnitInput):
-    mag, unit = _split_units(time_str)
-    unit = unit or "s"
-
-    units = {'s': 1, 'm': 60, 'h': 60*60, 'd': 24*60*60}
-    if unit not in units:
-        raise InvalidPenalizerConfigError(f"unknown time unit {unit!r}. try one of {', '.join(units)}.")
+def _parse_timedelta(time_str: _UnitInput):
+    # If failure to split, we just let data pass
+    # to allow for other timedelta formats.
+    try:
+        mag, unit = _split_units(time_str)
+    except InvalidPenalizerConfigError:
+        return time_str
     
-    return mag * units[unit]
+    unit = unit or "s"
+    UNITS = {
+        's': dt.timedelta(seconds=1),
+        'm': dt.timedelta(minutes=1),
+        'h': dt.timedelta(hours=1),
+        'd': dt.timedelta(days=1)
+    }
+    if unit not in UNITS:
+        raise InvalidPenalizerConfigError(f"unknown time unit {unit!r}. try one of {', '.join(UNITS)}.")
+    
+    return mag.numerator * UNITS[unit] / mag.denominator
 
 def _parse_penalty(penalty_str: _UnitInput):
     mag, unit = _split_units(penalty_str)
@@ -61,13 +72,13 @@ class LatePenalty(BaseModel):
     This applies a specified penalty only when the specified amount of time has passed.
     """
 
-    after: Annotated[Fraction, BeforeValidator(_parse_secs)]
+    after: Annotated[dt.timedelta, BeforeValidator(_parse_timedelta)]
     penalty: Annotated[tuple[Fraction, LatePenaltyType], BeforeValidator(_parse_penalty)]
 
     def is_late(self, submission: Submission):
         """Whether the submission is late under this penalty."""
         return submission.seconds_late is not None \
-               and submission.seconds_late > self.after
+               and submission.seconds_late * dt.timedelta(seconds=1) > self.after
 
     def adjust_grade(self, grade: Fraction):
         """Adjust the grade as though the submission is late."""
