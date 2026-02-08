@@ -54,14 +54,22 @@ def _parse_penalty(penalty_str: _UnitInput):
         raise InvalidPenalizerConfigError(f"unknown penalty unit {unit!r}. try a fraction optionally followed by 'pts' or 'max-pts'.")
 
 class LatePenalty(BaseModel):
+    """
+    A single penalty rule. 
+    
+    This applies a specified penalty only when the specified amount of time has passed.
+    """
+
     after: Annotated[Fraction, BeforeValidator(_parse_secs)]
     penalty: Annotated[tuple[Fraction, LatePenaltyType], BeforeValidator(_parse_penalty)]
 
     def is_late(self, submission: Submission):
+        """Whether the submission is late under this penalty."""
         return submission.seconds_late is not None \
                and submission.seconds_late > self.after
 
     def adjust_grade(self, grade: Fraction):
+        """Adjust the grade as though the submission is late."""
         penalty, penalty_type = self.penalty
         match penalty_type:
             case LatePenaltyType.PERCENT:
