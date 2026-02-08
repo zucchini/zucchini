@@ -1,5 +1,7 @@
 import json
 from fractions import Fraction
+from pathlib import Path
+from typing import Literal
 
 from ..submission import BrokenSubmissionError
 from ..utils import run_process, PIPE, TimeoutExpired
@@ -12,11 +14,12 @@ Grade a homework using a CircuitSim grader
 
 
 class CircuitSimTest(Part):
-    __slots__ = ('test',)
-
-    def __init__(self, test):
-        self.test = test
-
+    test: str
+    """
+    Name of test.
+    This corresponds to the method name of the JUnit test.
+    """
+    
     def description(self):
         return self.test
 
@@ -39,25 +42,33 @@ class CircuitSimTest(Part):
         score = Fraction(result['total'] - result['failed'], result['total'])
         return PartGrade(score=score, log=log)
 
-
-class CircuitSimGrader(GraderInterface):
+class CircuitSimGrader(GraderInterface[CircuitSimTest]):
     """
     Run a CircuitSim grader based on
     <https://github.com/ausbin/circuitsim-grader-template> and collect
     the results.
     """
+    kind: Literal["CircuitSimGrader"]
 
-    DEFAULT_TIMEOUT = 30
+    grader_jar: Path
+    """
+    Filename for the autograder JAR this autograder should run.
+    """
 
-    def __init__(self, grader_jar, test_class, timeout=None):
-        self.grader_jar = grader_jar
-        self.test_class = test_class
+    test_class: str
+    """
+    Name of class where tests are located.
+    """
 
-        if timeout is None:
-            self.timeout = self.DEFAULT_TIMEOUT
-        else:
-            self.timeout = timeout
+    timeout: float = 30
+    """
+    Timeout (in seconds) before the autograder aborts operation.
+    """
 
+    @classmethod
+    def Part(cls):
+        return CircuitSimTest
+    
     def list_prerequisites(self):
         # CircuitSim needs JavaFX
         return ['openjdk-8-jre', 'openjfx']
@@ -65,9 +76,6 @@ class CircuitSimGrader(GraderInterface):
     def needs_display(self):
         # CircuitSim needs JavaFX which needs a display server
         return True
-
-    def part_from_config_dict(self, config_dict):
-        return CircuitSimTest.from_config_dict(config_dict)
 
     def grade(self, submission, path, parts):
         cmdline = ['java', '-jar', self.grader_jar, '--zucchini',

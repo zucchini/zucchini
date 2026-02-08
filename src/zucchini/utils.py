@@ -1,10 +1,14 @@
 from pathlib import Path
+import shlex
+from typing import Annotated, TypeAlias
 import arrow
 import datetime as dt
 import inspect
 import os
 import shutil
 import subprocess
+
+from pydantic import BeforeValidator
 
 def recursive_get_using_string(collection, key: str):
     """
@@ -25,6 +29,16 @@ STDOUT = subprocess.STDOUT
 TimeoutExpired = subprocess.TimeoutExpired
 CompletedProcess = subprocess.CompletedProcess
 run_process = subprocess.run
+
+def _as_shlex_cmd(s: str | list[str]) -> list[str]:
+    if isinstance(s, list):
+        return s
+    return shlex.split(s)
+ShlexCommand: TypeAlias = Annotated[list[str], BeforeValidator(_as_shlex_cmd)]
+"""
+Pydantic validator which accepts strings (and lists of strings) which act as script commands,
+and exposes the field as a split script command (as if from `shlex.split`).
+"""
 
 # TODO: evaluate need for sanitize_path
 def sanitize_path(path, path_lib=os.path, join=True):

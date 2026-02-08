@@ -1,5 +1,7 @@
 import os
 
+from pathlib import Path
+from typing import Literal
 import xml.etree.ElementTree
 from ..submission import BrokenSubmissionError
 from ..utils import run_process, PIPE, STDOUT, TimeoutExpired
@@ -8,10 +10,12 @@ from . import Part, GraderInterface
 
 
 class EnsembleTest(Part):
-    __slots__ = ('name')
+    name: str
+    """
+    Name of test.
 
-    def __init__(self, name):
-        self.name = name
+    This corresponds to the function name used by Pytest.
+    """
 
     def description(self):
         return self.name
@@ -31,16 +35,21 @@ class EnsembleTest(Part):
 
         return PartGrade(score=1, log='')
 
-class EnsembleGrader(GraderInterface):
-    def __init__(self, test_file, timeout=30):
-        self.test_file = test_file
-        self.timeout = timeout
+class EnsembleGrader(GraderInterface[EnsembleTest]):
+    kind: Literal["EnsembleGrader"]
 
+    test_file: Path
+    """Name of file to test on."""
+
+    timeout: float = 30
+    """Timeout for autograder."""
+
+    @classmethod
+    def Part(cls):
+        return EnsembleTest
+    
     def list_prerequisites(self):
         return []
-
-    def part_from_config_dict(self, config_dict):
-        return EnsembleTest.from_config_dict(config_dict)
 
     def grade(self, submission, path, parts):
         command = ['pytest', self.test_file, '--junitxml', 'report.xml']

@@ -1,23 +1,36 @@
 import json
 import os
 import re
-import shlex
 import tempfile
+from typing import Literal
 
 from ..submission import BrokenSubmissionError
-from ..utils import run_process, PIPE, STDOUT, TimeoutExpired
+from ..utils import ShlexCommand, run_process, PIPE, STDOUT, TimeoutExpired
 from ..grades import PartGrade, Fraction
 from . import Part, ThreadedGrader
 
 class CriterionTest(Part):
-    __slots__ = ('name', 'suite', 'test')
+    name: str
+    """
+    Name of test.
 
-    def __init__(self, name, suite, test="*", valgrind_deduction="1/2"):
-        self.name = name
-        self.suite = suite
-        self.test = test
-        self.valgrind_deduction = Fraction(valgrind_deduction)
-    
+    This is a descriptor which will be displayed on Gradescope.
+    """
+
+    suite: str
+    """
+    The suite identifier.
+    """
+
+    test: str = "*"
+    """
+    The test identifier.
+
+    This is the identifier used to distinguish test cases within a suite.
+    """
+
+    valgrind_deduction: Fraction = Fraction(1, 2)
+
     def description(self):
         return self.name
     
@@ -85,24 +98,24 @@ class CriterionTest(Part):
 
         return PartGrade(score=(passing / total) * deduct_factor, log=log)
 
-class CriterionGrader(ThreadedGrader):
-    def __init__(self, valgrind_cmd: "str | None" = None, total_timeout: float = 60, single_timeout: float = 3):
-        super(CriterionGrader, self).__init__(None)
+class CriterionGrader(ThreadedGrader[CriterionTest]):
+    kind: Literal["CriterionGrader"]
 
-        # If enabled, use Valgrind:
-        self.valgrind_cmd = None
-        if valgrind_cmd is not None:
-            self.valgrind_cmd = shlex.split(valgrind_cmd)
+    single_timeout: float = 3
+    """Timeout for a single test."""
 
-        # Configure timeout
-        self.single_timeout = float(single_timeout)
-        self.total_timeout = float(total_timeout)
+    total_timeout: float = 60
+    """Timeout for the autograder overall."""
 
+    valgrind_cmd: ShlexCommand | None = None
+    """Command to use to run Valgrind."""
+    
+    @classmethod
+    def Part(cls):
+        return CriterionTest
+    
     def list_prerequisites(self):
         return []
-
-    def part_from_config_dict(self, config_dict):
-        return CriterionTest.from_config_dict(config_dict)
     
     def grade_part(self, part, path, submission):
         return part.grade(path, self)

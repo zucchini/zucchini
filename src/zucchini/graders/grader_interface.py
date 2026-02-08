@@ -1,18 +1,41 @@
 from abc import ABC, abstractmethod
+from pathlib import Path
+from typing import Generic, TypeVar
+from typing_extensions import deprecated
+from pydantic import BaseModel
 
-from ..utils import ConfigDictMixin
+from zucchini.submission import Submission
 
+class Part(BaseModel, ABC):
+    """
+    Represents a 'part' of grading which has its own weight and its own
+    score: one prompt question, one unit test, etc.
+    """
 
-class GraderInterface(ConfigDictMixin, ABC):
-    def __init__(self):
+    weight: int
+    """Weight of part"""
+    # TODO: consider fractionalizing this?
+
+    partial_credit: bool = True
+    """Whether partial credit should be acceptable"""
+
+    @abstractmethod
+    def description(self):
         """
-        The class needs an init method that will take in all of its
-        desired options from the config file as keyword args. Required
-        options that need to be in the config file should not have
-        default values. Optional ones can have default values but still
-        need to exist as kwargs. Each of the elements in the options:
-        section of the component config of the assignment will be passed
-        as a keyword argument during initialization.
+        Return a human-friendly description for this part. Used in grade
+        breakdowns and logs.
+        """
+        pass
+
+P = TypeVar("P", bound=Part, covariant=True)
+class GraderInterface(BaseModel, ABC, Generic[P]):
+    @classmethod
+    @abstractmethod
+    def Part(cls) -> type[P]:
+        """
+        The part type of the grader.
+
+        You should return the class directly (e.g., `return Part`).
         """
         pass
 
@@ -47,19 +70,19 @@ class GraderInterface(ConfigDictMixin, ABC):
         """
         return False
 
-    @abstractmethod
-    def part_from_config_dict(self, config_dict):
+    @deprecated("should be able to just pass in parts directly")
+    def part_from_config_dict(self, config_dict) -> P: 
         """
         Convert and validate a dictionary parsed from the `parts'
         section of a component configuration to a Part instance.
         """
-        pass
+        return self.Part()(**config_dict)
 
     @abstractmethod
     def grade(self,
-              submission,
-              path,
-              parts):
+              submission: Submission,
+              path: Path,
+              parts: list[P]):
         """
         This function should take in a Submission object and a path,
         where the path can be assumed to be the root of the submission
@@ -67,30 +90,5 @@ class GraderInterface(ConfigDictMixin, ABC):
         copied the required files for this grader); then complete the
         grading on it, and then return a list of kasjdfkasjdfkj
         instances containing the result for each subcomponent.
-        """
-        pass
-
-
-class Part(ConfigDictMixin, ABC):
-    """
-    Represent a `part' of grading which has its own weight and its own
-    score: one prompt question, one unit test, etc.
-    """
-
-    @abstractmethod
-    def __init__(self):
-        """
-        Subclasses should override this method and include
-        required/optional config keys as arguments. Then you can simply
-        return MyPartSubclass.from_config_dict(config_dict) in
-        MyGrader.part_from_config_dict().
-        """
-        pass
-
-    @abstractmethod
-    def description(self):
-        """
-        Return a human-friendly description for this part. Used in grade
-        breakdowns and logs.
         """
         pass

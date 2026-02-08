@@ -1,22 +1,10 @@
 from abc import ABC, abstractmethod
 
-from ..utils import ConfigDictMixin
+from pydantic import BaseModel
 
-
-class PenalizerInterface(ConfigDictMixin, ABC):
+class PenalizerInterface(BaseModel, ABC):
     """Penalize a student outside component grades. Example: Late penalties"""
-    def __init__(self):
-        """
-        The class needs an init method that will take in all of its
-        desired options from the config file as keyword args. Required
-        options that need to be in the config file should not have
-        default values. Optional ones can have default values but still
-        need to exist as kwargs. Each of the elements in the options:
-        section of the component config of the assignment will be passed
-        as a keyword argument during initialization.
-        """
-        pass
-
+    
     @abstractmethod
     def adjust_grade(self,
                      submission,
