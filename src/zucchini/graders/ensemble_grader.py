@@ -3,8 +3,7 @@ import os
 from pathlib import Path
 from typing import Literal
 import xml.etree.ElementTree
-from ..submission import BrokenSubmissionError
-from ..utils import run_process, PIPE, STDOUT, TimeoutExpired
+from ..utils import run_command
 from ..grades import PartGrade
 from . import Part, GraderInterface
 
@@ -53,28 +52,8 @@ class EnsembleGrader(GraderInterface[EnsembleTest]):
 
     def grade(self, submission, path, parts):
         command = ['pytest', self.test_file, '--junitxml', 'report.xml']
-
-        try:
-            process = run_process(
-                command,
-                cwd=path,
-                timeout=self.timeout,
-                stdout=PIPE,
-                stderr=STDOUT,
-                input=''
-            )
-        except TimeoutExpired:
-            raise BrokenSubmissionError(
-                "timeout of {} seconds expired for grader"
-                .format(self.timeout)
-            )
-
-        if process.returncode != 0 and process.returncode != 1:
-            raise BrokenSubmissionError(
-                'grader command exited with exit code {}'
-                .format(process.returncode),
-                verbose=process.stdout.decode(errors='backslashreplace') if process.stdout else None
-            )
+        cmd_result = run_command(command, cwd=path, timeout=self.timeout)
+        cmd_result.check_returncode({ 0, 1 })
 
         report_xml_path = os.path.join(path, 'report.xml')
         report_xml = xml.etree.ElementTree.parse(report_xml_path)

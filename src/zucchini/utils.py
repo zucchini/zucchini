@@ -1,3 +1,4 @@
+import dataclasses
 from pathlib import Path
 import shlex
 from typing import Annotated, TypeAlias
@@ -9,6 +10,8 @@ import shutil
 import subprocess
 
 from pydantic import BeforeValidator
+
+from .exceptions import BrokenSubmissionError
 
 def recursive_get_using_string(collection, key: str):
     """
@@ -23,12 +26,100 @@ def recursive_get_using_string(collection, key: str):
     
     return item
 
-# TODO: remove all of these
-PIPE = subprocess.PIPE
-STDOUT = subprocess.STDOUT
-TimeoutExpired = subprocess.TimeoutExpired
-CompletedProcess = subprocess.CompletedProcess
-run_process = subprocess.run
+@dataclasses.dataclass(init=False, slots=True)
+class RunCommandResult:
+    """
+    A wrapper around `subprocess.CompletedProcess` to better support the needs of Zucchini graders.
+    """
+
+    returncode: int
+    """The command's return code."""
+
+    stdout: str
+    """STDOUT, as a print-safe string"""
+
+    stderr: str | None
+    """
+    STDERR, as a print-safe string (if it exists).
+    STDERR will only exist if stderr was set to `subprocess.PIPE`.
+    """
+
+    def __init__(self, p: subprocess.CompletedProcess[bytes]):
+        self.returncode = p.returncode
+        self.stdout = p.stdout.decode(errors="backslashreplace")
+        self.stderr = p.stderr.decode(errors="backslashreplace") if p.stderr is not None else None
+
+    def check_returncode(self, acceptable_error_codes: set[int] = { 0 }):
+        """
+        Checks the return code, raising `BrokenSubmissionError` if not an acceptable error code.
+
+        Parameters
+        ----------
+        acceptable_error_codes : set[int], optional
+            The acceptable error codes (by default, { 0 })
+
+        Raises
+        ------
+        BrokenSubmissionError
+            When return code is not in the `acceptable_error_codes` set.
+        """
+        if self.returncode not in acceptable_error_codes:
+            if self.stderr is None:
+                verbose = self.stdout
+            else:
+                verbose = "\n".join([self.stdout, self.stderr])
+
+            raise BrokenSubmissionError(
+                f"grader command exited with exit code {self.returncode}.",
+                verbose=verbose
+            )
+
+def run_command(
+        cmd, *,
+        cwd: Path | None = None,
+        timeout: float | None = None,
+        stderr = None,
+        input = None,
+    ):
+    """
+    Synchronously runs the command with `subprocess.run` and processes the output for grader use.
+
+    Parameters
+    ----------
+    cmd
+        The command, in `shlex.split` format
+    cwd : Path
+        The path of the current directory (cwd)
+    timeout : float, optional
+        The timeout before the command is canceled, by default None
+    stderr
+        Place to write STDERR. By default, it is piped into the STDOUT
+        (which is itself piped as the output of this function).
+    input
+        Input to pass to the command (as STDIN).
+    Returns
+    -------
+    RunCommandResult
+        A result type which provides the result of the command execution.
+
+    Raises
+    ------
+    BrokenSubmissionError
+        If a timeout occurs.
+    """
+    try:
+        p = subprocess.run(
+            cmd,
+            cwd=cwd,
+            stdout=subprocess.PIPE,
+            stderr=stderr or subprocess.STDOUT,
+            timeout=timeout,
+            input=input
+        )
+    except subprocess.TimeoutExpired:
+        raise BrokenSubmissionError(f"grader timed out after {timeout} seconds")
+    
+    return RunCommandResult(p)
 
 def _as_shlex_cmd(s: str | list[str]) -> list[str]:
     if isinstance(s, list):
