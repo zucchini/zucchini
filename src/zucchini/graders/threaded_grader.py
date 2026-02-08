@@ -1,10 +1,10 @@
-import queue
-import threading
-from multiprocessing import cpu_count
+from pathlib import Path
 from abc import abstractmethod
-from typing import Annotated, Generic
+from typing import Generic
+import concurrent.futures
 
-from pydantic import Field
+from ..grades import PartGrade
+from ..submission import Submission
 
 
 from ..graders.grader_interface import P
@@ -20,21 +20,15 @@ Actual graders can subclass this and implement grade_part() to become
 threaded!
 """
 
-def default_thread_count():
-    try:
-        return cpu_count()
-    except NotImplementedError:
-        return 1
-
 class ThreadedGrader(GraderInterface[P], Generic[P]):
     """
     A base class for graders to run parts in separate threads to speed
     up grading. Subclasses must implement grade_part().
     """
-    num_threads: Annotated[int, Field(default_factory=default_thread_count)]
+    num_threads: int | None = None
 
     @abstractmethod
-    def grade_part(self, part, path, submission):
+    def grade_part(self, part: P, path: Path, submission: Submission) -> PartGrade:
         """
         Grade a Part instance part, where the temporary grading
         directory is `path' and the Submission instance passed to
@@ -44,48 +38,23 @@ class ThreadedGrader(GraderInterface[P], Generic[P]):
         """
         pass
 
-    def run_thread(self, path, submission, part_queue, grades):
-        """
-        One grading thread. Dequeues parts from part_queue until
-        part_queue is empty and exits.
-        """
-
-        while True:
-            try:
-                part_index, part = part_queue.get(block=False)
-            except queue.Empty:
-                return
-
-            try:
-                grade = self.grade_part(part, path, submission)
-            except Exception as err:
-                grades[part_index] = err
-                return
-
-            grades[part_index] = grade
-
-    def grade(self, submission, path, parts):
+    def grade(self, submission, path, parts) -> list[PartGrade]:
         """Spin off the configured number of grading threads and grade."""
 
-        grades = [None] * len(parts)
-        threads = []
-        part_queue = queue.Queue()
+        grades: list[PartGrade | None] = [None] * len(parts)
 
-        for index_part in enumerate(parts):
-            part_queue.put(index_part)
+        try:
+            pool = concurrent.futures.ThreadPoolExecutor(thread_name_prefix="zgrader")
+            # Create all futures
+            futures = {pool.submit(self.grade_part, part, path, submission): i for i, part in enumerate(parts)}
+            for fut in concurrent.futures.as_completed(futures):
+                if (exc := fut.exception()) is not None:
+                    raise exc
+                
+                # When a future is completed, insert it into grades
+                index = futures[fut]
+                grades[index] = fut.result()
+        finally:
+            pool.shutdown(wait=True, cancel_futures=True)
 
-        for _ in range(self.num_threads):
-            args = (path, submission, part_queue, grades)
-            thread = threading.Thread(target=self.run_thread, args=args)
-            thread.start()
-            threads.append(thread)
-
-        for thread in threads:
-            thread.join()
-
-        # Look for exceptions
-        for grade in grades:
-            if isinstance(grade, Exception):
-                raise grade
-
-        return grades
+        return grades # type: ignore
