@@ -5,15 +5,15 @@ from typing import Literal
 from cyclopts import App
 import tomli
 
-from .assignment import Assignment2
-from .grades import AssignmentGrade2
-from .gradescope_model import GradescopeMetadata2
-from .gradescope_output_model import GradescopeOutput
-from .model import AssignmentConfig, AssignmentMetadata
+from zucchini.constants import ASSIGNMENT_CONFIG_FILE
 
-from .local_grading import LocalAutograderOutput2
-from .submission import Submission2
-from .zucchini import ZucchiniState
+from .assignment import Assignment, AssignmentConfig, AssignmentMetadata
+from .grades import AssignmentGrade
+from .gradescope_model import GradescopeMetadata
+from .gradescope_output_model import GradescopeOutput
+
+from .local_grading import LocalAutograderOutput
+from .submission import Submission
 
 app = App(
     help="A fun autograder management system for the whole family.",
@@ -21,7 +21,6 @@ app = App(
     help_formatter="plain",
     help_on_error=True,
 )
-state = ZucchiniState(assignment_directory=Path("."))
 ASSIGNMENT_DIR = Path(".")
 
 @app.command
@@ -38,12 +37,11 @@ def grade(
     """
     # TODO: Don't hardcode these
     GRADESCOPE_METADATA_FP = "/autograder/metadata"
-    ASSIGNMENT_CONFIG_FILE = "zucchini.toml"
 
     # Load assignment
     try:
         with open(GRADESCOPE_METADATA_FP, "rb") as f:
-            gs_metadata = GradescopeMetadata2.model_validate_json(f.read())
+            gs_metadata = GradescopeMetadata.model_validate_json(f.read())
             metadata = gs_metadata.as_metadata(submission_path)
             created_at = gs_metadata.created_at
     except FileNotFoundError:
@@ -54,8 +52,8 @@ def grade(
         data = tomli.load(f)
         config = AssignmentConfig.model_validate(data)
 
-    assignment = Assignment2(config, metadata)
-    submission = Submission2(submission_path, created_at)
+    assignment = Assignment(config, metadata)
+    submission = Submission(submission_path, created_at)
 
     grade = assignment.grade(submission)
     print(grade.model_dump_json())
@@ -79,10 +77,10 @@ def export(
         | zucc gradescope bridge /autograder/submission_metadata.json \\
         >/autograder/results/results.json
     """
-    grade = AssignmentGrade2.model_validate_json(sys.stdin.read())
+    grade = AssignmentGrade.model_validate_json(sys.stdin.read())
 
     if format_ == "text":
-        output = LocalAutograderOutput2.from_grade(grade)
+        output = LocalAutograderOutput.from_grade(grade)
         print(output)
     elif format_ == "gradescope":
         output = GradescopeOutput.from_grade(grade)

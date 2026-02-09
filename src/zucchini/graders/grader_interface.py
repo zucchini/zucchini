@@ -5,7 +5,7 @@ from typing import Generic, TypeVar
 from typing_extensions import deprecated
 
 from zucchini.grades import PartGrade
-from zucchini.submission import Submission2
+from zucchini.submission import Submission
 from zucchini.utils import KebabModel, ShlexCommand
 
 class Part(KebabModel, ABC):
@@ -80,7 +80,7 @@ class GraderInterface(KebabModel, ABC, Generic[P]):
         return self.Part().model_validate(config_dict)
 
     @abstractmethod
-    def grade(self, submission: Submission2, path: Path, parts: list[P]) -> list[PartGrade]:
+    def grade(self, submission: Submission, path: Path, parts: list[P]) -> list[PartGrade]:
         """
         Grades a submission.
 

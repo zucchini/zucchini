@@ -5,7 +5,7 @@ from fractions import Fraction
 from typing import Literal
 from typing_extensions import override
 
-from ..submission import BrokenSubmissionError
+from ..exceptions import BrokenSubmissionError
 from ..utils import run_command
 from ..grades import PartGrade
 from . import GraderInterface, Part
