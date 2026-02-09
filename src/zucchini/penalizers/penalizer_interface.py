@@ -1,12 +1,12 @@
 from abc import ABC, abstractmethod
 from fractions import Fraction
 
-from pydantic import BaseModel
+from zucchini.utils import KebabModel
 
 from zucchini.model import AssignmentMetadata
 from zucchini.submission import Submission2
 
-class PenalizerInterface(BaseModel, ABC):
+class PenalizerInterface(KebabModel, ABC):
     """Penalize a student outside component grades. Example: Late penalties"""
     
     @abstractmethod
