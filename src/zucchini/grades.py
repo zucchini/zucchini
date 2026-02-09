@@ -1,5 +1,7 @@
-import dataclasses
 from fractions import Fraction
+from typing import Annotated
+
+from pydantic import BaseModel, PlainSerializer, PlainValidator
 
 from zucchini.exceptions import BrokenSubmissionError
 
@@ -7,8 +9,7 @@ from .utils import ConfigDictMixin, Record
 
 """Store grades for components and parts."""
 
-@dataclasses.dataclass(slots=True)
-class PartGrade:
+class PartGrade(BaseModel):
     """
     The result of grading a singular part.
 
@@ -27,8 +28,7 @@ class PartGrade:
     log: str | None = None
     """Verbose logs after grading this part."""
 
-@dataclasses.dataclass(slots=True)
-class BoundPartGrade:
+class BoundPartGrade(BaseModel):
     """
     The result of grading a singular part and applying appropriate weights to it.
     """
@@ -50,14 +50,13 @@ class BoundPartGrade:
 
     def passed(self) -> bool:
         """Whether this part passed."""
-        return self.inner == 1
+        return self.inner.score == 1
     
     def points_received(self) -> Fraction:
         """The points received for this part, using normalized weight."""
         return self.inner.score * self.norm_weight
 
-@dataclasses.dataclass(slots=True)
-class ComponentGrade2:
+class ComponentGrade2(BaseModel):
     """
     The result of grading an assignment component.
     """
@@ -79,7 +78,11 @@ class ComponentGrade2:
     This may be none if the component produced a `BrokenSubmissionError`.
     """
 
-    error: BrokenSubmissionError | None = None
+    error: Annotated[
+        BrokenSubmissionError,
+        PlainValidator(lambda s: BrokenSubmissionError(s["error"], s["verbose"])),
+        PlainSerializer(lambda e: { "error": str(e), "verbose": e.verbose })
+    ] | None = None
     """
     Any submission errors which occurred during grading.
 
@@ -100,17 +103,14 @@ class ComponentGrade2:
             return Fraction(0)
         return sum((p.points_received() for p in self.parts), start=Fraction(0)) * self.norm_weight
     
-
-@dataclasses.dataclass(slots=True)
-class PenaltyDeduction:
+class PenaltyDeduction(BaseModel):
     name: str
     """Name of the deduction."""
 
     points_deducted: Fraction
     """Amount of points deducted due to this penalty."""
 
-@dataclasses.dataclass(slots=True)
-class AssignmentGrade2:
+class AssignmentGrade2(BaseModel):
     """
     The result of grading the assignment.
     """
