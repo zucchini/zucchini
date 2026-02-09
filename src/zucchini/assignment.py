@@ -1,3 +1,4 @@
+import dataclasses
 import os
 import shutil
 import tempfile
@@ -5,13 +6,55 @@ from fractions import Fraction
 from collections import namedtuple
 from ruamel.yaml import YAML
 
+from zucchini.model import AssignmentConfig, AssignmentMetadata
+from zucchini.submission import Submission2
+
 from .exceptions import BrokenSubmissionError
-from .grades import AssignmentComponentGrade, CalculatedGrade, \
-                    CalculatedPenalty
+from .grades import AssignmentComponentGrade, AssignmentGrade2, CalculatedGrade, \
+                    CalculatedPenalty, PenaltyDeduction
 from .graders import AVAILABLE_GRADERS
 from .penalizers import AVAILABLE_PENALIZERS
 from .constants import ASSIGNMENT_CONFIG_FILE, ASSIGNMENT_FILES_DIRECTORY
 from .utils import ConfigDictMixin, copy_globs, sanitize_path
+
+@dataclasses.dataclass
+class Assignment2:
+    config: AssignmentConfig
+    """
+    The Zucchini configuration for the assignment,
+    which specifies how it should be autograded.
+    """
+
+    metadata: AssignmentMetadata
+    """
+    The metadata for the assignment,
+    which may be used to inform grading decisions.
+    """
+    
+    def grade(self, submission: Submission2):
+        component_grades = [c.grade(submission, self.config.total_component_weight(), self.metadata) for c in self.config.components]
+        penalties: list[PenaltyDeduction] = []
+        
+        raw_grade = sum((cg.points_received() for cg in component_grades), start=Fraction(0)) * self.metadata.total_points
+        adjusted_grade = raw_grade
+        for p in self.config.penalties:
+            new_adjusted_grade = p.backend.adjust_grade(adjusted_grade, submission, self.metadata)
+
+            penalties.append(PenaltyDeduction(
+                name=p.name,
+                points_deducted=(adjusted_grade - new_adjusted_grade)
+            ))
+            adjusted_grade = new_adjusted_grade
+        
+
+        return AssignmentGrade2(
+            name=self.config.name,
+            raw_score=raw_grade,
+            final_score=adjusted_grade,
+            max_points=self.metadata.total_points,
+            components=component_grades,
+            penalties=penalties
+        )
 
 
 class ComponentPart(namedtuple('ComponentPart',

@@ -1,9 +1,141 @@
+import dataclasses
 from fractions import Fraction
+
+from zucchini.exceptions import BrokenSubmissionError
 
 from .utils import ConfigDictMixin, Record
 
 """Store grades for components and parts."""
 
+@dataclasses.dataclass(slots=True)
+class PartGrade:
+    """
+    The result of grading a singular part.
+
+    This is produced by Graders to indicate how complete a part is.
+    """
+
+    score: Fraction | int
+    """The percentage correct (must be in [0, 1])."""
+
+    deductions: list[str] | None = None
+    """
+    A list of strings which specify reasons points were deducted.
+    This is purely descriptive and will be shown to the end-user.
+    """
+
+    log: str | None = None
+    """Verbose logs after grading this part."""
+
+@dataclasses.dataclass(slots=True)
+class BoundPartGrade:
+    """
+    The result of grading a singular part and applying appropriate weights to it.
+    """
+
+    inner: PartGrade
+    """
+    Unweighted result.
+    """
+
+    description: str
+    """
+    Description of part (will be displayed on Gradescope)
+    """
+
+    norm_weight: Fraction
+    """
+    Normalized weight of part (within a component, is in [0, 1]).
+    """
+
+    def passed(self) -> bool:
+        """Whether this part passed."""
+        return self.inner == 1
+    
+    def points_received(self) -> Fraction:
+        """The points received for this part, using normalized weight."""
+        return self.inner.score * self.norm_weight
+
+@dataclasses.dataclass(slots=True)
+class ComponentGrade2:
+    """
+    The result of grading an assignment component.
+    """
+
+    norm_weight: Fraction
+    """
+    Normalized weight of component (within an assignment, is in [0, 1]).
+    """
+
+    description: str | None = None
+    """
+    Description for component.
+    """
+
+    parts: list[BoundPartGrade] | None = None
+    """
+    Grades of each part in the component.
+
+    This may be none if the component produced a `BrokenSubmissionError`.
+    """
+
+    error: BrokenSubmissionError | None = None
+    """
+    Any submission errors which occurred during grading.
+
+    This is `None` if no error occurred.
+    """
+
+    def passed(self) -> bool:
+        """Whether this component passed."""
+        return (
+            self.error is not None
+            and self.parts is not None
+            and all(p.passed() for p in self.parts)
+        )
+    
+    def points_received(self) -> Fraction:
+        """The total number of points received for this component, using normalized weight and prior to any applied penalties."""
+        if self.error or self.parts is None:
+            return Fraction(0)
+        return sum((p.points_received() for p in self.parts), start=Fraction(0)) * self.norm_weight
+    
+
+@dataclasses.dataclass(slots=True)
+class PenaltyDeduction:
+    name: str
+    """Name of the deduction."""
+
+    points_deducted: Fraction
+    """Amount of points deducted due to this penalty."""
+
+@dataclasses.dataclass(slots=True)
+class AssignmentGrade2:
+    """
+    The result of grading the assignment.
+    """
+
+    name: str
+    """
+    The name of the assignment.
+    """
+    raw_score: Fraction
+    """Normalized grade before penalties (in [0, 1])."""
+    final_score: Fraction
+    """Normalized grade after penalties (in [0, 1])."""
+
+    max_points: Fraction
+    """Maximum number of points."""
+
+    components: list[ComponentGrade2]
+    """Grades from components."""
+
+    penalties: list[PenaltyDeduction]
+    """Any penalty deductions."""
+
+    def final_grade(self) -> Fraction:
+        """Final grade, scaled to the number of points."""
+        return self.final_score * self.max_points
 
 class AssignmentComponentGrade(ConfigDictMixin):
     """Hold the score for an assignment component."""
@@ -81,54 +213,6 @@ class AssignmentComponentGrade(ConfigDictMixin):
         grade.points_delta = grade.points_got - grade.points_possible
 
         return grade
-
-
-class PartGrade(ConfigDictMixin):
-    """
-    Hold the results of grading one part.
-
-    score is the percentage passed as a Fraction instance, deductions is
-    a list of deduction ids, and log is a string containing verbose logs
-    for this part.
-    """
-
-    __slots__ = ('score', 'deductions', 'log')
-
-    def __init__(self, score, deductions=None, log=None):
-        self.score = Fraction(score)
-        self.deductions = deductions
-        self.log = log
-
-    def __repr__(self):
-        return '<PartGrade score={}, deductions={}, log={}>' \
-               .format(self.score, self.deductions, self.log)
-
-    def to_config_dict(self, *exclude):
-        result = super(PartGrade, self).to_config_dict(exclude)
-        # Convert Fraction instance to a string
-        result['score'] = str(result['score'])
-        return result
-
-    @classmethod
-    def from_config_dict(cls, config_dict):
-        part_grade = super(PartGrade, cls).from_config_dict(config_dict)
-        # Convert string to Fraction instance
-        part_grade.score = Fraction(part_grade.score)
-        return part_grade
-
-    def calculate_grade(self, points, part, partial_credit):
-        points_got = self.score * points
-        if not partial_credit and points_got < points:
-            points_got = Fraction(0)
-
-        return CalculatedPartGrade(name=part.description(),
-                                   points_delta=points_got - points,
-                                   points_got=points_got,
-                                   points_possible=points,
-                                   grade=self.score,
-                                   deductions=self.deductions,
-                                   log=self.log)
-
 
 class CalculatedGrade(Record):
     """

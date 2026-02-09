@@ -43,7 +43,7 @@ class Command(Part):
         return PartGrade(score=score, log=log)
 
 
-class MultiCommandGrader(GraderInterface):
+class MultiCommandGrader(GraderInterface[Command]):
     """
     Run a bunch of commands, testing the exit code of each.
     """

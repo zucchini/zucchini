@@ -7,8 +7,6 @@ from typing_extensions import override
 
 from pydantic import BaseModel, BeforeValidator
 
-from zucchini.submission import Submission
-
 from . import PenalizerInterface, InvalidPenalizerConfigError
 
 """Penalize a late submission."""
@@ -75,10 +73,9 @@ class LatePenalty(BaseModel):
     after: Annotated[dt.timedelta, BeforeValidator(_parse_timedelta)]
     penalty: Annotated[tuple[Fraction, LatePenaltyType], BeforeValidator(_parse_penalty)]
 
-    def is_late(self, submission: Submission):
+    def is_late(self, duration_late: dt.timedelta | None):
         """Whether the submission is late under this penalty."""
-        return submission.seconds_late is not None \
-               and submission.seconds_late * dt.timedelta(seconds=1) > self.after
+        return duration_late is not None and duration_late > self.after
 
     def adjust_grade(self, grade: Fraction):
         """Adjust the grade as though the submission is late."""
@@ -132,9 +129,15 @@ class LatePenalizer(PenalizerInterface):
     penalties: list[LatePenalty]
 
     @override
-    def adjust_grade(self, submission: Submission, grade: Fraction):
+    def adjust_grade(self, grade: Fraction, submission, metadata):
+        # Determine how late submission was:
+        duration_late = None
+        if submission.submit_date is not None and metadata.due_date is not None:
+            duration_late = submission.submit_date - metadata.due_date
+            
+        # Apply penalties accordingly:
         for penalty in self.penalties:
-            if penalty.is_late(submission):
+            if penalty.is_late(duration_late):
                 grade = penalty.adjust_grade(grade)
 
         return grade
