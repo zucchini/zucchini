@@ -35,7 +35,7 @@ class Assignment2:
         component_grades = [c.grade(submission, self.config.total_component_weight(), self.metadata) for c in self.config.components]
         penalties: list[PenaltyDeduction] = []
         
-        raw_grade = sum((cg.points_received() for cg in component_grades), start=Fraction(0)) * self.metadata.total_points
+        raw_grade = sum((cg.points_received() for cg in component_grades), start=Fraction(0))
         adjusted_grade = raw_grade
         for p in self.config.penalties:
             new_adjusted_grade = p.backend.adjust_grade(adjusted_grade, submission, self.metadata)

@@ -120,7 +120,7 @@ class GradescopeOutput(BaseModel):
             "component_grades": TypeAdapter(list[ComponentGrade2]).dump_json(grade.components)
         }
         return cls(
-            score=float(grade.final_score),
+            score=float(grade.final_grade()),
             tests=tests,
             extra_data=extra_data,
             output_format="ansi",
