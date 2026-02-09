@@ -5,7 +5,9 @@ from fractions import Fraction
 from typing import Annotated, Literal
 from typing_extensions import override
 
-from pydantic import BaseModel, BeforeValidator
+from pydantic import BeforeValidator
+
+from zucchini.utils import KebabModel
 
 from . import PenalizerInterface, InvalidPenalizerConfigError
 
@@ -63,7 +65,7 @@ def _parse_penalty(penalty_str: _UnitInput):
     else:
         raise InvalidPenalizerConfigError(f"unknown penalty unit {unit!r}. try a fraction optionally followed by 'pts' or 'max-pts'.")
 
-class LatePenalty(BaseModel):
+class LatePenalty(KebabModel):
     """
     A single penalty rule. 
     

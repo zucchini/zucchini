@@ -10,7 +10,7 @@ import os
 import shutil
 import subprocess
 
-from pydantic import BeforeValidator
+from pydantic import BaseModel, BeforeValidator, ConfigDict
 
 from .exceptions import BrokenSubmissionError
 
@@ -202,6 +202,13 @@ def datetime_from_string(date_str: str) -> dt.datetime:
 def datetime_to_string(datetime_obj: dt.datetime) -> str:
     """Convert a datetime UTC instance to a human-readable date/time string."""
     return datetime_obj.strftime(_DATETIME_FORMAT)
+
+class KebabModel(BaseModel):
+    """
+    A `pydantic.BaseModel`, 
+    which converts snake case fields to kebab case (`_` => `-`) in serialization.
+    """
+    model_config = ConfigDict(alias_generator=lambda field: field.replace("_", "-"))
 
 class ConfigDictMixin(object):
     @staticmethod

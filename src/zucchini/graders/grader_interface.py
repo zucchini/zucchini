@@ -3,13 +3,12 @@ from fractions import Fraction
 from pathlib import Path
 from typing import Generic, TypeVar
 from typing_extensions import deprecated
-from pydantic import BaseModel
 
 from zucchini.grades import PartGrade
 from zucchini.submission import Submission2
-from zucchini.utils import ShlexCommand
+from zucchini.utils import KebabModel, ShlexCommand
 
-class Part(BaseModel, ABC):
+class Part(KebabModel, ABC):
     """
     Represents a 'part' of grading which has its own weight and its own
     score: one prompt question, one unit test, etc.
@@ -30,7 +29,7 @@ class Part(BaseModel, ABC):
         pass
 
 P = TypeVar("P", bound=Part)
-class GraderInterface(BaseModel, ABC, Generic[P]):
+class GraderInterface(KebabModel, ABC, Generic[P]):
     @classmethod
     @abstractmethod
     def Part(cls) -> type[P]:

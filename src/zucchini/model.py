@@ -6,12 +6,12 @@ from fractions import Fraction
 from pathlib import Path
 import tempfile
 from typing import Annotated
-from pydantic import BaseModel, BeforeValidator, Field, ValidationInfo
+from pydantic import BeforeValidator, Field, ValidationInfo
 
 from zucchini.exceptions import BrokenSubmissionError
 from zucchini.grades import BoundPartGrade, ComponentGrade2
 from zucchini.submission import Submission2
-from zucchini.utils import copy_globs
+from zucchini.utils import KebabModel, copy_globs
 
 from .graders import SupportedGrader
 from .graders.grader_interface import GraderInterface, Part
@@ -42,7 +42,7 @@ class IntoMetadata(ABC):
         """Converts the type into metadata."""
         pass
 
-class Penalizer(BaseModel):
+class Penalizer(KebabModel):
     """
     A penalizer config definition, which can use any defined `PenalizerInterface`.
     """
@@ -63,7 +63,7 @@ def _select_part(n, info: ValidationInfo):
 
     return backend.Part()(**n)
 
-class AssignmentComponent(BaseModel):
+class AssignmentComponent(KebabModel):
     """
     A component which is graded with the same backend and files.
     """
@@ -124,7 +124,7 @@ class AssignmentComponent(BaseModel):
             return ComponentGrade2(norm_weight=norm_weight, parts=parts)
 
 
-class AssignmentConfig(BaseModel):
+class AssignmentConfig(KebabModel):
     """
     A full assignment, which can be graded.
     """
