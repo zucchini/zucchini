@@ -5,7 +5,7 @@ from typing import Annotated
 from typing_extensions import override
 from pydantic import BaseModel, Field
 
-from zucchini.model import AssignmentMetadata, IntoMetadata
+from .assignment import AssignmentMetadata, IntoMetadata
 
 
 class GradescopeUserAssignment(BaseModel):
@@ -87,7 +87,7 @@ class GradescopePreviousSubmission(BaseModel):
     # results: list[...]
     # Don't want to implement this
 
-class GradescopeMetadata2(BaseModel, IntoMetadata):
+class GradescopeMetadata(BaseModel, IntoMetadata):
     submission_id: Annotated[int, Field(alias="id")]
     """ID of submission."""
 

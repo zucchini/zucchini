@@ -2,7 +2,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, TypeAdapter
 
 from zucchini.exceptions import BrokenSubmissionError
-from zucchini.grades import AssignmentGrade2, ComponentGrade2
+from zucchini.grades import AssignmentGrade, ComponentGrade
 
 OutputVisibility = Literal["hidden", "after_due_date", "after_published", "visible"]
 """
@@ -69,7 +69,7 @@ class GradescopeOutput(BaseModel):
     tests: list[GradescopeTestOutput] | None = None
 
     @classmethod
-    def from_grade(cls, grade: AssignmentGrade2):
+    def from_grade(cls, grade: AssignmentGrade):
         tests: list[GradescopeTestOutput] = []
         
         # Penalties:
@@ -117,7 +117,7 @@ class GradescopeOutput(BaseModel):
                     ))
 
         extra_data = {
-            "component_grades": TypeAdapter(list[ComponentGrade2]).dump_json(grade.components)
+            "component_grades": TypeAdapter(list[ComponentGrade]).dump_json(grade.components)
         }
         return cls(
             score=float(grade.final_grade()),

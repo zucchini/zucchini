@@ -74,7 +74,7 @@ class CriterionTest(Part):
                 out = cmd_result.stdout
 
                 if re.search(r"^==\d+==.*$", out, re.MULTILINE): # Valgrind failed
-                    return PartGrade(1 - self.valgrind_deduction, log=out)
+                    return PartGrade(score=1 - self.valgrind_deduction, log=out)
             return PartGrade(score=1, log="")
         
         log_line_pattern = r"^\s*\[(?:----|FAIL)\].*"
