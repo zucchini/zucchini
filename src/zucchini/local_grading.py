@@ -12,7 +12,6 @@ class LocalAutograderOutput2:
 
     @classmethod
     def from_grade(cls, grade: AssignmentGrade2):
-        computed_grade = grade.final_grade()
         output = []
         any_errors = False
         for component in grade.components:
@@ -24,13 +23,13 @@ class LocalAutograderOutput2:
                 for part in (component.parts or []):
                     points_got = part.points_received() * component.norm_weight * grade.max_points
                     points_max = part.norm_weight * component.norm_weight * grade.max_points
-                    points = f'{points_got:.2f}/{points_max:.2f}'
+                    points = f'{float(points_got):.2f}/{float(points_max):.2f}'
                     if part.passed():
+                        output.append(f"TEST: {part.description:45} {'PASSED':15} ({points})")
+                    else:
                         output.append(f"TEST: {part.description:45} {'FAILED':15} ({points})")
                         output.append(part.inner.log)
-                    else:
-                        output.append(f"TEST: {part.description:45} {'PASSED':15} ({points})")
-        score = f'Total score: {100 * computed_grade:.2f}%'
+        score = f'Total score: {float(100 * grade.final_score):.2f}%'
         output.append(score)
         if any_errors:
             output.append('Some errors occurred; the score above may not be'
