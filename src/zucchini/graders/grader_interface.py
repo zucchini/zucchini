@@ -6,7 +6,7 @@ from typing_extensions import deprecated
 from pydantic import BaseModel
 
 from zucchini.grades import PartGrade
-from zucchini.submission import Submission
+from zucchini.submission import Submission2
 from zucchini.utils import ShlexCommand
 
 class Part(BaseModel, ABC):
@@ -22,7 +22,7 @@ class Part(BaseModel, ABC):
     """Whether partial credit should be acceptable"""
 
     @abstractmethod
-    def description(self):
+    def description(self) -> str:
         """
         Return a human-friendly description for this part. Used in grade
         breakdowns and logs.
@@ -81,7 +81,7 @@ class GraderInterface(BaseModel, ABC, Generic[P]):
         return self.Part()(**config_dict)
 
     @abstractmethod
-    def grade(self, submission: Submission, path: Path, parts: list[P]) -> list[PartGrade]:
+    def grade(self, submission: Submission2, path: Path, parts: list[P]) -> list[PartGrade]:
         """
         Grades a submission.
 

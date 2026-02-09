@@ -5,7 +5,7 @@ from typing_extensions import override
 import concurrent.futures
 
 from ..grades import PartGrade
-from ..submission import Submission
+from ..submission import Submission2
 
 
 from ..graders.grader_interface import P
@@ -29,7 +29,7 @@ class ThreadedGrader(GraderInterface[P], Generic[P]):
     num_threads: int | None = None
 
     @abstractmethod
-    def grade_part(self, part: P, path: Path, submission: Submission) -> PartGrade:
+    def grade_part(self, part: P, path: Path, submission: Submission2) -> PartGrade:
         """
         Grade a Part instance part, where the temporary grading
         directory is `path' and the Submission instance passed to
@@ -40,7 +40,7 @@ class ThreadedGrader(GraderInterface[P], Generic[P]):
         pass
 
     @override
-    def grade(self, submission, path, parts) -> list[PartGrade]:
+    def grade(self, submission: Submission2, path: Path, parts: list[P]) -> list[PartGrade]:
         """Spin off the configured number of grading threads and grade."""
 
         grades: list[PartGrade | None] = [None] * len(parts)

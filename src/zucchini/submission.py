@@ -1,10 +1,18 @@
+import dataclasses
+import datetime
 import os
 import json
+from pathlib import Path
 
 from .exceptions import BrokenSubmissionError
 from .grades import AssignmentComponentGrade
 from .constants import SUBMISSION_META_FILE, SUBMISSION_FILES_DIRECTORY
 from .utils import ConfigDictMixin, datetime_to_string, copy_globs
+
+@dataclasses.dataclass
+class Submission2:
+    submission_dir: Path
+    submit_date: datetime.datetime | None
 
 class Submission(ConfigDictMixin):
     def __init__(self, student_name, assignment, metadata_path, files_path,
