@@ -8,6 +8,7 @@ import tempfile
 from typing import Annotated
 from pydantic import BeforeValidator, Field, ValidationInfo
 
+from zucchini.constants import ASSIGNMENT_FILES_DIRECTORY
 from zucchini.exceptions import BrokenSubmissionError
 from zucchini.grades import BoundPartGrade, ComponentGrade2
 from zucchini.submission import Submission2
@@ -103,7 +104,7 @@ class AssignmentComponent(KebabModel):
             # Copy all submission files over
             copy_globs(self.files, submission.submission_dir, grading_dir)
             # Copy all grading files over
-            copy_globs(self.grading_files, asg_metadata.tester_dir, grading_dir)
+            copy_globs(self.grading_files, asg_metadata.tester_dir / ASSIGNMENT_FILES_DIRECTORY, grading_dir)
 
             # Perform grading:
             norm_weight = _div_or_zero(self.weight, total_component_weight)

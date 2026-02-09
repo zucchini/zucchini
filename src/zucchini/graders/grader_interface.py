@@ -77,7 +77,7 @@ class GraderInterface(KebabModel, ABC, Generic[P]):
         Convert and validate a dictionary parsed from the `parts'
         section of a component configuration to a Part instance.
         """
-        return self.Part()(**config_dict)
+        return self.Part().model_validate(config_dict)
 
     @abstractmethod
     def grade(self, submission: Submission2, path: Path, parts: list[P]) -> list[PartGrade]:

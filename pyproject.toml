@@ -17,6 +17,7 @@ dependencies = [
     "cyclopts>=4.5.1",
     "pydantic>=2.12.5",
     "ruamel-yaml>=0.19.1",
+    "tomli>=2.4.0",
     "typing-extensions>=4.15.0",
 ]
 keywords = ["zucchini", "autograder", "gradescope"]
