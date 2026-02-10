@@ -1,4 +1,3 @@
-from abc import ABC, abstractmethod
 import dataclasses
 import datetime as dt
 from fractions import Fraction
@@ -13,7 +12,7 @@ from zucchini.graders import SupportedGrader
 from zucchini.graders.grader_interface import GraderInterface, Part
 from zucchini.penalizers.late_penalizer import LatePenalizer
 from zucchini.submission import Submission
-from zucchini.utils import KebabModel, copy_globs
+from zucchini.utils import KebabModel, OptionalList, copy_globs
 
 from .grades import AssignmentGrade, BoundPartGrade, ComponentGrade, PenaltyDeduction
 
@@ -67,19 +66,19 @@ class AssignmentComponent(KebabModel):
     backend: Annotated[SupportedGrader, Field(discriminator="kind")]
     """The backend to use"""
     
-    files: list[str]
+    files: OptionalList[str]
     """
     Paths (globs) copied from the submission folder.
     This should hold all files which are submitted from the user.
     """
 
-    grading_files: list[str]
+    grading_files: OptionalList[str]
     """
     Paths (globs) copied from the grading folder.
     This should hold all files which are needed for grading.
     """
 
-    parts: list[Annotated[Part, BeforeValidator(_select_part)]]
+    parts: OptionalList[Annotated[Part, BeforeValidator(_select_part)]]
 
     def total_part_weight(self) -> Fraction:
         """Total weight defined by the parts of this component."""
@@ -125,10 +124,10 @@ class AssignmentConfig(KebabModel):
     author: str | None = None
     """Author of assignment"""
 
-    penalties: list[Penalizer]
+    penalties: OptionalList[Penalizer]
     """Any penalizers to impose on the assignment (e.g., late penalty)"""
 
-    components: list[AssignmentComponent]
+    components: OptionalList[AssignmentComponent]
     """
     Individual components which use the same backend and file configuration.
     """
