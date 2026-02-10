@@ -15,8 +15,9 @@ class LocalExporter(ExporterInterface):
         for component in grade.components:
             if component.error:
                 any_errors = True
-                output_arr.append(f"ERROR: {component.description:45} {component.error:15}")
-                output_arr.append(f"Details: {component.error.verbose:45}")
+                output_arr.append(f"ERROR: {str(component.description):45} {component.error.message:15}")
+                if component.error.verbose:
+                    output_arr.append(f"Details: {component.error.verbose:45}")
             else:
                 for part in (component.parts or []):
                     points_got = part.points_received() * component.norm_weight * grade.max_points

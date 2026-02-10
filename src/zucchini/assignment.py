@@ -99,7 +99,7 @@ class AssignmentComponent(KebabModel):
             try:
                 grades = self.backend.grade(submission, grading_dir, parts_)
             except BrokenSubmissionError as e:
-                return ComponentGrade(norm_weight=norm_weight, error=e)
+                return ComponentGrade(norm_weight=norm_weight, description=self.name, error=e)
             
             total_part_weight = self.total_part_weight()
             parts = [
@@ -110,7 +110,7 @@ class AssignmentComponent(KebabModel):
                 )
                 for (p, g) in zip(self.parts, grades)
             ]
-            return ComponentGrade(norm_weight=norm_weight, parts=parts)
+            return ComponentGrade(norm_weight=norm_weight, description=self.name, parts=parts)
 
 
 class AssignmentConfig(KebabModel):
