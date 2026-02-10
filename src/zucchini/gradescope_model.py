@@ -2,10 +2,9 @@ import datetime as dt
 
 from fractions import Fraction
 from typing import Annotated
-from typing_extensions import override
 from pydantic import BaseModel, Field
 
-from .assignment import AssignmentMetadata, IntoMetadata
+from .assignment import AssignmentMetadata
 
 
 class GradescopeUserAssignment(BaseModel):
@@ -87,7 +86,7 @@ class GradescopePreviousSubmission(BaseModel):
     # results: list[...]
     # Don't want to implement this
 
-class GradescopeMetadata(BaseModel, IntoMetadata):
+class GradescopeMetadata(BaseModel):
     submission_id: Annotated[int, Field(alias="id")]
     """ID of submission."""
 
@@ -110,10 +109,8 @@ class GradescopeMetadata(BaseModel, IntoMetadata):
         """Due date for the assignment (based on the users' due dates)."""
         return max(u.assignment.due_date for u in self.users)
     
-    @override
-    def as_metadata(self, tester_dir):
+    def as_metadata(self):
         return AssignmentMetadata(
             total_points=self.assignment.outline[0].weight,
-            tester_dir=tester_dir,
             due_date=self.due_date(),
         )
