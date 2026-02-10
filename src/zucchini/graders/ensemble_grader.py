@@ -1,6 +1,5 @@
-import os
-
 from pathlib import Path
+import tempfile
 from typing import Literal
 from typing_extensions import override
 
@@ -57,11 +56,13 @@ class EnsembleGrader(GraderInterface[EnsembleTest]):
 
     @override
     def grade(self, submission, path, parts):
-        command = ['pytest', self.test_file, '--junitxml', 'report.xml']
+        result_file = tempfile.NamedTemporaryFile(prefix='zlog-', suffix='.xml', dir=path, delete=True)
+        result_file.close() # Close file to allow subprocess to write
+        
+        command = ['pytest', self.test_file, '--junitxml', result_file.name]
         cmd_result = run_command(command, cwd=path, timeout=self.timeout)
         cmd_result.check_returncode({ 0, 1 })
 
-        report_xml_path = os.path.join(path, 'report.xml')
-        report_xml = xml.etree.ElementTree.parse(report_xml_path)
+        report_xml = xml.etree.ElementTree.parse(result_file.name)
 
         return [part.grade(report_xml.find(f'.//testcase[@name=\'{part.name}\']')) for part in parts]

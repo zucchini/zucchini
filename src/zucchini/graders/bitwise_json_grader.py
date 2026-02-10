@@ -1,4 +1,3 @@
-import os
 import json
 import tempfile
 from fractions import Fraction
@@ -95,17 +94,15 @@ class BitwiseJSONGrader(GraderInterface[BitwiseJSONMethod]):
 
     @override
     def grade(self, submission, path, parts):
-        gradelog_fp, gradelog_path = tempfile.mkstemp(prefix='log-',
-                                                      suffix='.json', dir=path)
-        # Don't leak fds
-        os.close(gradelog_fp)
+        result_file = tempfile.NamedTemporaryFile(prefix='zlog-', suffix='.json', dir=path, delete=True)
+        result_file.close() # Close file to allow subprocess to write
 
         # Run command:
-        cmdline = ['java', '-jar', self.grader_jar, '-z', self.source_file, gradelog_path]
+        cmdline = ['java', '-jar', self.grader_jar, '-z', self.source_file, result_file.name]
         cmd_result = run_command(cmdline, cwd=path, timeout=self.timeout)
         cmd_result.check_returncode()
 
-        with open(gradelog_path) as gradelog_file:
+        with open(result_file.name) as gradelog_file:
             gradelog = json.load(gradelog_file)
 
         if gradelog.get('errorMessage', None):

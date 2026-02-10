@@ -1,5 +1,4 @@
 import json
-import os
 import re
 import tempfile
 from typing import Literal
@@ -36,13 +35,13 @@ class CriterionTest(Part):
         return self.name
     
     def grade(self, path, grader):
-        resultfile_fd, resultfile_fp = tempfile.mkstemp(prefix="log-", dir=path)
-        os.close(resultfile_fd)
+        result_file = tempfile.NamedTemporaryFile(prefix='zlog-', suffix='.json', dir=path, delete=True)
+        result_file.close() # Close file to allow subprocess to write
 
         flags = [
             "--timeout", str(grader.single_timeout),
             f"--filter={self.suite}/{self.test}",
-            f"--json={resultfile_fp}"
+            f"--json={result_file.name}"
         ]
 
         command = ['./tests', *flags]
@@ -54,7 +53,7 @@ class CriterionTest(Part):
         cmd_result = run_command(command, cwd=path, timeout=grader.total_timeout)
         out = cmd_result.stdout
 
-        with open(resultfile_fp, "r") as f:
+        with open(result_file.name, "r") as f:
             try:
                 report_data = json.load(f)
             except json.JSONDecodeError:
