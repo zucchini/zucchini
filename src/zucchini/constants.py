@@ -1,2 +1,0 @@
-ASSIGNMENT_CONFIG_FILE = "zucchini.toml"
-ASSIGNMENT_FILES_DIRECTORY = "grading-files"

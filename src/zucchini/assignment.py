@@ -8,7 +8,6 @@ from typing import Annotated
 
 from pydantic import BeforeValidator, Field, ValidationInfo
 
-from zucchini.constants import ASSIGNMENT_FILES_DIRECTORY
 from zucchini.exceptions import BrokenSubmissionError
 from zucchini.graders import SupportedGrader
 from zucchini.graders.grader_interface import GraderInterface, Part
@@ -27,21 +26,11 @@ def _div_or_zero(a: Fraction, b: int | Fraction):
 
 @dataclasses.dataclass(slots=True)
 class AssignmentMetadata:
-    total_points: Fraction
+    total_points: Fraction = Fraction(100)
     """Total points the autograded portion of the assignment is worth."""
-
-    tester_dir: Path
-    """Directory where test/grading files are located."""
 
     due_date: dt.datetime | None = None
     """Date assignment is due."""
-
-class IntoMetadata(ABC):
-    """Indicates this type can be converted into `AssignmentMetadata`."""
-    @abstractmethod
-    def as_metadata(self, tester_dir: Path) -> AssignmentMetadata:
-        """Converts the type into metadata."""
-        pass
 
 class Penalizer(KebabModel):
     """
@@ -96,7 +85,7 @@ class AssignmentComponent(KebabModel):
         """Total weight defined by the parts of this component."""
         return sum((p.weight for p in self.parts), start=Fraction(0))
 
-    def grade(self, submission: Submission, total_component_weight: Fraction, asg_metadata: AssignmentMetadata) -> ComponentGrade:
+    def grade(self, submission: Submission, total_component_weight: Fraction, test_dir: Path) -> ComponentGrade:
         with tempfile.TemporaryDirectory(prefix="zcomponent-") as grading_dir:
             grading_dir = Path(grading_dir)
             parts_: list = self.parts
@@ -104,7 +93,7 @@ class AssignmentComponent(KebabModel):
             # Copy all submission files over
             copy_globs(self.files, submission.submission_dir, grading_dir)
             # Copy all grading files over
-            copy_globs(self.grading_files, asg_metadata.tester_dir / ASSIGNMENT_FILES_DIRECTORY, grading_dir)
+            copy_globs(self.grading_files, test_dir, grading_dir)
 
             # Perform grading:
             norm_weight = _div_or_zero(self.weight, total_component_weight)
@@ -157,6 +146,11 @@ class Assignment:
     which specifies how it should be autograded.
     """
 
+    grading_dir: Path
+    """
+    Directory where grading files are located.
+    """
+
     metadata: AssignmentMetadata
     """
     The metadata for the assignment,
@@ -164,7 +158,7 @@ class Assignment:
     """
     
     def grade(self, submission: Submission):
-        component_grades = [c.grade(submission, self.config.total_component_weight(), self.metadata) for c in self.config.components]
+        component_grades = [c.grade(submission, self.config.total_component_weight(), self.grading_dir) for c in self.config.components]
         penalties: list[PenaltyDeduction] = []
         
         raw_grade = sum((cg.points_received() for cg in component_grades), start=Fraction(0))
