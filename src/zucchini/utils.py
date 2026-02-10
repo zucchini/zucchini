@@ -2,12 +2,12 @@ import dataclasses
 import itertools
 from pathlib import Path
 import shlex
-from typing import Annotated, TypeAlias
+from typing import Annotated, TypeAlias, TypeVar
 import os
 import shutil
 import subprocess
 
-from pydantic import BaseModel, BeforeValidator, ConfigDict
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
 
 from .exceptions import BrokenSubmissionError
 
@@ -170,6 +170,13 @@ def copy_globs(globs: list[str], src_dir: os.PathLike[str], dest_dir: os.PathLik
         else:
             dest.parent.mkdir(parents=True, exist_ok=True)
             _copy_no_symlinks(src_file, dest)
+
+T = TypeVar("T")
+OptionalList = Annotated[list[T], Field(default_factory=list)]
+"""
+Pydantic type which allows for an optional list field.
+If the specified field is missing, the field is filled with an empty list.
+"""
 
 class KebabModel(BaseModel):
     """
