@@ -1,15 +1,14 @@
 from pathlib import Path
 import sys
-from typing import Literal
 from cyclopts import App
 import tomli
+
+from zucchini.exporters import EXPORTERS, ExporterKey
 
 from .assignment import Assignment, AssignmentConfig, AssignmentMetadata
 from .grades import AssignmentGrade
 from .gradescope_model import GradescopeMetadata
-from .gradescope_output_model import GradescopeOutput
 
-from .local_grading import LocalAutograderOutput
 from .submission import Submission
 
 app = App(
@@ -84,9 +83,7 @@ def grade(
     print(grade.model_dump_json())
 
 @app.command()
-def export(
-    format_: Literal["text", "gradescope"]
-):
+def export(format_: ExporterKey):
     """
     Convert component grades to some format JSON.
 
@@ -103,14 +100,13 @@ def export(
     """
     grade = AssignmentGrade.model_validate_json(sys.stdin.read())
 
-    if format_ == "text":
-        output = LocalAutograderOutput.from_grade(grade)
-        print(output)
-    elif format_ == "gradescope":
-        output = GradescopeOutput.from_grade(grade)
-        print(output.model_dump_json())
-    else:
+    Exporter = EXPORTERS.get(format_)
+    if Exporter is None:
         raise ValueError(f"Invalid format {format_!r}")
+    
+    exporter = Exporter()
+    exporter.export(grade, sys.stdout)
+    print()
 
 # @app.command()
 # def generate(
