@@ -7,7 +7,7 @@ from typing import Annotated
 
 from pydantic import BeforeValidator, Field, ValidationInfo
 
-from zucchini.exceptions import BrokenSubmissionError
+from zucchini.exceptions import BrokenSubmissionError, BrokenAutograderError, ZucchiniError
 from zucchini.graders import SupportedGrader
 from zucchini.graders.grader_interface import GraderInterface, Part
 from zucchini.penalizers.late_penalizer import LatePenalizer
@@ -88,18 +88,28 @@ class AssignmentComponent(KebabModel):
         with tempfile.TemporaryDirectory(prefix="zcomponent-") as grading_dir:
             grading_dir = Path(grading_dir)
             parts_: list = self.parts
-            
-            # Copy all submission files over
-            copy_globs(self.files, submission.submission_dir, grading_dir)
-            # Copy all grading files over
-            copy_globs(self.grading_files, test_dir, grading_dir)
-
-            # Perform grading:
             norm_weight = _div_or_zero(self.weight, total_component_weight)
+
             try:
+                try:
+                    # Copy all submission files over
+                    copy_globs(self.files, submission.submission_dir, grading_dir)
+                except FileNotFoundError as e:
+                    # This is user's fault
+                    raise BrokenSubmissionError(str(e)) from e
+            
+                # Copy all grading files over
+                copy_globs(self.grading_files, test_dir, grading_dir)
+
+                # Perform grading:
                 grades = self.backend.grade(submission, grading_dir, parts_)
-            except BrokenSubmissionError as e:
+
+            except ZucchiniError as e:
                 return ComponentGrade(norm_weight=norm_weight, description=self.name, error=e)
+            except Exception as e:
+                # If something breaks, we assume autograder broke it:
+                ze = BrokenAutograderError(str(e))
+                return ComponentGrade(norm_weight=norm_weight, description=self.name, error=ze)
             
             total_part_weight = self.total_part_weight()
             parts = [
