@@ -3,7 +3,7 @@ from typing import Annotated
 
 from pydantic import BaseModel, PlainSerializer, PlainValidator
 
-from zucchini.exceptions import BrokenSubmissionError
+from zucchini.exceptions import ZucchiniError
 
 """Store grades for components and parts."""
 
@@ -54,10 +54,6 @@ class BoundPartGrade(BaseModel):
         """The points received for this part, using normalized weight."""
         return self.inner.score * self.norm_weight
 
-def _validate_bse(s: dict | BrokenSubmissionError) -> BrokenSubmissionError:
-    if isinstance(s, BrokenSubmissionError): return s
-    return BrokenSubmissionError(s["error"], s["verbose"])
-
 class ComponentGrade(BaseModel):
     """
     The result of grading an assignment component.
@@ -81,9 +77,9 @@ class ComponentGrade(BaseModel):
     """
 
     error: Annotated[
-        BrokenSubmissionError,
-        PlainValidator(_validate_bse),
-        PlainSerializer(lambda e: { "error": str(e), "verbose": e.verbose })
+        ZucchiniError,
+        PlainValidator(ZucchiniError._validate),
+        PlainSerializer(ZucchiniError._serialize)
     ] | None = None
     """
     Any submission errors which occurred during grading.
