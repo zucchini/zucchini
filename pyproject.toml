@@ -30,12 +30,14 @@ classifiers=[
     'Programming Language :: Python :: 3.14',
 ]
 
-[project.optional-dependencies]
-dev = []
-
 [project.scripts]
 zucc = "zucchini.cli:app"
 
 [project.urls]
 Repository = "https://github.com/zucchini/zucchini"
 Documentation = "https://zucchini.readthedocs.io"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+]
