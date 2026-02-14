@@ -4,7 +4,7 @@ from fractions import Fraction
 from typing import Annotated
 from pydantic import BaseModel, Field
 
-from .assignment import AssignmentMetadata
+from zucchini.assignment import AssignmentMetadata
 
 
 class GradescopeUserAssignment(BaseModel):

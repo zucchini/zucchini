@@ -2,7 +2,7 @@ from typing import Literal
 from typing_extensions import override
 
 from zucchini.grades import AssignmentGrade
-from zucchini.gradescope_output_model import GradescopeOutput
+from zucchini.gradescope import GradescopeOutput
 
 from .exporter_interface import ExporterInterface, _export_str
 
