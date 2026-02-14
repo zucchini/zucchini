@@ -1,7 +1,7 @@
 from typing import Any, Literal
 from pydantic import BaseModel, TypeAdapter
 
-from zucchini.exceptions import BrokenSubmissionError
+from zucchini.exceptions import ZucchiniError
 from zucchini.grades import AssignmentGrade, ComponentGrade
 
 OutputVisibility = Literal["hidden", "after_due_date", "after_published", "visible"]
@@ -35,8 +35,16 @@ def _get_status(passed: bool) -> TestStatus:
     (as opposed to keeping track of weighted score).
     """
     return "passed" if passed else "failed"
-def _error_output(error: BrokenSubmissionError):
-    return f"{error}\n{error.verbose or ''}"
+def _error_output(error: ZucchiniError):
+    base = f"{error}\n{error.verbose or ''}".strip()
+    if error.is_it_autograders_fault:
+        ANSI_RED ="\x1b[31m"
+        ANSI_RESET = "\x1b[0m"
+        base += (
+            f"\n\n{ANSI_RED}This appears to be an autograder bug. "
+            f"Please report this as an autograder error to your instructors.{ANSI_RESET}"
+        )
+    return base
 
 class GradescopeTestOutput(BaseModel):
     score: float | None = None
