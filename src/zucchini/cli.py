@@ -65,7 +65,7 @@ def _get_assignment(submission_dir: Path, grading_dir: Path, gs_metadata_fp: Pat
 @app.command
 def grade(
     submission_path: Path = Path("/autograder/submission"),
-    metadata_path: Path = Path("/autograder/metadata")
+    metadata_path: Path = Path("/autograder/submission_metadata.json")
 ):
     """
     Grades a submission, located at the specified submission path.
