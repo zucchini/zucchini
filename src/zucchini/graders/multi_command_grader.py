@@ -1,10 +1,8 @@
 from fractions import Fraction
-from typing import Annotated, Literal
+from typing import Literal
 from typing_extensions import override
 
-from pydantic import Field
-
-from ..utils import ShlexCommand, run_command
+from ..utils import OptionalList, ShlexCommand, run_command
 from ..grades import PartGrade
 from . import GraderInterface, Part
 
@@ -53,7 +51,7 @@ class MultiCommandGrader(GraderInterface[Command]):
     timeout: float = 30
     """Timeout of autograder."""
 
-    extra_setup_commands: Annotated[list[ShlexCommand], Field(default_factory=list)]
+    extra_setup_commands: OptionalList[ShlexCommand]
 
     @override
     def list_extra_setup_commands(self):
