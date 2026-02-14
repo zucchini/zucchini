@@ -3,31 +3,43 @@
 
 """Tests for `zucchini` package."""
 
-
-import unittest
-from click.testing import CliRunner
-
+from fractions import Fraction
+from io import StringIO
+import os
+from textwrap import dedent
 from zucchini import cli
+from zucchini.grades import AssignmentGrade
 
+def test_grade_basic(tmp_path, capsys):
+    with open(tmp_path / "zucchini.toml", "w") as f:
+        f.write(dedent("""\
+        name = "Project 12"
+        
+        [[components]]
+        name = "Main Component"
+        weight = 100
+        backend = { kind = "MultiCommandGrader" }
+        parts = [
+            { summary = "Passes", command = "true", weight = 1 }
+        ]
+        """))
+    
+    os.chdir(tmp_path)
+    cli.app(["grade"], result_action="return_value")
+    
+    # Check STDOUT is round-trippable as Grade:
+    stdout = capsys.readouterr().out
+    print(AssignmentGrade.model_validate_json(stdout))
 
-class TestZucchini(unittest.TestCase):
-    """Tests for `zucchini` package."""
+def test_export_basic(monkeypatch):
+    grade = AssignmentGrade(
+        name="Project 13",
+        raw_score=Fraction(1),
+        final_score=Fraction(1),
+        max_points=Fraction(100),
+        components=[],
+        penalties=[]
+    )
 
-    def setUp(self):
-        """Set up test fixtures, if any."""
-
-    def tearDown(self):
-        """Tear down test fixtures, if any."""
-
-    def test_000_something(self):
-        """Test something."""
-
-    def test_command_line_interface(self):
-        """Test the CLI."""
-        runner = CliRunner()
-        result = runner.invoke(cli.cli)
-        assert result.exit_code == 0
-        assert 'zucchini, a fun autograder for the' in result.output
-        help_result = runner.invoke(cli.cli, ['--help'])
-        assert help_result.exit_code == 0
-        assert 'Show this message and exit.' in help_result.output
+    monkeypatch.setattr("sys.stdin", StringIO(grade.model_dump_json()))
+    cli.app(["export", "--format", "local"], result_action="return_value")
