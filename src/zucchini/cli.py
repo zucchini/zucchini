@@ -7,7 +7,7 @@ from zucchini.exporters import EXPORTERS, ExporterKey
 
 from .assignment import Assignment, AssignmentConfig, AssignmentMetadata
 from .grades import AssignmentGrade
-from .gradescope_model import GradescopeMetadata
+from .gradescope import GradescopeMetadata
 
 from .submission import Submission
 
