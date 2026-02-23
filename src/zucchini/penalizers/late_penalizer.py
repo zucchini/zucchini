@@ -129,6 +129,18 @@ class LatePenalizer(PenalizerInterface):
 
     kind: Literal["LatePenalizer"]
     penalties: list[LatePenalty]
+    
+    apply_first: bool = False
+    """
+    Whether to apply only the earliest applicable penalty.
+
+    If True, this only applies the first penalty (chronologically) which is marked late.
+    If False, this applies all penalties marked late.
+
+    This field is particularly useful when thinking about penalties in terms of intervals.
+    If penalties are ordered chronologically, 
+    then a given penalty is applied if the submission time is between the current and next penalty.
+    """
 
     @override
     def adjust_grade(self, grade: Fraction, submission, metadata):
@@ -138,8 +150,12 @@ class LatePenalizer(PenalizerInterface):
             duration_late = submission.submit_date - metadata.due_date
             
         # Apply penalties accordingly:
-        for penalty in self.penalties:
+        penalties = sorted(self.penalties, key=lambda p: p.after)
+        for penalty in penalties:
             if penalty.is_late(duration_late):
                 grade = penalty.adjust_grade(grade)
+                # First penalty applied, don't apply any more penalties
+                if self.apply_first:
+                    break
 
         return grade
