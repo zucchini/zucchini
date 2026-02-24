@@ -68,11 +68,6 @@ class CircuitSimGrader(GraderInterface[CircuitSimTest]):
     """
 
     @override
-    @classmethod
-    def Part(cls):
-        return CircuitSimTest
-    
-    @override
     def list_prerequisites(self):
         # CircuitSim needs JavaFX
         return ['openjdk-8-jre', 'openjfx']
@@ -82,6 +77,10 @@ class CircuitSimGrader(GraderInterface[CircuitSimTest]):
         # CircuitSim needs JavaFX which needs a display server
         return True
 
+    @override
+    def Part(self, _cd):
+        return CircuitSimTest
+    
     @override
     def grade(self, submission, path, parts):
         cmdline = ['java', '-jar', self.grader_jar, '--zucchini',

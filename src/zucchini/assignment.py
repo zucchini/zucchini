@@ -50,7 +50,7 @@ def _select_part(n, info: ValidationInfo):
     if not isinstance(backend, GraderInterface):
         raise ValueError("Could not resolve part due to misconfigured backend")
 
-    return backend.Part()(**n)
+    return backend.create_part(n)
 
 class AssignmentComponent(KebabModel):
     """

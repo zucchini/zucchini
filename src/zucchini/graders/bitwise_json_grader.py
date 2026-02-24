@@ -76,11 +76,6 @@ class BitwiseJSONGrader(GraderInterface[BitwiseJSONMethod]):
     """
 
     @override
-    @classmethod
-    def Part(cls):
-        return BitwiseJSONMethod
-    
-    @override
     def list_prerequisites(self):
         return ['openjdk-8-jre-headless']
 
@@ -89,9 +84,9 @@ class BitwiseJSONGrader(GraderInterface[BitwiseJSONMethod]):
         return self.source_file.rsplit('.', maxsplit=1)[0]
     
     @override
-    def part_from_config_dict(self, config_dict):
-        return BitwiseJSONMethod(class_name=self.class_name(), **config_dict)
-
+    def Part(self, config_dict):
+        return BitwiseJSONMethod.model_validate({ "class_name": self.class_name(), **config_dict })
+    
     @override
     def grade(self, submission, path, parts):
         result_file = tempfile.NamedTemporaryFile(prefix='zlog-', suffix='.json', dir=path, delete=True)

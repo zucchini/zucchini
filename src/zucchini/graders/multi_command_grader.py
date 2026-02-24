@@ -58,8 +58,7 @@ class MultiCommandGrader(GraderInterface[Command]):
         return self.extra_setup_commands
 
     @override
-    @classmethod
-    def Part(cls):
+    def Part(self, _cd):
         return Command
 
     def grade(self, submission, path, parts):

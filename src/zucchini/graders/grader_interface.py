@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 from fractions import Fraction
 from pathlib import Path
 from typing import Generic, TypeVar
-from typing_extensions import deprecated
 
 from zucchini.grades import PartGrade
 from zucchini.submission import Submission
@@ -30,16 +29,6 @@ class Part(KebabModel, ABC):
 
 P = TypeVar("P", bound=Part)
 class GraderInterface(KebabModel, ABC, Generic[P]):
-    @classmethod
-    @abstractmethod
-    def Part(cls) -> type[P]:
-        """
-        The part type of the grader.
-
-        You should return the class directly (e.g., `return Part`).
-        """
-        pass
-
     def list_prerequisites(self) -> list[str]:
         """
         This function should return a list of Ubuntu 16.04 packages
@@ -70,15 +59,30 @@ class GraderInterface(KebabModel, ABC, Generic[P]):
         CircuitSim graders (since CircuitSim needs JavaFX).
         """
         return False
-
-    @deprecated("should be able to just pass in parts directly")
-    def part_from_config_dict(self, config_dict) -> P: 
+    
+    @abstractmethod
+    def Part(self, config_dict) -> type[P] | P:
         """
-        Convert and validate a dictionary parsed from the `parts'
-        section of a component configuration to a Part instance.
-        """
-        return self.Part().model_validate(config_dict)
+        The Part type of the grader.
 
+        You may either return the class itself (e.g., `return Part`)
+        or if you want to modify the default initialization behavior,
+        then return a new instance of the Part (using the dictionary above).
+        """
+
+    def create_part(self, config_dict) -> P:
+        """
+        Creates a Part instance from a given configuration dictionary.
+
+        This should not be overridden.
+        If you wish to override default Part initialization behavior,
+        overwrite `GraderInterface.Part` instead.
+        """
+        part = self.Part(config_dict)
+        if isinstance(part, type):
+            return part.model_validate(config_dict)
+        return part
+        
     @abstractmethod
     def grade(self, submission: Submission, path: Path, parts: list[P]) -> list[PartGrade]:
         """
