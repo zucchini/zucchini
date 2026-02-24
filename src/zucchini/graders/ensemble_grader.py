@@ -46,14 +46,13 @@ class EnsembleGrader(GraderInterface[EnsembleTest]):
     """Timeout for autograder."""
 
     @override
-    @classmethod
-    def Part(cls):
-        return EnsembleTest
-    
-    @override
     def list_prerequisites(self):
         return []
 
+    @override
+    def Part(self, _cd):
+        return EnsembleTest
+    
     @override
     def grade(self, submission, path, parts):
         result_file = tempfile.NamedTemporaryFile(prefix='zlog-', suffix='.xml', dir=path, delete=True)

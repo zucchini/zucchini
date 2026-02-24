@@ -98,13 +98,12 @@ class CriterionGrader(ThreadedGrader[CriterionTest]):
     """Command to use to run Valgrind."""
     
     @override
-    @classmethod
-    def Part(cls):
-        return CriterionTest
-    
-    @override
     def list_prerequisites(self):
         return []
+    
+    @override
+    def Part(self, _cd):
+        return CriterionTest
     
     @override
     def grade_part(self, part, path, submission):
