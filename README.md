@@ -18,18 +18,17 @@ zucc --help
 
 ## Getting Started with Development
 
-TODO (venv + install `.[dev]`)
+This package is built with [`uv`](https://docs.astral.sh/uv/).
+
+You can use the Zucchini command-line interface in development mode with: `uv run zucc --help`.
 
 ## Features
 
 - Unified grading infrastructure: eliminates maintenance load of ad-hoc per-assignment graders
 - Separates test results from computed grades: graders provide test results which are stored on disk, and then zucchini calculates grade based on the weight of each test. That is, graders do not perform grade calculation; they only gather information about students’ work
-- Simple configuration: update one YAML file and store your graders in git repositories for all your TAs
+- Simple configuration: update one TOML file and store your graders in git repositories for all your TAs
 - Relative weighting: no more twiddling with weights to get them to add up to 100
-- Import submissions from Gradescope, Canvas Assignments, or Canvas Quizzes
-- No more copy-and-pasting grades and commments: automated upload of Canvas grades and gradelogs
-- Flatten (extract) archived submissions
-- Gradescope integration: generate a Gradescope autograder tarball for an assignment with one command
+- Import submissions from Gradescope
 
 ## Credits
 
