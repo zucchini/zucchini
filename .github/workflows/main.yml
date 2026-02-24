@@ -59,5 +59,7 @@ jobs:
           resolution-strategy: "lowest"
       - name: Download wheels
         uses: actions/download-artifact@v7
+        with:
+          path: dist
       - name: Publish
         run: uv publish
