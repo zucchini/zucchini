@@ -1,3 +1,4 @@
+from fractions import Fraction
 from typing import Any, Literal
 from pydantic import BaseModel, TypeAdapter
 
@@ -35,6 +36,7 @@ def _get_status(passed: bool) -> TestStatus:
     (as opposed to keeping track of weighted score).
     """
     return "passed" if passed else "failed"
+
 def _error_output(error: ZucchiniError):
     base = f"{error}\n{error.verbose or ''}".strip()
     if error.is_it_autograders_fault:
@@ -46,9 +48,16 @@ def _error_output(error: ZucchiniError):
         )
     return base
 
+def _gs_float(f: Fraction | int):
+    """
+    Converts the value to a simplified decimal,
+    to prevent long floats from displaying in Gradescope.
+    """
+    return f"{f:.02f}"
+
 class GradescopeTestOutput(BaseModel):
-    score: float | None = None
-    max_score: float | None = None
+    score: str | int | None = None
+    max_score: str | int | None = None
     status: TestStatus | None = None
     name: str | None = None
     name_format: OutputFormat | None = None
@@ -65,7 +74,7 @@ class GradescopeOutput(BaseModel):
     <https://gradescope-autograders.readthedocs.io/en/latest/specs/#output-format>
     """
 
-    score: float | None = None
+    score: str | int | None = None
     execution_time: int | None = None
     output: str | None = None
     output_format: OutputFormat | None = None
@@ -83,7 +92,7 @@ class GradescopeOutput(BaseModel):
         # Penalties:
         for penalty in grade.penalties:
             if penalty.points_deducted != 0:
-                score = float(-max(0, penalty.points_deducted))
+                score = _gs_float(-max(0, penalty.points_deducted))
                 tests.append(GradescopeTestOutput(
                     name=penalty.name,
                     score=score,
@@ -95,8 +104,8 @@ class GradescopeOutput(BaseModel):
         for component in grade.components:
             if component.error:
                 # Broken error
-                score = float(component.points_received() * grade.max_points)
-                max_score = float(component.norm_weight * grade.max_points)
+                score = _gs_float(component.points_received() * grade.max_points)
+                max_score = _gs_float(component.norm_weight * grade.max_points)
 
                 tests.append(GradescopeTestOutput(
                     name=component.description,
@@ -108,8 +117,8 @@ class GradescopeOutput(BaseModel):
             else:
                 # Tests
                 for part in (component.parts or []):
-                    score = float(part.points_received() * component.norm_weight * grade.max_points)
-                    max_score = float(part.norm_weight * component.norm_weight * grade.max_points)
+                    score = _gs_float(part.points_received() * component.norm_weight * grade.max_points)
+                    max_score = _gs_float(part.norm_weight * component.norm_weight * grade.max_points)
 
                     deductions = ""
                     if part.inner.deductions:
@@ -128,7 +137,7 @@ class GradescopeOutput(BaseModel):
             "component_grades": TypeAdapter(list[ComponentGrade]).dump_json(grade.components)
         }
         return cls(
-            score=float(grade.final_grade()),
+            score=_gs_float(grade.final_grade()),
             tests=tests,
             extra_data=extra_data,
             output_format="ansi",
