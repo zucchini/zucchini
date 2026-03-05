@@ -131,7 +131,11 @@ class AssignmentConfig(KebabModel):
     name: str
     """Name of assignment"""
 
-    author: str | None = None
+    author: Annotated[
+        OptionalList[str],
+        # If string is provided (instead of a list), break up by commas:
+        BeforeValidator(lambda s: [a.strip() for a in s.split(",")] if isinstance(s, str) else s)
+    ]
     """Author of assignment"""
 
     penalties: OptionalList[Penalizer]
