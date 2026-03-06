@@ -53,7 +53,8 @@ def _gs_float(f: Fraction | int):
     Converts the value to a simplified decimal,
     to prevent long floats from displaying in Gradescope.
     """
-    return f"{f:.02f}"
+    # FIXME(3.12): Fraction.__format__ begins supporting .02f syntax in Py3.12
+    return f"{float(f):.02f}"
 
 class GradescopeTestOutput(BaseModel):
     score: str | int | None = None
