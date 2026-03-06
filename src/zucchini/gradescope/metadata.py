@@ -12,7 +12,7 @@ class GradescopeUserAssignment(BaseModel):
     """Release date of the assignment for the user."""
     due_date: dt.datetime
     """Due date of the assignment for the user."""
-    late_due_date: dt.datetime
+    late_due_date: dt.datetime | None = None
     """Late due date of the assignment for the user."""
 
 class GradescopeUser(BaseModel):
@@ -57,7 +57,7 @@ class GradescopeCurrentAssignment(BaseModel):
     """Default release date of the assignment."""
     due_date: dt.datetime
     """Default due date of the assignment."""
-    late_due_date: dt.datetime
+    late_due_date: dt.datetime | None = None
     """Default late due date of the assignment."""
     total_points: Fraction
     """Total points for the assignment."""
