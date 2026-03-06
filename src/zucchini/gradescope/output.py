@@ -93,7 +93,7 @@ class GradescopeOutput(BaseModel):
         # Penalties:
         for penalty in grade.penalties:
             if penalty.points_deducted != 0:
-                score = _gs_float(-max(0, penalty.points_deducted))
+                score = _gs_float(-max(0, penalty.points_deducted) * grade.max_points)
                 tests.append(GradescopeTestOutput(
                     name=penalty.name,
                     score=score,

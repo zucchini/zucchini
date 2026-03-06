@@ -106,7 +106,7 @@ class PenaltyDeduction(BaseModel):
     """Name of the deduction."""
 
     points_deducted: Fraction
-    """Amount of points deducted due to this penalty."""
+    """Amount of points deducted due to this penalty, using normalized weight."""
 
 class AssignmentGrade(BaseModel):
     """
