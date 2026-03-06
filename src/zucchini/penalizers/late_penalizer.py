@@ -165,6 +165,6 @@ class LatePenalizer(PenalizerInterface):
                 # Undo any penalty except last:
                 if self.apply_one:
                     new_grade = grade
-                new_grade = penalty.adjust_grade(grade)
+                new_grade = penalty.adjust_grade(new_grade)
 
         return new_grade
