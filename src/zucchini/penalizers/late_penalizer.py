@@ -19,11 +19,15 @@ class LatePenaltyType(enum.Enum):
     POINTS = 'pts'
     MAX_POINTS = 'max_pts'
 
-UNITS_REGEX = re.compile(r'^(?P<mag>[0-9/]+)\s*(?P<unit>[a-z_-]*)$')
+UNITS_REGEX = re.compile(r'^(?P<mag>[0-9/.]+)\s*(?P<unit>[a-z_-]*)$')
 _UnitInput = str | int | float | Fraction
 
 def _split_units(amount_str: _UnitInput) -> tuple[Fraction, str | None]:
-    if isinstance(amount_str, int | float | Fraction):
+    # Handle using the print version, instead of the literal float value
+    if isinstance(amount_str, float):
+        return Fraction(str(amount_str)), None
+    # Treat as no unit
+    if isinstance(amount_str, int | Fraction):
         return Fraction(amount_str), None
     
     match = UNITS_REGEX.match(amount_str.lower())
@@ -31,7 +35,11 @@ def _split_units(amount_str: _UnitInput) -> tuple[Fraction, str | None]:
     if match is None:
         raise InvalidPenalizerConfigError(f"unknown units format {amount_str!r}")
 
-    return Fraction(match.group('mag')), match.group('unit') or None
+    try:
+        mag = Fraction(match.group("mag"))
+    except ValueError:
+        raise InvalidPenalizerConfigError(f"cannot parse magnitude")
+    return mag, match.group('unit') or None
 
 def _parse_timedelta(time_str: _UnitInput):
     # If failure to split, we just let data pass
@@ -130,11 +138,11 @@ class LatePenalizer(PenalizerInterface):
     kind: Literal["LatePenalizer"]
     penalties: list[LatePenalty]
     
-    apply_first: bool = False
+    apply_one: bool = False
     """
-    Whether to apply only the earliest applicable penalty.
+    Whether to apply only the latest applicable penalty.
 
-    If True, this only applies the first penalty (chronologically) which is marked late.
+    If True, this only applies the last penalty (chronologically) which is marked late.
     If False, this applies all penalties marked late.
 
     This field is particularly useful when thinking about penalties in terms of intervals.
@@ -151,11 +159,12 @@ class LatePenalizer(PenalizerInterface):
             
         # Apply penalties accordingly:
         penalties = sorted(self.penalties, key=lambda p: p.after)
+        new_grade = grade
         for penalty in penalties:
             if penalty.is_late(duration_late):
-                grade = penalty.adjust_grade(grade)
-                # First penalty applied, don't apply any more penalties
-                if self.apply_first:
-                    break
+                # Undo any penalty except last:
+                if self.apply_one:
+                    new_grade = grade
+                new_grade = penalty.adjust_grade(grade)
 
-        return grade
+        return new_grade
