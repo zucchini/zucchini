@@ -140,14 +140,12 @@ def _copy_no_symlinks(src: os.PathLike[str] | str, dst: os.PathLike[str] | str):
         raise ValueError(f"Cannot copy: {src} is a symlink")
     
     return shutil.copy2(src, dst)
-def copy_globs(globs: list[str], src_dir: os.PathLike[str], dest_dir: os.PathLike[str]):
-    """
-    Copy files matched by `globs` (a list of glob strings) from src_dir
-    to dest_dir, maintaining directories if possible.
-    """
 
-    src_dir = Path(src_dir)
-    dest_dir = Path(dest_dir)
+def glob_get_files(globs: list[str], src_dir: Path) -> list[Path]:
+    """
+    Returns a list of paths obtained by the glob,
+    returning an error if any of the glob paths don't match anything in the source directory.
+    """
     files_to_copy: list[Path] = []
 
     # Do a first pass to check for missing files. This way, we don't
@@ -158,9 +156,20 @@ def copy_globs(globs: list[str], src_dir: os.PathLike[str], dest_dir: os.PathLik
         files_to_copy += src_dir.glob(file_glob)
 
         if len(files_to_copy) - old_len == 0: # No new files were added
-            raise FileNotFoundError(f"missing file {file_glob!r}")
+            raise FileNotFoundError(f"no file matches {file_glob!r} in {src_dir}")
+    
+    return files_to_copy
 
-    for src_file in files_to_copy:
+def copy_globs(globs: list[str], src_dir: os.PathLike[str], dest_dir: os.PathLike[str]):
+    """
+    Copy files matched by `globs` (a list of glob strings) from src_dir
+    to dest_dir, maintaining directories if possible.
+    """
+
+    src_dir = Path(src_dir)
+    dest_dir = Path(dest_dir)
+
+    for src_file in glob_get_files(globs, src_dir):
         rel_path = src_file.relative_to(src_dir)
         dest = dest_dir / rel_path
 

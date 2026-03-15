@@ -6,6 +6,7 @@ from cyclopts import App, Parameter
 import tomli
 
 from zucchini.exporters import EXPORTERS, ExporterKey
+from zucchini.utils import glob_get_files
 
 from .assignment import Assignment, AssignmentConfig, AssignmentMetadata
 from .grades import AssignmentGrade
@@ -72,7 +73,28 @@ def _io_manage(path: Path | None, fallback: TextIO, rw: Literal["r", "w"]):
         if resource is not fallback:
             resource.close()
 
-@app.command
+@app.command()
+def verify_config(autograder_path: Path = Path(".")):
+    """
+    Verifies the Zucchini config in the specified directory is valid.
+
+    Parameters
+    ----------
+    autograder_path: Path, optional
+        The path the config is located.
+
+        This path should contain a Zucchini configuration file (zucchini.toml)
+        and a "grading-files/" folder which contains the autograder test cases.
+    """
+    cfg = _get_assignment_cfg(autograder_path)
+
+    # Checks configs are correct:
+    for c in cfg.components:
+        glob_get_files(c.grading_files, autograder_path)
+
+    print(cfg.model_dump_json())
+
+@app.command()
 def grade(
     submission_path: Path = Path("/autograder/submission"),
     metadata_path: Path = Path("/autograder/submission_metadata.json"),
@@ -99,7 +121,7 @@ def grade(
         This path should contain a Zucchini configuration file (zucchini.toml)
         and a "grading-files/" folder which contains the autograder test cases.
     
-    output : Path, optional
+    output_ : Path, optional
         The output path to use. If unspecified, this defaults to sys.stdout.
     """
     assignment, submission = _get_assignment(submission_path, autograder_path, metadata_path)
