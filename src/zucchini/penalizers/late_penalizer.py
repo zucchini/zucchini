@@ -80,8 +80,8 @@ class LatePenalty(KebabModel):
     This applies a specified penalty only when the specified amount of time has passed.
     """
 
-    after: Annotated[dt.timedelta, BeforeValidator(_parse_timedelta)]
-    penalty: Annotated[tuple[Fraction, LatePenaltyType], BeforeValidator(_parse_penalty)]
+    after: Annotated[dt.timedelta, BeforeValidator(_parse_timedelta, json_schema_input_type=_UnitInput)]
+    penalty: Annotated[tuple[Fraction, LatePenaltyType], BeforeValidator(_parse_penalty, json_schema_input_type=_UnitInput)]
 
     def is_late(self, duration_late: dt.timedelta | None):
         """Whether the submission is late under this penalty."""

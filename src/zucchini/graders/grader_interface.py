@@ -13,7 +13,7 @@ class Part(KebabModel, ABC):
     score: one prompt question, one unit test, etc.
     """
 
-    weight: Fraction
+    weight: int | Fraction
     """Weight of part"""
 
     partial_credit: bool = True

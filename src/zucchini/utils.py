@@ -110,7 +110,7 @@ def _as_shlex_cmd(s: str | list[str]) -> list[str]:
     if isinstance(s, list):
         return s
     return shlex.split(s)
-ShlexCommand: TypeAlias = Annotated[list[str], BeforeValidator(_as_shlex_cmd)]
+ShlexCommand: TypeAlias = Annotated[list[str], BeforeValidator(_as_shlex_cmd, json_schema_input_type=(str | list[str]))]
 """
 Pydantic validator which accepts strings (and lists of strings) which act as script commands,
 and exposes the field as a split script command (as if from `shlex.split`).

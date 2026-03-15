@@ -16,12 +16,12 @@ from zucchini.utils import KebabModel, OptionalList, copy_globs
 
 from .grades import AssignmentGrade, BoundPartGrade, ComponentGrade, PenaltyDeduction
 
-def _div_or_zero(a: Fraction, b: int | Fraction):
+def _div_or_zero(a: int | Fraction, b: int | Fraction) -> Fraction:
     """
     Divides a by b, returning 0 if a division by zero error would occur.
     """
     if b == 0: return Fraction(0)
-    return a / b
+    return Fraction(a, b)
 
 @dataclasses.dataclass(slots=True)
 class AssignmentMetadata:
@@ -60,7 +60,7 @@ class AssignmentComponent(KebabModel):
     name: str
     """Name of component"""
 
-    weight: Fraction
+    weight: int | Fraction
     """Weight of component"""
 
     backend: Annotated[SupportedGrader, Field(discriminator="kind")]
@@ -82,7 +82,7 @@ class AssignmentComponent(KebabModel):
 
     def total_part_weight(self) -> Fraction:
         """Total weight defined by the parts of this component."""
-        return sum((p.weight for p in self.parts), start=Fraction(0))
+        return sum((Fraction(p.weight) for p in self.parts), start=Fraction(0))
 
     def grade(self, submission: Submission, total_component_weight: Fraction, test_dir: Path) -> ComponentGrade:
         with tempfile.TemporaryDirectory(prefix="zcomponent-") as grading_dir:
@@ -134,7 +134,10 @@ class AssignmentConfig(KebabModel):
     author: Annotated[
         OptionalList[str],
         # If string is provided (instead of a list), break up by commas:
-        BeforeValidator(lambda s: [a.strip() for a in s.split(",")] if isinstance(s, str) else s)
+        BeforeValidator(
+            lambda s: [a.strip() for a in s.split(",")] if isinstance(s, str) else s,
+            json_schema_input_type=(str | list[str])
+        )
     ]
     """Author of assignment"""
 
@@ -148,7 +151,7 @@ class AssignmentConfig(KebabModel):
 
     def total_component_weight(self) -> Fraction:
         """Total weight defined by the components of this assignment."""
-        return sum((c.weight for c in self.components), start=Fraction(0))
+        return sum((Fraction(c.weight) for c in self.components), start=Fraction(0))
 
 
 @dataclasses.dataclass
