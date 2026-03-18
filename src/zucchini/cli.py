@@ -1,15 +1,17 @@
 from contextlib import contextmanager
+from fractions import Fraction
 from pathlib import Path
 import sys
 from typing import Annotated, Literal, TextIO
 from cyclopts import App, Parameter
 import tomli
 
+from zucchini.exceptions import BrokenAutograderError
 from zucchini.exporters import EXPORTERS, ExporterKey
 from zucchini.utils import glob_get_files
 
 from .assignment import Assignment, AssignmentConfig, AssignmentMetadata
-from .grades import AssignmentGrade
+from .grades import AssignmentGrade, ComponentGrade
 from .gradescope import GradescopeMetadata
 
 from .submission import Submission
@@ -124,8 +126,24 @@ def grade(
     output_ : Path, optional
         The output path to use. If unspecified, this defaults to sys.stdout.
     """
-    assignment, submission = _get_assignment(submission_path, autograder_path, metadata_path)
-    grade = assignment.grade(submission)
+    try:
+        assignment, submission = _get_assignment(submission_path, autograder_path, metadata_path)
+        grade = assignment.grade(submission)
+    except Exception as e:
+        ze = BrokenAutograderError(str(e))
+        grade = AssignmentGrade(
+            name="Assignment",
+            raw_score=Fraction(0),
+            final_score=Fraction(0),
+            max_points=Fraction(0),
+            components=[ComponentGrade(
+                norm_weight=Fraction(1),
+                description="Unexpected error",
+                error=ze
+            )],
+            penalties=[]
+        )
+
     with _io_manage(output_, sys.stdout, "w") as out:
         print(grade.model_dump_json(), file=out)
 
