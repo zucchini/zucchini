@@ -92,7 +92,7 @@ def verify_config(autograder_path: Path = Path(".")):
 
     # Checks configs are correct:
     for c in cfg.components:
-        glob_get_files(c.grading_files, autograder_path)
+        glob_get_files(c.grading_files, autograder_path / ASSIGNMENT_FILES_DIR)
 
     print(cfg.model_dump_json())
 
