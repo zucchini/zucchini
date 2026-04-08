@@ -107,7 +107,10 @@ class GradescopeMetadata(BaseModel):
 
     def due_date(self):
         """Due date for the assignment (based on the users' due dates)."""
-        return max(u.assignment.due_date for u in self.users)
+        if len(self.users):
+            return max(u.assignment.due_date for u in self.users)
+        else:
+            return self.assignment.due_date
     
     def as_metadata(self):
         return AssignmentMetadata(
