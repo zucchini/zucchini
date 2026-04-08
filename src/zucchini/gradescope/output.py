@@ -1,4 +1,5 @@
 from fractions import Fraction
+import traceback
 from typing import Any, Literal
 from pydantic import BaseModel, TypeAdapter
 
@@ -38,15 +39,19 @@ def _get_status(passed: bool) -> TestStatus:
     return "passed" if passed else "failed"
 
 def _error_output(error: ZucchiniError):
-    base = f"{error}\n{error.verbose or ''}".strip()
     if error.is_it_autograders_fault:
+        base = traceback.format_exception(error, limit=3)
         ANSI_RED ="\x1b[31m"
         ANSI_RESET = "\x1b[0m"
-        base += (
-            f"\n\n{ANSI_RED}This appears to be an autograder bug. "
-            f"Please report this as an autograder error to your instructors.{ANSI_RESET}"
-        )
-    return base
+        return "\n".join([
+            *base,
+            "",
+            (
+                f"{ANSI_RED}This appears to be an autograder bug."
+                f"Please report this as an autograder error to your instructors.{ANSI_RESET}"
+            )
+        ])
+    return f"{error}\n{error.verbose or ''}".strip()
 
 def _gs_float(f: Fraction | int):
     """
